@@ -9,11 +9,14 @@ dist/
 build/
 *.tsbuildinfo
 
-# Environment variables
+# Environment variables — real secrets (never commit)
 .env
 .env.local
-.env.production
 .env.test
+*/.env.*
+# .env.production is committed as a CHANGE_ME template — the real file lives on the VPS only
+# If you put real secrets in .env.production, add it here:
+# .env.production
 
 # Firebase credentials
 firebase-credentials.json
