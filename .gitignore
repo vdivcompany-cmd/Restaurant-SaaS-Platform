@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.test
+
+# Firebase credentials
+firebase-credentials.json
+*.json.base64
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage
+coverage/
+.nyc_output/
+
+# AI IDE specific
+.gemini/
+.agents/
