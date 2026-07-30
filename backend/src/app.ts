@@ -14,6 +14,20 @@ import authRoutes from './modules/auth/routes.js';
 import tenantRoutes from './modules/tenants/routes.js';
 import subscriptionRoutes from './modules/subscriptions/routes.js';
 import billingRoutes from './modules/billing/routes.js';
+import restaurantRoutes from './modules/restaurants/routes.js';
+import branchRoutes from './modules/branches/routes.js';
+import categoryRoutes from './modules/categories/routes.js';
+import variantRoutes from './modules/variants/routes.js';
+import productRoutes from './modules/products/routes.js';
+import menuRoutes from './modules/menu/routes.js';
+import tableRoutes from './modules/tables/routes.js';
+import orderRoutes from './modules/orders/routes.js';
+import couponRoutes from './modules/coupons/routes.js';
+import customerRoutes from './modules/customers/routes.js';
+import employeeRoutes from './modules/employees/routes.js';
+import feedbackRoutes from './modules/feedback/routes.js';
+import reportRoutes from './modules/reports/routes.js';
+import notificationRoutes from './modules/notifications/routes.js';
 
 /**
  * Creates and configures the Express application.
@@ -80,6 +94,20 @@ export function createApp(): Express {
   app.use('/api/v1/tenants', tenantRoutes);
   app.use('/api/v1/subscriptions', subscriptionRoutes);
   app.use('/api/v1/billing', billingRoutes);
+  app.use('/api/v1/restaurants', restaurantRoutes);
+  app.use('/api/v1/branches', branchRoutes);
+  app.use('/api/v1/categories', categoryRoutes);
+  app.use('/api/v1/variants', variantRoutes);
+  app.use('/api/v1/products', productRoutes);
+  app.use('/api/v1/menu', menuRoutes);
+  app.use('/api/v1/tables', tableRoutes);
+  app.use('/api/v1/orders', orderRoutes);
+  app.use('/api/v1/coupons', couponRoutes);
+  app.use('/api/v1/customers', customerRoutes);
+  app.use('/api/v1/employees', employeeRoutes);
+  app.use('/api/v1/feedback', feedbackRoutes);
+  app.use('/api/v1/reports', reportRoutes);
+  app.use('/api/v1/notifications', notificationRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {

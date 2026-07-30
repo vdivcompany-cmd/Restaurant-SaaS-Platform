@@ -1,4 +1,4 @@
-import type { Model, ProjectionType, PipelineStage } from 'mongoose';
+import { type Model, type ProjectionType, type PipelineStage, Types } from 'mongoose';
 
 /**
  * Tenant Scoped Query Helper — MANDATORY for all Mongoose queries across modules.
@@ -54,6 +54,17 @@ export const tenantQuery = {
   ) {
     const scoped = scopeFilter(tenantId, { _id: id });
     return model.findOne(scoped, projection, options);
+  },
+
+  findOneAndUpdate<T>(
+    model: Model<T>,
+    tenantId: string | undefined,
+    filter: any,
+    update: any,
+    options?: any
+  ): any {
+    const scoped = scopeFilter(tenantId, filter);
+    return model.findOneAndUpdate(scoped, update, options);
   },
 
   updateOne<T>(
@@ -116,7 +127,10 @@ export const tenantQuery = {
     if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
       throw new TenantScopeError('TenantId scope missing for aggregation.');
     }
-    const tenantMatch: PipelineStage = { $match: { tenantId } };
+    const matchVal = Types.ObjectId.isValid(tenantId)
+      ? { $in: [tenantId, new Types.ObjectId(tenantId)] }
+      : tenantId;
+    const tenantMatch: PipelineStage = { $match: { tenantId: matchVal } };
     return model.aggregate<T>([tenantMatch, ...pipeline]);
   },
 

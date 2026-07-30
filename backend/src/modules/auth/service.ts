@@ -18,7 +18,7 @@ export interface TokenPair {
 export interface AuthResponse {
   user: {
     id: string;
-    tenantId: string;
+    tenantId?: string | undefined;
     email: string;
     role: AuthUser['role'];
     phone?: string;
@@ -30,15 +30,17 @@ const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export class AuthService {
-  private static generateTokens(userId: string, tenantId: string, role: AuthUser['role'], email: string): TokenPair {
+  private static generateTokens(userId: string, tenantId: string | null | undefined, role: AuthUser['role'], email: string): TokenPair {
+    const payload = { userId, role, email, ...(tenantId ? { tenantId } : {}) };
     const accessToken = jwt.sign(
-      { userId, tenantId, role, email },
+      payload,
       env.JWT_SECRET,
       { expiresIn: ACCESS_TOKEN_EXPIRY }
     );
 
+    const refreshPayload = { userId, type: 'refresh', ...(tenantId ? { tenantId } : {}) };
     const refreshToken = jwt.sign(
-      { userId, tenantId, type: 'refresh' },
+      refreshPayload,
       env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );
@@ -61,12 +63,21 @@ export class AuthService {
   }
 
   public static async register(data: RegisterInput): Promise<AuthResponse> {
-    const tenant = await TenantRepository.findById(data.tenantId);
+    if (data.role === 'super_admin') {
+      return this.createSuperAdmin(data);
+    }
+
+    if (!data.tenantId || typeof data.tenantId !== 'string' || data.tenantId.trim() === '') {
+      throw new AppError('Tenant ID is required for restaurant accounts', 400);
+    }
+    const tenantId = data.tenantId;
+
+    const tenant = await TenantRepository.findById(tenantId);
     if (!tenant) {
       throw new AppError('Tenant not found', 404);
     }
 
-    const existingUser = await UserRepository.findByEmail(data.tenantId, data.email);
+    const existingUser = await UserRepository.findByEmail(tenantId, data.email);
     if (existingUser) {
       throw new AppError('User with this email already exists in tenant', 409);
     }
@@ -82,11 +93,11 @@ export class AuthService {
       ...(data.phone ? { phone: data.phone } : {}),
     };
 
-    const user = await UserRepository.create(data.tenantId, userDocData);
+    const user = await UserRepository.create(tenantId, userDocData);
 
     const tokens = this.generateTokens(
       user._id.toString(),
-      data.tenantId,
+      tenantId,
       user.role,
       user.email
     );
@@ -100,7 +111,7 @@ export class AuthService {
     return {
       user: {
         id: user._id.toString(),
-        tenantId: data.tenantId,
+        tenantId,
         email: user.email,
         role: user.role,
         ...(user.phone ? { phone: user.phone } : {}),
@@ -110,16 +121,15 @@ export class AuthService {
   }
 
   /**
-   * Helper specifically for provisioning platform super administrators (e.g. CLI seeder script).
-   * Not exposed via public HTTP endpoints.
+   * Helper specifically for provisioning platform super administrators.
    */
   public static async createSuperAdmin(data: {
-    tenantId: string;
+    tenantId?: string | null | undefined;
     email: string;
     password: string;
     phone?: string;
   }): Promise<AuthResponse> {
-    const existingUser = await UserRepository.findByEmail(data.tenantId, data.email);
+    const existingUser = await UserRepository.findSuperAdminByEmail(data.email);
     if (existingUser) {
       throw new AppError('Super Admin already exists with this email', 409);
     }
@@ -135,11 +145,11 @@ export class AuthService {
       ...(data.phone ? { phone: data.phone } : {}),
     };
 
-    const user = await UserRepository.create(data.tenantId, userDocData);
+    const user = await UserRepository.create(data.tenantId || null, userDocData);
 
     const tokens = this.generateTokens(
       user._id.toString(),
-      data.tenantId,
+      user.tenantId ? user.tenantId.toString() : null,
       user.role,
       user.email
     );
@@ -153,7 +163,7 @@ export class AuthService {
     return {
       user: {
         id: user._id.toString(),
-        tenantId: data.tenantId,
+        ...(user.tenantId ? { tenantId: user.tenantId.toString() } : {}),
         email: user.email,
         role: user.role,
         ...(user.phone ? { phone: user.phone } : {}),
@@ -174,7 +184,42 @@ export class AuthService {
     }
 
     if (!tenantId) {
-      throw new AppError('Either tenantId or tenantSlug must be provided', 400);
+      // Check for global platform Super Admin login
+      const superAdmin = await UserRepository.findSuperAdminByEmail(data.email);
+      if (superAdmin) {
+        if (!superAdmin.isActive) {
+          throw new AppError('User account is deactivated', 403);
+        }
+        const isMatch = await bcrypt.compare(data.password, superAdmin.passwordHash);
+        if (!isMatch) {
+          throw new AppError('Invalid credentials', 401);
+        }
+        superAdmin.lastLoginAt = new Date();
+        await UserRepository.save(superAdmin);
+        const tokens = this.generateTokens(
+          superAdmin._id.toString(),
+          superAdmin.tenantId ? superAdmin.tenantId.toString() : null,
+          superAdmin.role,
+          superAdmin.email
+        );
+        await cacheService.set(
+          this.getRefreshCacheKey(superAdmin._id.toString()),
+          tokens.refreshToken,
+          REFRESH_TOKEN_EXPIRY_SECONDS
+        );
+        return {
+          user: {
+            id: superAdmin._id.toString(),
+            ...(superAdmin.tenantId ? { tenantId: superAdmin.tenantId.toString() } : {}),
+            email: superAdmin.email,
+            role: superAdmin.role,
+            ...(superAdmin.phone ? { phone: superAdmin.phone } : {}),
+          },
+          tokens,
+        };
+      }
+
+      throw new AppError('Either tenantId or tenantSlug must be provided for restaurant accounts', 400);
     }
 
     const user = await UserRepository.findByEmail(tenantId, data.email);

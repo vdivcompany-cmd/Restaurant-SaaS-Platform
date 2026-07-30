@@ -2,7 +2,7 @@ export type UserRole = 'super_admin' | 'owner' | 'manager' | 'cashier' | 'kitche
 
 export interface AuthUser {
   id: string;
-  tenantId: string;
+  tenantId?: string | undefined;
   role: UserRole;
   email: string;
 }

@@ -1,0 +1,124 @@
+import mongoose from 'mongoose';
+import { OrderRepository } from './repository.js';
+import { TableModel } from '../tables/model.js';
+import { realtimeService } from '../../services/realtime/index.js';
+import { queueService, PLATFORM_QUEUES } from '../../services/queue/index.js';
+import { eventBus } from '../../shared/events/index.js';
+import { tenantQuery } from '../../utils/tenantQuery.js';
+import type { IOrder } from './model.js';
+import type { CreateOrderDto, UpdateOrderStatusDto, OfflineSyncDto } from './validation.js';
+import { AppError } from '../../middleware/errorHandler.middleware.js';
+
+export class OrderService {
+  private repo = new OrderRepository();
+
+  public async createOrder(tenantId: string, dto: CreateOrderDto): Promise<IOrder> {
+    if (dto.offlineGuid) {
+      const existing = await this.repo.findByOfflineGuid(tenantId, dto.offlineGuid);
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+    
+    let orderDoc!: IOrder;
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        orderDoc = await this.repo.create(tenantId, { ...dto, orderNumber }, session);
+
+        if (dto.tableId && dto.channel === 'DINE_IN') {
+          const query = tenantQuery.updateOne(TableModel, tenantId, {
+            _id: dto.tableId,
+            branchId: dto.branchId,
+          }, { status: 'OCCUPIED', currentOrderId: orderDoc._id }, { session });
+          await query.exec();
+        }
+      });
+    } catch (err: unknown) {
+      if (err instanceof Error && (err.message.includes('replica set') || err.message.includes('Standalone'))) {
+        orderDoc = await this.repo.create(tenantId, { ...dto, orderNumber });
+        if (dto.tableId && dto.channel === 'DINE_IN') {
+          await tenantQuery.updateOne(TableModel, tenantId, { _id: dto.tableId }, { status: 'OCCUPIED', currentOrderId: orderDoc._id }).exec();
+        }
+      } else {
+        throw err;
+      }
+    } finally {
+      await session.endSession();
+    }
+
+    const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', orderDoc._id.toString());
+    realtimeService.publish(firestorePath, {
+      orderNumber: orderDoc.orderNumber,
+      status: orderDoc.status,
+      items: orderDoc.items,
+      branchId: dto.branchId,
+    }).catch((err) => {
+      console.error('Firestore projection publishing error (non-blocking):', err);
+    });
+
+    eventBus.emitEvent('order.completed', {
+      tenantId,
+      branchId: dto.branchId,
+      orderId: orderDoc._id.toString(),
+      totalAmount: orderDoc.totalAmount,
+    });
+
+    const queueName = PLATFORM_QUEUES['INVOICES']?.name ?? 'q.invoices';
+    await queueService.enqueue(queueName, { orderId: orderDoc._id }, { tenantId });
+
+    return orderDoc;
+  }
+
+  public async syncOfflineOrders(tenantId: string, dto: OfflineSyncDto): Promise<{ synced: number; skipped: number }> {
+    let synced = 0;
+    let skipped = 0;
+
+    for (const orderDto of dto.orders) {
+      if (!orderDto.offlineGuid) {
+        skipped++;
+        continue;
+      }
+      const exists = await this.repo.findByOfflineGuid(tenantId, orderDto.offlineGuid);
+      if (exists) {
+        skipped++;
+        continue;
+      }
+
+      await this.createOrder(tenantId, { ...orderDto, branchId: dto.branchId });
+      synced++;
+    }
+
+    return { synced, skipped };
+  }
+
+  public async listOrders(tenantId: string, branchId?: string): Promise<IOrder[]> {
+    return await this.repo.findAll(tenantId, branchId);
+  }
+
+  public async getOrder(tenantId: string, orderId: string): Promise<IOrder> {
+    const order = await this.repo.findById(tenantId, orderId);
+    if (!order) throw new AppError('Order not found or out of scope', 404);
+    return order;
+  }
+
+  public async updateOrderStatus(tenantId: string, orderId: string, dto: UpdateOrderStatusDto): Promise<IOrder> {
+    const order = await this.repo.updateStatus(tenantId, orderId, dto);
+    if (!order) throw new AppError('Order not found or out of scope', 404);
+
+    if ((dto.status === 'PAID' || dto.status === 'CANCELLED') && order.tableId) {
+      await tenantQuery.updateOne(TableModel, tenantId, { _id: order.tableId }, { status: 'AVAILABLE', currentOrderId: null }).exec();
+    }
+
+    const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());
+    if (dto.status === 'PAID' || dto.status === 'CANCELLED') {
+      realtimeService.delete(firestorePath).catch(() => null);
+    } else {
+      realtimeService.publish(firestorePath, { status: dto.status }).catch(() => null);
+    }
+
+    return order;
+  }
+}

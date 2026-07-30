@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 export const RegisterSchema = z.object({
-  tenantId: z.string().min(1, 'Tenant ID is required'),
+  tenantId: z.string().optional(),
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters long'),
   phone: z.string().optional(),
-  role: z.enum(['owner', 'manager', 'cashier', 'kitchen']).default('owner'),
+  role: z.enum(['super_admin', 'owner', 'manager', 'cashier', 'kitchen']).default('owner'),
 });
 
 export const LoginSchema = z.object({
