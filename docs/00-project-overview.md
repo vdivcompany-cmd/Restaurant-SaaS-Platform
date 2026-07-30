@@ -30,6 +30,7 @@ phase.
 | Reverse proxy | Nginx + Certbot | — |
 | Backups | `mongodump` cron → off-server storage | Plus Redis AOF, RabbitMQ definitions export |
 | Monitoring | `/health`, `/ready`, `/live` + PM2 monit + external uptime checker | Redis, RabbitMQ queue depth, MongoDB, Firebase write failures |
+| AI Stack | LangChain + Upstash Vector + OpenAI | Multi-tenant RAG, intelligent assistants, and vector search |
 
 **Interface layer principle:** business logic (`modules/orders`, `modules/subscriptions`,
 etc.) only ever calls `cacheService.get()`, `queueService.enqueue()`,
@@ -54,7 +55,14 @@ restaurant-saas/
 │   │   │   ├── database.ts
 │   │   │   ├── redis.ts
 │   │   │   ├── rabbitmq.ts
-│   │   │   └── firebase.ts
+│   │   │   ├── firebase.ts
+│   │   │   └── ai.ts
+│   │   │
+│   │   ├── ai/
+│   │   │   ├── agents/
+│   │   │   ├── prompts/
+│   │   │   ├── tools/
+│   │   │   └── vectorstore/
 │   │   │
 │   │   ├── modules/
 │   │   │   ├── auth/
