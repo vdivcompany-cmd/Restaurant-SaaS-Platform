@@ -35,8 +35,8 @@ As the creator and owner of the SaaS ecosystem, the `super_admin` role possesses
 
 ### 1.1 Register Super Admin Account
 * **Method:** `POST`
-* **URL:** `{{base_url}}/auth/register`
-* **Auth:** Public (No token required during initial setup/seeding)
+* **URL:** `{{base_url}}/auth/register/super-admin`
+* **Auth:** Public (Testing)
 * **Headers:** `Content-Type: application/json`
 
 > [!TIP]
@@ -47,7 +47,6 @@ As the creator and owner of the SaaS ecosystem, the `super_admin` role possesses
 {
   "email": "superadmin@restaurant-saas-ecosystem.com",
   "password": "SuperSecretAdminPassword2026!",
-  "role": "super_admin",
   "phone": "+201000000001"
 }
 ```
@@ -494,23 +493,18 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 
 ---
 
-## 📁 Folder 5: 🤖 Phase 4 Upcoming Integrations (AI Menu Onboarding & Webhooks)
+## 📁 Folder 5: ⚙️ Phase 4 — Integrations Gateway
 
-> [!NOTE]
-> This folder catalogs endpoints explicitly scheduled for development in **Phase 4**. These specs serve as the architectural contract for connecting external AI automation platforms and payment gateways.
-
-### 5.1 Bulk AI Menu Ingestion Gateway (To Be Built in Phase 4)
+### 5.1 Bulk Menu Import Gateway
 * **Method:** `POST`
 * **URL:** `{{base_url}}/menu/bulk-import`
-* **Auth:** Bearer `{{super_admin_token}}`, `{{manager_token}}`, or Secret Webhook API Key
+* **Auth:** Bearer `{{super_admin_token}}`, `{{manager_token}}`
 * **Headers:** `Content-Type: application/json`
-* **Purpose:** Atomic batch ingestion of Categories, Variants, and Products delivered by external AI OCR automation pipelines (n8n / custom vision agents) from uploaded PDF menu files.
+* **Purpose:** Atomic batch ingestion of Categories, Variants, and Products (manual or via external automation pipelines), clearing Upstash Redis menu cache.
 
 **Expected Data Contract Body (JSON):**
 ```json
 {
-  "tenantId": "{{tenant_id}}",
-  "branchId": "{{branch_id}}",
   "categories": [
     {
       "name": "Wood-Fired Pizzas",
@@ -520,7 +514,6 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
           "name": "Truffle Mushroom Pizza",
           "description": "Wild mushrooms, mozzarella, truffle oil spray",
           "basePrice": 320.00,
-          "isAvailable": true,
           "variants": [
             {
               "name": "Crust Selection",
@@ -539,8 +532,23 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 }
 ```
 
-### 5.2 Paymob Payment Webhook Verification (To Be Built in Phase 4)
+### 5.2 n8n Workflow Webhook Callback
 * **Method:** `POST`
-* **URL:** `{{base_url}}/webhooks/paymob`
-* **Auth:** Public + HMAC Signature Verification via Custom Headers
-* **Purpose:** Receive secure asynchronous transaction state updates from Paymob checkout gateways.
+* **URL:** `{{base_url}}/integrations/n8n/webhook`
+* **Auth:** HMAC SHA-256 Signature Header (`X-N8N-Signature`)
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-N8N-Signature: <hex_encoded_hmac_sha256>`
+* **Purpose:** Receive secure asynchronous workflow execution callbacks from n8n automation engine. Validates incoming signature against `N8N_WEBHOOK_SECRET`.
+
+**Sample Webhook Payload Body (JSON):**
+```json
+{
+  "event": "workflow.completed",
+  "workflowId": "w_987654",
+  "data": {
+    "status": "success",
+    "details": "Batch task completed"
+  }
+}
+```

@@ -19,18 +19,14 @@ describe('Users & Cross-Tenant User Isolation', () => {
     });
 
     // 2. Register User A under Tenant A & User B under Tenant B
-    const userA = await AuthService.register({
-      tenantId: tenantA._id.toString(),
+    const userA = await AuthService.registerOwner(tenantA._id.toString(), {
       email: 'user.alpha@alpha.com',
       password: 'password123',
-      role: 'owner',
     });
 
-    const userB = await AuthService.register({
-      tenantId: tenantB._id.toString(),
+    const userB = await AuthService.registerOwner(tenantB._id.toString(), {
       email: 'user.beta@beta.com',
       password: 'password123',
-      role: 'owner',
     });
 
     // 3. Attempt to find User B using Tenant A's tenantId scope

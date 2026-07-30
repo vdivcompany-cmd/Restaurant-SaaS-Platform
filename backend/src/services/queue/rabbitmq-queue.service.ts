@@ -1,4 +1,4 @@
-import type { IQueueService, EnqueueOptions } from './queue.interface.js';
+import type { IQueueService, EnqueueOptions, MessageHandler } from './queue.interface.js';
 import { PLATFORM_QUEUES } from './queue-definitions.js';
 import { getRabbitMQChannel } from '../../config/rabbitmq.js';
 import logger from '../../utils/logger.js';
@@ -50,5 +50,30 @@ export class RabbitMQQueueService implements IQueueService {
       logger.warn({ queueName, tenantId: options?.tenantId }, 'RabbitMQ buffer full during sendToQueue');
     }
     return sent;
+  }
+
+  public async consume<T = Record<string, unknown>>(
+    queueName: string,
+    handler: MessageHandler<T>
+  ): Promise<void> {
+    const channel = await this.getChannel();
+    await channel.assertQueue(queueName, { durable: true });
+
+    await channel.consume(queueName, async (msg) => {
+      if (!msg) return;
+
+      try {
+        const payload: T = JSON.parse(msg.content.toString());
+        const headers = (msg.properties.headers || {}) as Record<string, unknown>;
+        await handler(payload, headers);
+        channel.ack(msg);
+      } catch (error) {
+        logger.error({ queueName, error }, 'Error processing queue message — rejecting to DLQ');
+        // nack without requeue sends message to Dead Letter Exchange (DLQ)
+        channel.nack(msg, false, false);
+      }
+    });
+
+    logger.info({ queueName }, 'Subscribed to queue consumer');
   }
 }

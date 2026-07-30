@@ -7,7 +7,7 @@ beforeAll(async () => {
   if (mongoose.connection.readyState === 0) {
     await connectDatabase();
   }
-});
+}, 30000);
 
 beforeEach(async () => {
   if (mongoose.connection.readyState !== 0 && mongoose.connection.db) {
@@ -16,10 +16,10 @@ beforeEach(async () => {
       await collection.deleteMany({});
     }
   }
-});
+}, 30000);
 
 afterAll(async () => {
   if (mongoose.connection.readyState !== 0) {
     await disconnectDatabase();
   }
-});
+}, 30000);

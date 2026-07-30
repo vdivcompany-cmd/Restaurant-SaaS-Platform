@@ -42,12 +42,7 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
-    "@langchain/community": "^1.1.29",
-    "@langchain/core": "^1.2.3",
-    "@langchain/langgraph": "^1.4.8",
-    "@langchain/openai": "^1.5.5",
     "@upstash/redis": "^1.38.0",
-    "@upstash/vector": "^1.2.3",
     "amqplib": "^2.0.1",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
@@ -64,7 +59,6 @@
     "helmet": "^8.3.0",
     "http-status-codes": "^2.3.0",
     "jsonwebtoken": "^9.0.3",
-    "langchain": "^1.5.4",
     "mime-types": "^3.0.2",
     "mongoose": "^9.8.1",
     "multer": "^2.2.0",

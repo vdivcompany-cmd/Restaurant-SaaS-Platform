@@ -24,7 +24,7 @@ router.get(
   BillingController.getRecord
 );
 
-// POST /api/v1/billing — create a billing record (internal; called by Paymob webhook handler after HMAC verification)
+// POST /api/v1/billing — create a billing record
 router.post(
   '/',
   authMiddleware,

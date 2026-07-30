@@ -26,7 +26,7 @@ const billingRecordSchema = new Schema<IBillingRecord>(
       default: 'pending',
       required: true,
     },
-    provider: { type: String, default: 'paymob' },
+    provider: { type: String, default: 'cash' },
     providerRef: { type: String },
   },
   {

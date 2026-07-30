@@ -13,10 +13,6 @@
  *   7. worker-backup          — RabbitMQ consumer: backups queue
  *   8. n8n                    — Workflow automation (Phase 4+)
  *
- * Phase 0 note: only the `api` process is active now.
- * Worker entries are defined here so the file is ready for Phase 4 —
- * each worker is commented out and will be uncommented when implemented.
- *
  * Usage:
  *   pm2 start ecosystem.config.js           # start all
  *   pm2 start ecosystem.config.js --only api # start one process
@@ -50,11 +46,6 @@ module.exports = {
     },
 
     // ─── Background Workers (Phase 4) ───────────────────────────────────────
-    // Uncomment each entry when the worker is implemented in Phase 4.
-    // Each worker is an independent PM2 process — a crashed worker
-    // does NOT affect the API or other workers.
-
-    /*
     {
       name: 'worker-email',
       script: 'ts-node',
@@ -155,6 +146,5 @@ module.exports = {
       error_file: './logs/n8n.err.log',
       merge_logs: true,
     },
-    */
   ],
 };

@@ -18,82 +18,13 @@ This document maintains a living catalog of all completed API endpoints in the s
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/auth/register` | Public | Register a new user under a specific tenant |
+| `POST` | `/api/v1/auth/register/super-admin` | Public | Register a new platform Super Admin account (testing) |
+| `POST` | `/api/v1/auth/register/owner` | Auth (`super_admin`) | Create first owner account for a tenant |
+| `POST` | `/api/v1/auth/register/staff` | Auth + Tenant (`owner`, `manager`, `super_admin`) | Invite staff member (manager, cashier, kitchen) to a tenant |
 | `POST` | `/api/v1/auth/login` | Public | Authenticate user via tenantId or tenantSlug |
 | `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token and issue new token pair |
 | `POST` | `/api/v1/auth/logout` | Auth | Invalidate current user refresh token & access token |
 | `POST` | `/api/v1/auth/change-password` | Auth + Tenant | Change current user password |
-
-#### Payload & Response Examples
-
-<details>
-<summary><b>POST /api/v1/auth/register</b></summary>
-
-**Request Body:**
-```json
-{
-  "tenantId": "65f1a2b3c4d5e6f7a8b9c0d1",
-  "email": "manager@restaurant.com",
-  "password": "securepassword123",
-  "role": "manager",
-  "phone": "+201001234567"
-}
-```
-
-**Success Response (201 Created):**
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": "65f1a2b3c4d5e6f7a8b9c0d2",
-      "tenantId": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "email": "manager@restaurant.com",
-      "role": "manager",
-      "phone": "+201001234567"
-    },
-    "tokens": {
-      "accessToken": "eyJhbGciOi...",
-      "refreshToken": "eyJhbGciOi...",
-      "expiresIn": 900
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><b>POST /api/v1/auth/login</b></summary>
-
-**Request Body:**
-```json
-{
-  "tenantSlug": "burger-house",
-  "email": "manager@restaurant.com",
-  "password": "securepassword123"
-}
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": "65f1a2b3c4d5e6f7a8b9c0d2",
-      "tenantId": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "email": "manager@restaurant.com",
-      "role": "manager"
-    },
-    "tokens": {
-      "accessToken": "eyJhbGciOi...",
-      "refreshToken": "eyJhbGciOi...",
-      "expiresIn": 900
-    }
-  }
-}
-```
-</details>
 
 ---
 
@@ -107,53 +38,6 @@ This document maintains a living catalog of all completed API endpoints in the s
 | `PATCH` | `/api/v1/tenants/settings` | Auth + Tenant | `owner` | Update current tenant settings & contact |
 | `PATCH` | `/api/v1/tenants/:id/settings` | Auth + Tenant | `owner` | Update tenant settings by ID (isolated) |
 
-#### Payload & Response Examples
-
-<details>
-<summary><b>POST /api/v1/tenants</b></summary>
-
-**Request Body:**
-```json
-{
-  "name": "Burger House",
-  "slug": "burger-house",
-  "contact": {
-    "phone": "+201001234567",
-    "email": "info@burgerhouse.com"
-  },
-  "settings": {
-    "currency": "EGP",
-    "timezone": "Africa/Cairo",
-    "language": "ar"
-  }
-}
-```
-
-**Success Response (201 Created):**
-```json
-{
-  "success": true,
-  "data": {
-    "_id": "65f1a2b3c4d5e6f7a8b9c0d1",
-    "name": "Burger House",
-    "slug": "burger-house",
-    "status": "trial",
-    "subscriptionPlan": "free",
-    "contact": {
-      "phone": "+201001234567",
-      "email": "info@burgerhouse.com"
-    },
-    "settings": {
-      "currency": "EGP",
-      "timezone": "Africa/Cairo",
-      "language": "ar"
-    },
-    "createdAt": "2026-07-30T07:00:00.000Z"
-  }
-}
-```
-</details>
-
 ---
 
 ### 📋 Subscriptions Module (`/api/v1/subscriptions`)
@@ -163,36 +47,6 @@ This document maintains a living catalog of all completed API endpoints in the s
 | `GET` | `/api/v1/subscriptions` | Auth + Tenant | `owner`, `manager` | Get the active subscription for the current tenant |
 | `PATCH` | `/api/v1/subscriptions` | Auth + Tenant | `owner` | Update subscription plan/status |
 
-<details>
-<summary><b>GET /api/v1/subscriptions — Success Response (200 OK)</b></summary>
-
-```json
-{
-  "success": true,
-  "data": {
-    "_id": "65f1a2b3c4d5e6f7a8b9c0d3",
-    "tenantId": "65f1a2b3c4d5e6f7a8b9c0d1",
-    "plan": "free",
-    "status": "trialing",
-    "createdAt": "2026-07-30T07:00:00.000Z"
-  }
-}
-```
-</details>
-
-<details>
-<summary><b>PATCH /api/v1/subscriptions — Request Body</b></summary>
-
-**Request Body:**
-```json
-{
-  "plan": "pro",
-  "status": "active",
-  "expiresAt": "2027-07-30T00:00:00.000Z"
-}
-```
-</details>
-
 ---
 
 ### 💳 Billing Module (`/api/v1/billing`)
@@ -201,31 +55,7 @@ This document maintains a living catalog of all completed API endpoints in the s
 |---|---|---|---|---|
 | `GET` | `/api/v1/billing` | Auth + Tenant | `owner`, `manager` | List all billing records (most recent first) |
 | `GET` | `/api/v1/billing/:id` | Auth + Tenant | `owner`, `manager` | Get a specific billing record by ID |
-| `POST` | `/api/v1/billing` | Auth + Tenant | `owner` | Create a billing record (after Paymob HMAC verification) |
-
-> **Note:** Paymob webhook callbacks use a dedicated `POST /api/v1/webhooks/paymob` route with HMAC verification, added in the Paymob/billing phase.
-
-<details>
-<summary><b>GET /api/v1/billing — Success Response (200 OK)</b></summary>
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "_id": "65f1a2b3c4d5e6f7a8b9c0d4",
-      "tenantId": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "amount": 2999,
-      "currency": "EGP",
-      "status": "paid",
-      "provider": "paymob",
-      "providerRef": "paymob_txn_123456",
-      "createdAt": "2026-07-30T07:00:00.000Z"
-    }
-  ]
-}
-```
-</details>
+| `POST` | `/api/v1/billing` | Auth + Tenant | `owner` | Create a billing record |
 
 ---
 
@@ -251,17 +81,16 @@ All domain endpoints require `Authorization: Bearer <token>` and `tenantMiddlewa
 
 ---
 
-### 🤖 Phase 4 — AI Menu Onboarding & Bulk Ingestion (Upcoming Integration)
+### ⚙️ Phase 4 — Integrations Gateway (`/api/v1/*`)
 
 | Method | Endpoint | Auth | Roles Allowed | Description |
 |---|---|---|---|---|
-| `POST` | `/api/v1/menu/bulk-import` | Auth + Tenant | `super_admin`, `owner`, `manager` (or secret Webhook API Key) | Atomic batch ingestion of Categories, Variants, and Products from external AI automation tools (n8n / Vision OCR pipelines). |
+| `POST` | `/api/v1/menu/bulk-import` | Auth + Tenant | `super_admin`, `owner`, `manager` | Atomic batch ingestion of Categories, Variants, and Products (manual or via external automation pipeline), clearing Redis menu cache. |
+| `POST` | `/api/v1/integrations/n8n/webhook` | Webhook Signature | External n8n | Incoming n8n workflow callback endpoint protected by HMAC SHA-256 signature verification (`X-N8N-Signature`). |
 
-#### Expected AI Automation Data Contract
+#### Bulk Import Data Contract Example
 ```json
 {
-  "tenantId": "6a6b3e8447dedf5d12fef0c5",
-  "branchId": "6a6b3e8447dedf5d12fef0c4",
   "categories": [
     {
       "name": "Wood-Fired Pizzas",
@@ -271,7 +100,6 @@ All domain endpoints require `Authorization: Bearer <token>` and `tenantMiddlewa
           "name": "Truffle Mushroom Pizza",
           "description": "Wild mushrooms, mozzarella, truffle oil spray",
           "basePrice": 280.00,
-          "isAvailable": true,
           "variants": [
             {
               "name": "Crust Selection",
@@ -289,4 +117,3 @@ All domain endpoints require `Authorization: Bearer <token>` and `tenantMiddlewa
   ]
 }
 ```
-> **Architecture Note:** External AI automation tools process PDF/DOCX menu files independently outside the Express server to prevent RAM/CPU spikes. Once bulk-imported, managers and Super Admins retain full control to edit descriptions, modify prices, or delete items via standard Phase 3 product endpoints before publishing to dining room QR tables.

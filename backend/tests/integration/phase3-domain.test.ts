@@ -15,13 +15,21 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     });
     const tenantId = tenant._id.toString();
 
+    const saRes = await request(app)
+      .post('/api/v1/auth/register/super-admin')
+      .send({
+        email: `sa-${Date.now()}@gourmet.com`,
+        password: 'SuperSecurePassword123!',
+      });
+    const saToken = saRes.body.data.tokens.accessToken;
+
     const regRes = await request(app)
-      .post('/api/v1/auth/register')
+      .post('/api/v1/auth/register/owner')
+      .set('Authorization', `Bearer ${saToken}`)
       .send({
         tenantId,
         email: `owner-${Date.now()}@gourmet.com`,
         password: 'SuperSecurePassword123!',
-        role: 'owner',
       });
     expect(regRes.status).toBe(201);
     const accessToken = regRes.body.data.tokens.accessToken;

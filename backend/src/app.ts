@@ -29,6 +29,8 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 
+import n8nRoutes from './integrations/n8n/routes.js';
+
 /**
  * Creates and configures the Express application.
  *
@@ -108,6 +110,9 @@ export function createApp(): Express {
   app.use('/api/v1/feedback', feedbackRoutes);
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
+
+  // ─── Integration Webhook Routes ───────────────────────────────────────────
+  app.use('/api/v1/integrations/n8n', n8nRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {

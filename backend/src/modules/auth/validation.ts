@@ -1,11 +1,25 @@
 import { z } from 'zod';
 
-export const RegisterSchema = z.object({
-  tenantId: z.string().optional(),
+export const RegisterSuperAdminSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters long'),
   phone: z.string().optional(),
-  role: z.enum(['super_admin', 'owner', 'manager', 'cashier', 'kitchen']).default('owner'),
+});
+
+export const RegisterOwnerSchema = z.object({
+  tenantId: z.string().min(1, 'Tenant ID is required'),
+  email: z.string().email(),
+  password: z.string().min(8, 'Password must be at least 8 characters long'),
+  phone: z.string().optional(),
+});
+
+export const RegisterStaffSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8, 'Password must be at least 8 characters long'),
+  phone: z.string().optional(),
+  role: z.enum(['manager', 'cashier', 'kitchen'], {
+    errorMap: () => ({ message: 'Staff role must be one of: manager, cashier, kitchen' }),
+  }),
 });
 
 export const LoginSchema = z.object({
@@ -24,7 +38,9 @@ export const ChangePasswordSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
 });
 
-export type RegisterInput = z.infer<typeof RegisterSchema>;
+export type RegisterSuperAdminInput = z.infer<typeof RegisterSuperAdminSchema>;
+export type RegisterOwnerInput = z.infer<typeof RegisterOwnerSchema>;
+export type RegisterStaffInput = z.infer<typeof RegisterStaffSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RefreshTokenInput = z.infer<typeof RefreshTokenSchema>;
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;

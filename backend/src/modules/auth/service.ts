@@ -6,7 +6,13 @@ import { TenantRepository } from '../tenants/repository.js';
 import { cacheService } from '../../services/cache/index.js';
 import env from '../../config/env.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
-import type { RegisterInput, LoginInput, ChangePasswordInput } from './validation.js';
+import type {
+  RegisterSuperAdminInput,
+  RegisterOwnerInput,
+  RegisterStaffInput,
+  LoginInput,
+  ChangePasswordInput,
+} from './validation.js';
 import type { AuthUser } from '../../shared/types/express.js';
 
 export interface TokenPair {
@@ -62,15 +68,76 @@ export class AuthService {
     return `refresh_token:${userId}`;
   }
 
-  public static async register(data: RegisterInput): Promise<AuthResponse> {
-    if (data.role === 'super_admin') {
-      return this.createSuperAdmin(data);
+  /**
+   * Public registration endpoint specifically for provisioning platform Super Admins (for testing).
+   */
+  public static async registerSuperAdmin(data: RegisterSuperAdminInput): Promise<AuthResponse> {
+    return this.createSuperAdmin(data);
+  }
+
+  /**
+   * Protected endpoint called by Platform Super Admin to create the first owner for a tenant.
+   */
+  public static async registerOwner(tenantId: string, data: Omit<RegisterOwnerInput, 'tenantId'>): Promise<AuthResponse> {
+    if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
+      throw new AppError('Tenant ID is required', 400);
     }
 
-    if (!data.tenantId || typeof data.tenantId !== 'string' || data.tenantId.trim() === '') {
-      throw new AppError('Tenant ID is required for restaurant accounts', 400);
+    const tenant = await TenantRepository.findById(tenantId);
+    if (!tenant) {
+      throw new AppError('Tenant not found', 404);
     }
-    const tenantId = data.tenantId;
+
+    const existingUser = await UserRepository.findByEmail(tenantId, data.email);
+    if (existingUser) {
+      throw new AppError('User with this email already exists in tenant', 409);
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(data.password, salt);
+
+    const userDocData = {
+      email: data.email.toLowerCase(),
+      passwordHash,
+      role: 'owner' as const,
+      isActive: true,
+      ...(data.phone ? { phone: data.phone } : {}),
+    };
+
+    const user = await UserRepository.create(tenantId, userDocData);
+
+    const tokens = this.generateTokens(
+      user._id.toString(),
+      tenantId,
+      user.role,
+      user.email
+    );
+
+    await cacheService.set(
+      this.getRefreshCacheKey(user._id.toString()),
+      tokens.refreshToken,
+      REFRESH_TOKEN_EXPIRY_SECONDS
+    );
+
+    return {
+      user: {
+        id: user._id.toString(),
+        tenantId,
+        email: user.email,
+        role: user.role,
+        ...(user.phone ? { phone: user.phone } : {}),
+      },
+      tokens,
+    };
+  }
+
+  /**
+   * Protected endpoint called by Owner / Manager / Super Admin to invite staff to a tenant.
+   */
+  public static async registerStaff(tenantId: string, data: RegisterStaffInput): Promise<AuthResponse> {
+    if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
+      throw new AppError('Tenant ID is required for staff accounts', 400);
+    }
 
     const tenant = await TenantRepository.findById(tenantId);
     if (!tenant) {

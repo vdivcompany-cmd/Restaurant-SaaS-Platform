@@ -1,13 +1,22 @@
 import { Router } from 'express';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
-import { getMenuCatalogHandler } from './controller.js';
+import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
+import { getMenuCatalogHandler, bulkImportMenuHandler } from './controller.js';
 
 const router = Router();
 
-// Notice: No authMiddleware here! Customers scanning QR codes on their dining table
-// must be able to view the menu without registering a cashier/manager login account.
-router.use(tenantMiddleware);
-router.get('/', getMenuCatalogHandler);
-router.get('/catalog', getMenuCatalogHandler);
+// Public route for scanning table QR code
+router.get('/', tenantMiddleware, getMenuCatalogHandler);
+router.get('/catalog', tenantMiddleware, getMenuCatalogHandler);
+
+// Secured bulk import API Gateway for AI onboarding / Super Admin / Managers
+router.post(
+  '/bulk-import',
+  authMiddleware,
+  tenantMiddleware,
+  rbacMiddleware(['super_admin', 'owner', 'manager']),
+  bulkImportMenuHandler
+);
 
 export default router;

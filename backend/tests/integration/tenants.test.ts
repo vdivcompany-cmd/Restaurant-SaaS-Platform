@@ -33,11 +33,9 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
 
     // 2. Normal restaurant owner attempt
     const tempTenant = await TenantModel.create({ name: 'Temp', slug: 'temp', contact: { phone: '1', email: 't@t.com' } });
-    const normalOwner = await AuthService.register({
-      tenantId: tempTenant._id.toString(),
+    const normalOwner = await AuthService.registerOwner(tempTenant._id.toString(), {
       email: 'owner@normal.com',
       password: 'password123',
-      role: 'owner',
     });
 
     const ownerRes = await request(app)
@@ -106,11 +104,9 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
     });
 
     // 2. Register Owner for Tenant A & Owner for Tenant B
-    const userA = await AuthService.register({
-      tenantId: tenantA._id.toString(),
+    const userA = await AuthService.registerOwner(tenantA._id.toString(), {
       email: 'owner@a.com',
       password: 'password123',
-      role: 'owner',
     });
 
     // 3. User A attempts to access Tenant B endpoint using User A's token
