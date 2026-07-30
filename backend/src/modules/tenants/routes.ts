@@ -1,0 +1,46 @@
+import { Router } from 'express';
+import { TenantController } from './controller.js';
+import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
+import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
+
+const router = Router();
+
+// Create tenant
+router.post('/', TenantController.createTenant);
+
+// Get tenant details
+router.get(
+  '/me',
+  authMiddleware,
+  tenantMiddleware,
+  rbacMiddleware(['owner', 'manager']),
+  TenantController.getTenant
+);
+
+router.get(
+  '/:id',
+  authMiddleware,
+  tenantMiddleware,
+  rbacMiddleware(['owner', 'manager']),
+  TenantController.getTenant
+);
+
+// Update tenant settings
+router.patch(
+  '/settings',
+  authMiddleware,
+  tenantMiddleware,
+  rbacMiddleware(['owner']),
+  TenantController.updateSettings
+);
+
+router.patch(
+  '/:id/settings',
+  authMiddleware,
+  tenantMiddleware,
+  rbacMiddleware(['owner']),
+  TenantController.updateSettings
+);
+
+export default router;

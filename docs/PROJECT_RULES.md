@@ -48,9 +48,9 @@ These apply to every file, every phase, no exceptions:
 - TypeScript strict mode on. No `any` without a comment explaining why it's unavoidable.
 - Follow the exact folder structure in `00-project-overview.md` Section 2 — don't introduce
   new top-level folders without updating that file first.
-- One module = one folder under `modules/`, each with `controller.ts`, `service.ts`,
-  `routes.ts`, `model.ts`, `validation.ts`, `tests/`. Controllers stay thin — validation and
-  orchestration only, business logic lives in `service.ts`.
+- One module = one folder under `modules/`, each with `controller.ts`, `service.ts`, `repository.ts`, `routes.ts`, `model.ts`, `validation.ts`, `tests/`.
+- Controllers stay thin — validation and orchestration only. Business logic lives in `service.ts`.
+- All database operations for a module MUST be encapsulated inside `repository.ts` using the `tenantQuery` helper. `service.ts` must call `repository.ts` methods instead of directly interacting with Mongoose models or raw queries.
 - Every collection's Mongoose schema starts with `tenantId` as the first field, indexed.
 - Prefer small, composable functions over large ones. If a service function exceeds roughly
   40–50 lines, look for a natural place to split it.
@@ -103,7 +103,18 @@ Rules for this update:
 
 ---
 
-## 5. Recommended Antigravity Skills
+## 5. API Route Documentation Protocol
+
+**After completing any phase, update `docs/API_ROUTES.md` to document all newly finished API endpoints.**
+
+Rules for `docs/API_ROUTES.md`:
+- Document every active endpoint with: HTTP method, path, authentication required (Public / Auth / Roles), request payload / query parameters (Zod schema outline), and sample success response.
+- Group endpoints logically by module (e.g. `Auth`, `Tenants`, `Users`, `Subscriptions`).
+- Keep this document in sync with the codebase — update it immediately upon completing a phase before moving to the next phase.
+
+---
+
+## 6. Recommended Antigravity Skills
 
 Antigravity uses the open Agent Skills format (`SKILL.md`), the same standard Claude uses.
 Skills can be installed globally (`~/.gemini/config/skills/`, usable across all your projects)
