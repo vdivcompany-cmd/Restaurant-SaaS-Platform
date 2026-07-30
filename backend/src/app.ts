@@ -7,15 +7,19 @@ import pinoHttp from 'pino-http';
 
 import env from './config/env.js';
 import logger from './utils/logger.js';
+import { errorHandler } from './middleware/errorHandler.middleware.js';
+import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
+
+import authRoutes from './modules/auth/routes.js';
+import tenantRoutes from './modules/tenants/routes.js';
+import subscriptionRoutes from './modules/subscriptions/routes.js';
+import billingRoutes from './modules/billing/routes.js';
 
 /**
  * Creates and configures the Express application.
  *
- * This factory function is kept separate from server.ts so the app
- * can be imported by integration tests without actually binding to a port.
- *
  * Middleware order matters:
- *   security → logging → body parsing → routes → error handling
+ *   security → logging → body parsing → rate-limiting → routes → error handling
  */
 export function createApp(): Express {
   const app = express();
@@ -23,17 +27,15 @@ export function createApp(): Express {
   // ─── Security ─────────────────────────────────────────────────────────────
   app.use(
     helmet({
-      // Allow cross-origin requests only from env-defined origins
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
   app.use(
     cors({
-      // CORS origins come from env — never hardcode domains
       origin: env.NODE_ENV === 'production'
         ? (process.env['CORS_ORIGIN'] ?? '').split(',').map((o) => o.trim()).filter(Boolean)
-        : true, // allow all in development
+        : true,
       credentials: true,
     }),
   );
@@ -42,7 +44,6 @@ export function createApp(): Express {
   app.use(
     pinoHttp({
       logger,
-      // Don't log health check noise
       autoLogging: {
         ignore: (req) => ['/health', '/ready', '/live'].includes(req.url ?? ''),
       },
@@ -59,14 +60,11 @@ export function createApp(): Express {
   app.set('trust proxy', 1);
 
   // ─── Health Checks ────────────────────────────────────────────────────────
-  // These are wired up before auth middleware so monitoring tools
-  // can reach them unauthenticated.
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
   app.get('/ready', (_req, res) => {
-    // Phase 6 will expand this with actual dependency checks (DB, Redis, etc.)
     res.json({ status: 'ready', timestamp: new Date().toISOString() });
   });
 
@@ -74,14 +72,22 @@ export function createApp(): Express {
     res.json({ status: 'live', timestamp: new Date().toISOString() });
   });
 
+  // ─── Global API Rate Limiter ──────────────────────────────────────────────
+  app.use('/api/', apiRateLimiter);
+
   // ─── API Routes ───────────────────────────────────────────────────────────
-  // Route modules are registered here in Phase 1+.
-  // Example: app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/auth', authRateLimiter, authRoutes);
+  app.use('/api/v1/tenants', tenantRoutes);
+  app.use('/api/v1/subscriptions', subscriptionRoutes);
+  app.use('/api/v1/billing', billingRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {
     res.status(404).json({ success: false, message: 'Route not found' });
   });
+
+  // ─── Global Error Handler ─────────────────────────────────────────────────
+  app.use(errorHandler);
 
   return app;
 }
