@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction } from 'express';
-import { getRedisClient } from '../config/redis.js';
+import { cacheService } from '../services/cache/index.js';
 import logger from './logger.js';
 
 const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
@@ -10,7 +10,7 @@ const IDEMPOTENCY_TTL_SECONDS = 86_400; // 24 hours
  *
  * How it works:
  *   1. Client sends a request with a unique `Idempotency-Key` header.
- *   2. On first request: process normally, cache the response in Redis for 24h.
+ *   2. On first request: process normally, cache the response via CacheService for 24h.
  *   3. On duplicate request (same key): return the cached response immediately
  *      without re-processing — safe for retries.
  *
@@ -32,8 +32,7 @@ export function idempotencyMiddleware() {
     const cacheKey = `idempotency:${tenantId}:${idempotencyKey}`;
 
     try {
-      const redis = getRedisClient();
-      const cached = await redis.get<string>(cacheKey);
+      const cached = await cacheService.get<string>(cacheKey);
 
       if (cached) {
         // Return the cached response — do not re-process
@@ -52,8 +51,8 @@ export function idempotencyMiddleware() {
         // Only cache successful responses (2xx)
         if (res.statusCode >= 200 && res.statusCode < 300) {
           const toCache = JSON.stringify({ statusCode: res.statusCode, body });
-          redis
-            .set(cacheKey, toCache, { ex: IDEMPOTENCY_TTL_SECONDS })
+          cacheService
+            .set(cacheKey, toCache, IDEMPOTENCY_TTL_SECONDS)
             .catch((err: unknown) => logger.error({ err, cacheKey }, 'Failed to cache idempotency key'));
         }
         return originalJson(body);

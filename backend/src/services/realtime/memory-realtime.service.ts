@@ -1,15 +1,7 @@
 import type { IRealtimeService } from './realtime.interface.js';
-import { getFirestore, initFirebase } from '../../config/firebase.js';
 
-export class FirestoreRealtimeService implements IRealtimeService {
-  private get db() {
-    try {
-      return getFirestore();
-    } catch {
-      initFirebase();
-      return getFirestore();
-    }
-  }
+export class MemoryRealtimeService implements IRealtimeService {
+  public store = new Map<string, Record<string, unknown>>();
 
   public getTenantPath(tenantId: string, collection: string, docId: string): string {
     if (!tenantId || !collection || !docId) {
@@ -19,11 +11,15 @@ export class FirestoreRealtimeService implements IRealtimeService {
   }
 
   public async publish(path: string, data: Record<string, unknown>): Promise<void> {
-    // Use merge: true so partial projection updates do not overwrite untouched UI attributes
-    await this.db.doc(path).set({ ...data, _updatedAt: new Date().toISOString() }, { merge: true });
+    const existing = this.store.get(path) ?? {};
+    this.store.set(path, { ...existing, ...data, _updatedAt: new Date().toISOString() });
   }
 
   public async delete(path: string): Promise<void> {
-    await this.db.doc(path).delete();
+    this.store.delete(path);
+  }
+
+  public clear(): void {
+    this.store.clear();
   }
 }

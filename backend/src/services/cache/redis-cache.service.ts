@@ -27,4 +27,22 @@ export class RedisCacheService implements ICacheService {
     const count = await this.client.exists(key);
     return count > 0;
   }
+
+  public async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    const lockKey = `lock:${key}`;
+    const res = await this.client.set(lockKey, 'LOCKED', { ex: ttlSeconds, nx: true });
+    return res !== null && res !== undefined;
+  }
+
+  public async releaseLock(key: string): Promise<void> {
+    await this.client.del(`lock:${key}`);
+  }
+
+  public async incr(key: string): Promise<number> {
+    return await this.client.incr(key);
+  }
+
+  public async expire(key: string, ttlSeconds: number): Promise<void> {
+    await this.client.expire(key, ttlSeconds);
+  }
 }
