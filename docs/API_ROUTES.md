@@ -226,3 +226,67 @@ This document maintains a living catalog of all completed API endpoints in the s
 }
 ```
 </details>
+
+---
+
+### 🍽️ Phase 3 — Core Domain Modules (`/api/v1/*`)
+
+All domain endpoints require `Authorization: Bearer <token>` and `tenantMiddleware` scoping, except for guest QR digital menu retrieval and table resolving which resolve tenant context via URL query parameters or headers (`X-Tenant-Id` / `X-Tenant-Slug`).
+
+| Module | Base Route | Key Operations | Roles Allowed / Public Note |
+|---|---|---|---|
+| **Branches** | `/api/v1/branches` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` (Super Admin bypass) |
+| **Restaurants** | `/api/v1/restaurants/profile` | `GET`, `PUT` | `owner`, `manager` |
+| **Categories** | `/api/v1/categories` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` |
+| **Variants** | `/api/v1/variants` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` |
+| **Products** | `/api/v1/products` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` (Full Manager & Super Admin editing) |
+| **Menu Catalog** | `/api/v1/menu` or `/api/v1/menu/catalog` | `GET /api/v1/menu?tenantId=...` | **Public Guest Access** (Served via Upstash Redis cache) |
+| **Tables & QR** | `/api/v1/tables` | `POST /api/v1/tables`, `GET /qr/:token` | `owner`, `manager` for management; `/qr/:token` is Public |
+| **Orders & Sync**| `/api/v1/orders` | `POST /`, `PATCH /:id`, `POST /offline-sync` | Automated table state transitions & `offlineGuid` POS deduplication |
+| **Coupons** | `/api/v1/coupons` | `POST /`, `GET /validate?code=...` | `owner`, `manager` for creation; Auth for validation |
+| **Customers** | `/api/v1/customers` | `POST /`, `GET /` | Auth + Tenant scoping |
+| **Employees** | `/api/v1/employees` | `POST /`, `GET /`, `PUT /`, `DELETE /` | `owner`, `manager` |
+| **Feedback** | `/api/v1/feedback` | `POST /`, `GET /` | `POST` requires `X-Tenant-Id` header or query param |
+| **Reports** | `/api/v1/reports/sales` | `GET /sales?branchId=...` | `owner`, `manager` (Real-time Mongoose aggregation) |
+
+---
+
+### 🤖 Phase 4 — AI Menu Onboarding & Bulk Ingestion (Upcoming Integration)
+
+| Method | Endpoint | Auth | Roles Allowed | Description |
+|---|---|---|---|---|
+| `POST` | `/api/v1/menu/bulk-import` | Auth + Tenant | `super_admin`, `owner`, `manager` (or secret Webhook API Key) | Atomic batch ingestion of Categories, Variants, and Products from external AI automation tools (n8n / Vision OCR pipelines). |
+
+#### Expected AI Automation Data Contract
+```json
+{
+  "tenantId": "6a6b3e8447dedf5d12fef0c5",
+  "branchId": "6a6b3e8447dedf5d12fef0c4",
+  "categories": [
+    {
+      "name": "Wood-Fired Pizzas",
+      "displayOrder": 1,
+      "products": [
+        {
+          "name": "Truffle Mushroom Pizza",
+          "description": "Wild mushrooms, mozzarella, truffle oil spray",
+          "basePrice": 280.00,
+          "isAvailable": true,
+          "variants": [
+            {
+              "name": "Crust Selection",
+              "minSelect": 1,
+              "maxSelect": 1,
+              "options": [
+                { "name": "Classic Neapolitan", "priceDelta": 0 },
+                { "name": "Cheese Stuffed Crust", "priceDelta": 35 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+> **Architecture Note:** External AI automation tools process PDF/DOCX menu files independently outside the Express server to prevent RAM/CPU spikes. Once bulk-imported, managers and Super Admins retain full control to edit descriptions, modify prices, or delete items via standard Phase 3 product endpoints before publishing to dining room QR tables.

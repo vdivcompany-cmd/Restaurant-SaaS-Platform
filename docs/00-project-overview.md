@@ -24,13 +24,13 @@ phase.
 | Background jobs | `QueueService` interface → **RabbitMQ** implementation | Retries, Dead Letter Queues, per-queue workers |
 | Realtime | `RealtimeService` interface → **Firebase Firestore** implementation | Projection layer only — MongoDB stays source of truth |
 | Process manager | PM2 (single instance to start; cluster mode later) | — |
-| Automation | **n8n** — customer-facing workflows (Telegram ordering, notifications) | Own PM2 process, talks to backend API only |
+| Automation | **n8n / External Workers** — customer workflows & AI menu file OCR parsing | Independent processes, talks to backend API endpoints only |
 | Payments | Paymob | Webhook signature verification from day one |
-| File storage | Cloudinary | Only URLs stored in MongoDB |
+| File storage | Cloudinary | Product photos, branding logos, and PDF menu documents (only URLs stored in DB) |
 | Reverse proxy | Nginx + Certbot | — |
 | Backups | `mongodump` cron → off-server storage | Plus Redis AOF, RabbitMQ definitions export |
 | Monitoring | `/health`, `/ready`, `/live` + PM2 monit + external uptime checker | Redis, RabbitMQ queue depth, MongoDB, Firebase write failures |
-| AI Stack | LangChain + Upstash Vector + OpenAI | Multi-tenant RAG, intelligent assistants, and vector search |
+| AI Stack | Decoupled Vision LLMs + Upstash Vector / MongoDB Vector Search | Automated PDF menu bulk ingestion, multi-tenant RAG, and conversational table assistants |
 
 **Interface layer principle:** business logic (`modules/orders`, `modules/subscriptions`,
 etc.) only ever calls `cacheService.get()`, `queueService.enqueue()`,
