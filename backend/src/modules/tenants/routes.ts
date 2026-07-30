@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { TenantController } from './controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
-import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
+import { rbacMiddleware, requireSuperAdmin } from '../../middleware/rbac.middleware.js';
 
 const router = Router();
 
-// Create tenant
-router.post('/', TenantController.createTenant);
+// Create tenant — strictly restricted to Platform Super Admins
+router.post('/', authMiddleware, requireSuperAdmin, TenantController.createTenant);
 
 // Get tenant details
 router.get(

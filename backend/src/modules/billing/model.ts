@@ -4,12 +4,12 @@ export type BillingStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface IBillingRecord extends Document {
   tenantId: Types.ObjectId | string;
-  subscriptionId?: Types.ObjectId | string;
+  subscriptionId?: Types.ObjectId | string | undefined;
   amount: number;
   currency: string;
   status: BillingStatus;
-  provider?: string;
-  providerRef?: string;
+  provider?: string | undefined;
+  providerRef?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
 }

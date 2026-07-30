@@ -1,5 +1,36 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { type Store, type ClientRateLimitInfo } from 'express-rate-limit';
+import { cacheService } from '../services/cache/index.js';
 import env from '../config/env.js';
+
+/**
+ * Custom distributed rate limit store backed by CacheService (Upstash Redis / Memory)
+ * Ensures rate limits persist uniformly across PM2 worker clusters without violating Interface Rule #2.
+ */
+class CacheRateLimitStore implements Store {
+  private windowSeconds: number;
+
+  constructor(windowMs: number) {
+    this.windowSeconds = Math.ceil(windowMs / 1000);
+  }
+
+  public async increment(key: string): Promise<ClientRateLimitInfo> {
+    const cacheKey = `ratelimit:${key}`;
+    const totalHits = await cacheService.incr(cacheKey);
+    if (totalHits === 1) {
+      await cacheService.expire(cacheKey, this.windowSeconds);
+    }
+    const resetTime = new Date(Date.now() + this.windowSeconds * 1000);
+    return { totalHits, resetTime };
+  }
+
+  public async decrement(): Promise<void> {
+    // Optional implementation for decrements
+  }
+
+  public async resetKey(key: string): Promise<void> {
+    await cacheService.del(`ratelimit:${key}`);
+  }
+}
 
 /**
  * Auth rate limiter — protects /login and /register from brute-force attacks.
@@ -10,6 +41,7 @@ export const authRateLimiter = rateLimit({
   max: env.NODE_ENV === 'production' ? 10 : 100,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new CacheRateLimitStore(15 * 60 * 1000),
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again in 15 minutes.',
@@ -26,9 +58,11 @@ export const apiRateLimiter = rateLimit({
   max: env.NODE_ENV === 'production' ? 200 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new CacheRateLimitStore(60 * 1000),
   message: {
     success: false,
     message: 'Too many requests, please slow down.',
   },
   skip: () => env.NODE_ENV === 'test',
 });
+

@@ -11,7 +11,7 @@ of the tenant/auth foundation and service interfaces already in place.
 ## Steps
 
 1. **Restaurants & Branches** — CRUD scoped by `tenantId`, with `branches` supporting
-   multiple physical locations per restaurant.
+   multiple physical locations per restaurant. Enforce structural rule: master catalogs (Menus/Products/Subscriptions) are scoped by `tenantId`, while operational storefront activities (Orders/Tables/Sessions) are double-scoped by `{ tenantId: 1, branchId: 1, createdAt: -1 }`.
 2. **Menu, Categories, Products, Variants** — CRUD scoped by `tenantId` (and optionally
    `branchId` if menus differ per branch). Cache menu reads through `CacheService` with a
    defined TTL (e.g. 1 hour), invalidated immediately on any write — never wait for expiry.
@@ -21,12 +21,13 @@ of the tenant/auth foundation and service interfaces already in place.
      or both fail, no partial state.
    - After the transaction commits, publish the change via `RealtimeService`
      (`restaurants/{tenantId}/orders/{orderId}`).
-   - After the transaction commits, enqueue a `subscription-checks`-adjacent or dedicated
+   - After the transaction commits, emit domain event via `eventBus` (`order.completed`) and enqueue a `subscription-checks`-adjacent or dedicated
      order event via `QueueService` for downstream consumers (invoice generation,
      notifications, analytics) — these consumers are built in Phase 4, this phase only needs
      to publish the event.
    - Track `channel` on every order (`telegram | web | qr | dine-in`) even though only one
      channel exists yet — this avoids a schema migration when more channels are added later.
+   - **POS Offline-Sync Endpoint:** Implement `POST /api/v1/orders/offline-sync` to permit on-site cashier tablet terminals to batch-upload cached offline orders when Wi-Fi/internet connectivity restores after an outage, utilizing Phase 2 idempotency keys to guarantee zero duplicate billing.
 5. **Tables** — physical dining tables scoped by `tenantId`/`branchId`, tracked for dine-in orders and reservations.
 6. **Employees** — scoped by `tenantId`, distinct from `users` (auth) if you need to track
    employees who aren't system users (e.g. kitchen staff without login access) — otherwise

@@ -40,6 +40,8 @@ These apply to every file, every phase, no exceptions:
 10. **Don't install or wire up infrastructure ahead of the phase it belongs to.** Follow the
     phase files in order — e.g. don't add PM2 cluster mode during Phase 2 just because it
     seems convenient. Section 8 of the overview file lists trigger-based exceptions.
+11. **Brand vs. Physical Store Scopes (`tenantId` + `branchId`).** `tenantId` explicitly represents the corporate organization/brand (owning menus, products, employees, subscriptions, and billing). `branchId` represents the physical restaurant storefront location (owning dining tables, POS terminal sessions, order receipts, and shifts). All operational transaction models MUST implement compound indexing starting with `{ tenantId: 1, branchId: 1, createdAt: -1 }` to guarantee rapid POS transaction writes and isolated historical report scans.
+12. **Inter-Module Decoupling & Domain Event Bus.** Modules must never tightly couple by importing and synchronously invoking disparate domain feature services (e.g. `OrderService` calling `NotificationService` or `LoyaltyService` inline). Use the typed Domain Event Bus (`src/shared/events`) to broadcast domain milestones (`order.completed`, `tenant.created`) for independent asynchronous reactions.
 
 ---
 

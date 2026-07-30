@@ -12,6 +12,12 @@ export function rbacMiddleware(allowedRoles: UserRole[]) {
       return;
     }
 
+    // Platform Super Admin bypasses regular restaurant role boundaries and tenant checks
+    if (req.user.role === 'super_admin') {
+      next();
+      return;
+    }
+
     // Role check
     if (!allowedRoles.includes(req.user.role)) {
       res.status(403).json({
@@ -32,4 +38,19 @@ export function rbacMiddleware(allowedRoles: UserRole[]) {
 
     next();
   };
+}
+
+/**
+ * Middleware restricting endpoint access strictly to platform Super Admins.
+ */
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: 'Authentication required' });
+    return;
+  }
+  if (req.user.role !== 'super_admin') {
+    res.status(403).json({ success: false, message: 'Access denied: Platform super admin authority required' });
+    return;
+  }
+  next();
 }

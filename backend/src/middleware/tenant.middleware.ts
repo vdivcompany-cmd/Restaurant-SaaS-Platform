@@ -11,7 +11,18 @@ import { TenantRepository } from '../modules/tenants/repository.js';
 export async function tenantMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // 1. Dashboard / Authenticated user path
-    if (req.user?.tenantId) {
+    if (req.user) {
+      if (req.user.role === 'super_admin') {
+        // Allow Super Admin to impersonate or target any tenant via X-Target-Tenant-Id or X-Tenant-Id header
+        const targetId = (req.headers['x-target-tenant-id'] || req.headers['x-tenant-id']) as string | undefined;
+        if (targetId) {
+          const tenant = await TenantRepository.findById(targetId);
+          if (tenant) {
+            req.tenantId = tenant._id.toString();
+            return next();
+          }
+        }
+      }
       req.tenantId = req.user.tenantId;
       return next();
     }

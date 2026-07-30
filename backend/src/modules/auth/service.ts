@@ -109,6 +109,59 @@ export class AuthService {
     };
   }
 
+  /**
+   * Helper specifically for provisioning platform super administrators (e.g. CLI seeder script).
+   * Not exposed via public HTTP endpoints.
+   */
+  public static async createSuperAdmin(data: {
+    tenantId: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }): Promise<AuthResponse> {
+    const existingUser = await UserRepository.findByEmail(data.tenantId, data.email);
+    if (existingUser) {
+      throw new AppError('Super Admin already exists with this email', 409);
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(data.password, salt);
+
+    const userDocData = {
+      email: data.email.toLowerCase(),
+      passwordHash,
+      role: 'super_admin' as const,
+      isActive: true,
+      ...(data.phone ? { phone: data.phone } : {}),
+    };
+
+    const user = await UserRepository.create(data.tenantId, userDocData);
+
+    const tokens = this.generateTokens(
+      user._id.toString(),
+      data.tenantId,
+      user.role,
+      user.email
+    );
+
+    await cacheService.set(
+      this.getRefreshCacheKey(user._id.toString()),
+      tokens.refreshToken,
+      REFRESH_TOKEN_EXPIRY_SECONDS
+    );
+
+    return {
+      user: {
+        id: user._id.toString(),
+        tenantId: data.tenantId,
+        email: user.email,
+        role: user.role,
+        ...(user.phone ? { phone: user.phone } : {}),
+      },
+      tokens,
+    };
+  }
+
   public static async login(data: LoginInput): Promise<AuthResponse> {
     let tenantId = data.tenantId;
 

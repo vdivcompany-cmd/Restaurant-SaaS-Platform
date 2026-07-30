@@ -37,6 +37,35 @@ export class MemoryCacheService implements ICacheService {
     return val !== null;
   }
 
+  public async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    const lockKey = `lock:${key}`;
+    const existing = await this.get(lockKey);
+    if (existing !== null) {
+      return false;
+    }
+    await this.set(lockKey, 'LOCKED', ttlSeconds);
+    return true;
+  }
+
+  public async releaseLock(key: string): Promise<void> {
+    await this.del(`lock:${key}`);
+  }
+
+  public async incr(key: string): Promise<number> {
+    const val = (await this.get<number>(key)) ?? 0;
+    const next = val + 1;
+    await this.set(key, next);
+    return next;
+  }
+
+  public async expire(key: string, ttlSeconds: number): Promise<void> {
+    const item = this.store.get(key);
+    if (item && ttlSeconds > 0) {
+      item.expiresAt = Date.now() + ttlSeconds * 1000;
+      this.store.set(key, item);
+    }
+  }
+
   public clear(): void {
     this.store.clear();
   }

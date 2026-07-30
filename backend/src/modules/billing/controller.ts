@@ -22,7 +22,7 @@ export class BillingController {
         res.status(400).json({ success: false, message: 'Tenant context required' });
         return;
       }
-      const id = req.params['id'];
+      const id = typeof req.params['id'] === 'string' ? req.params['id'] : undefined;
       if (!id) {
         res.status(400).json({ success: false, message: 'Billing record ID required' });
         return;
