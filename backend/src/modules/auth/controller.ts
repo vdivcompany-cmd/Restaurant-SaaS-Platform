@@ -1,7 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AuthService } from './service.js';
 import {
-  RegisterSchema,
+  RegisterSuperAdminSchema,
+  RegisterOwnerSchema,
+  RegisterStaffSchema,
   LoginSchema,
   RefreshTokenSchema,
   ChangePasswordSchema,
@@ -16,10 +18,41 @@ export class AuthController {
     return undefined;
   }
 
-  public static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async registerSuperAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const validated = RegisterSchema.parse(req.body);
-      const result = await AuthService.register(validated);
+      const validated = RegisterSuperAdminSchema.parse(req.body);
+      const result = await AuthService.registerSuperAdmin(validated);
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async registerOwner(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = RegisterOwnerSchema.parse(req.body);
+      const result = await AuthService.registerOwner(validated.tenantId, validated);
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async registerStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        res.status(400).json({ success: false, message: 'Tenant ID is required to register staff' });
+        return;
+      }
+      const validated = RegisterStaffSchema.parse(req.body);
+      const result = await AuthService.registerStaff(tenantId, validated);
       res.status(201).json({
         success: true,
         data: result,

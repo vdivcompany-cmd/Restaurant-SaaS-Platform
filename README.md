@@ -97,3 +97,26 @@ Multi-tenant restaurant management SaaS for the Egyptian market.
 - Wire up external payment (Paymob) and document upload (Cloudinary) pipelines.
 - Build high-speed AI Menu Bulk Ingestion Gateway (`POST /api/v1/menu/bulk-import`) interfacing with decoupled external AI automation tools (n8n / Vision LLM OCR parsers).
 - Deploy standalone PM2-managed consumer background worker processes per asynchronous queue topic.
+
+---
+
+### ✅ Phase 4 — Integrations & Background Workers — Completed 2026-07-30
+**What was implemented:**
+- Implemented **AI Menu Bulk Import Gateway** (`POST /api/v1/menu/bulk-import`) in `src/modules/menu/` with Zod schema validation, RBAC checks (`['super_admin', 'owner', 'manager']`), atomic Mongoose database sessions/transactions via `tenantQuery`, and Upstash Redis menu catalog cache invalidation (`menu:catalog:${tenantId}`).
+- Created **AI Menu Ingestion & n8n Integration Services** ([src/integrations/n8n/](file:///d:/Restaurant%20SaaS%20Platform/backend/src/integrations/n8n/), [src/integrations/ai-menu/](file:///d:/Restaurant%20SaaS%20Platform/backend/src/integrations/ai-menu/)) with HMAC SHA-256 webhook signature verification (`POST /api/v1/integrations/n8n/webhook`) enforcing Rule #5.
+- Created isolated **Paymob Integration Stubs** ([src/integrations/paymob/](file:///d:/Restaurant%20SaaS%20Platform/backend/src/integrations/paymob/)) with HMAC SHA-512 verification logic prepared as a future feature stub, ensuring active checkout and billing flows exclusively rely on **Cash (`cash`)**.
+- Extended queue service abstraction (`IQueueService`, `RabbitMQQueueService`, `MemoryQueueService`) with message `consume` subscription methods supporting auto-acknowledgment and Dead Letter Queue (DLQ) error routing ([src/services/queue/](file:///d:/Restaurant%20SaaS%20Platform/backend/src/services/queue/)).
+- Built all 6 **Standalone PM2 Background Workers** ([src/workers/](file:///d:/Restaurant%20SaaS%20Platform/backend/src/workers/)): `email.worker.ts`, `telegram.worker.ts`, `invoice.worker.ts`, `subscription-check.worker.ts`, `payment-retry.worker.ts`, and `backup.worker.ts`.
+- Updated PM2 process ecosystem configuration ([backend/ecosystem.config.js](file:///d:/Restaurant%20SaaS%20Platform/backend/ecosystem.config.js)) to manage all 6 worker processes and the `n8n` workflow service as independent, restartable VPS processes.
+- Created comprehensive integration & unit test suite ([tests/integration/phase4.test.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/tests/integration/phase4.test.ts)) covering bulk menu import validation, atomic creation, cross-tenant isolation, n8n HMAC webhook verification, and queue worker consumption.
+- Updated API routes documentation ([docs/API_ROUTES.md](file:///d:/Restaurant%20SaaS%20Platform/docs/API_ROUTES.md)).
+
+**Deliverable achieved:**
+- External AI onboarding pipelines, bulk import gateway, n8n webhook automation, and all 6 dedicated background workers implemented and verified with 100% test pass rate across unit, integration, and cross-tenant isolation test suites.
+
+**Notes / deviations from the plan:**
+- **Cloudinary Uploads**: Per user instruction, Cloudinary uploads are managed directly on the frontend client; no backend Cloudinary files are required.
+- **Paymob Integration**: Per user instruction, Paymob is strictly isolated as a future feature stub and is not attached to active checkout or billing endpoints; active payments exclusively use normal cash (`cash`).
+
+**Next phase:** Phase 5 — PM2, Nginx & Production VPS Deployment
+- Configure production build pipelines, PM2 cluster management, Nginx reverse proxy, SSL certification, and deployment scripts.

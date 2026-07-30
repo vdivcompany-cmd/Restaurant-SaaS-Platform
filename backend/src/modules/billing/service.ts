@@ -23,8 +23,7 @@ export class BillingService {
   }
 
   /**
-   * Create a billing record (called by Paymob webhook after payment).
-   * Note: Webhook endpoints must verify Paymob HMAC signature BEFORE calling this.
+   * Create a billing record (manually or via webhook/payment integration).
    */
   public static async createRecord(
     tenantId: string,
