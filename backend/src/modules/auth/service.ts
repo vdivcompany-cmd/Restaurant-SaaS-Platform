@@ -50,6 +50,12 @@ export class AuthService {
     };
   }
 
+  /**
+   * Session Model Design Note:
+   * Uses single-session-per-user cache key (`refresh_token:${userId}`).
+   * Logging in on a new device rotates and overwrites the active refresh token for that user,
+   * invalidating the previous device's refresh token session upon next refresh attempt.
+   */
   private static getRefreshCacheKey(userId: string): string {
     return `refresh_token:${userId}`;
   }

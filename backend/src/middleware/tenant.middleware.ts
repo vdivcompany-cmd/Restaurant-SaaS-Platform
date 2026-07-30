@@ -32,10 +32,19 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
       return next();
     }
 
-    // 3. Fallback — check x-tenant-id header (for API integrations)
+    // 3. Fallback — check x-tenant-id header (verified against database)
     const tenantIdHeader = req.headers['x-tenant-id'] as string | undefined;
     if (tenantIdHeader) {
-      req.tenantId = tenantIdHeader;
+      const tenant = await TenantRepository.findById(tenantIdHeader);
+      if (!tenant) {
+        res.status(403).json({ success: false, message: 'Invalid tenant ID in header' });
+        return;
+      }
+      if (tenant.status === 'suspended') {
+        res.status(403).json({ success: false, message: 'Tenant account is suspended' });
+        return;
+      }
+      req.tenantId = tenant._id.toString();
       return next();
     }
 

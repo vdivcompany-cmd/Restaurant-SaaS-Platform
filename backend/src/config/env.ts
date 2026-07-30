@@ -1,4 +1,11 @@
-import { cleanEnv, str, port, url } from 'envalid';
+import { cleanEnv, str, port, url, makeValidator } from 'envalid';
+
+const secureSecret = makeValidator((input) => {
+  if (!input || input.length < 32) {
+    throw new Error('JWT secrets must be at least 32 characters long for security');
+  }
+  return input;
+});
 
 /**
  * Validates and parses all environment variables at startup.
@@ -31,8 +38,9 @@ const env = cleanEnv(process.env, {
   FIREBASE_SERVICE_ACCOUNT_BASE64: str({ default: '' }),
 
   // ─── JWT ──────────────────────────────────────────────────────────────────
-  JWT_SECRET: str(),
-  JWT_REFRESH_SECRET: str(),
+  JWT_SECRET: secureSecret(),
+  JWT_REFRESH_SECRET: secureSecret(),
+
 
   // ─── Paymob ───────────────────────────────────────────────────────────────
   PAYMOB_API_KEY: str({ default: '' }),
