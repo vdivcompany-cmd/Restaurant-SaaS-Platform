@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { NotificationService, sendNotificationSchema } from './service.js';
+import { NotificationService } from './service.js';
+import { sendNotificationSchema } from './validation.js';
 
 const service = new NotificationService();
 

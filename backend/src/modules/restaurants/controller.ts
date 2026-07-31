@@ -27,7 +27,8 @@ export async function getRestaurantHandler(req: Request, res: Response, next: Ne
 
 export async function getAiStatusHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const tenantId = req.params['tenantId'] || req.tenantId || '';
+    const rawTenantId = req.params['tenantId'] || req.tenantId || '';
+    const tenantId = Array.isArray(rawTenantId) ? String(rawTenantId[0]) : String(rawTenantId);
     const status = await service.getAiStatus(tenantId);
     res.status(200).json({ success: true, data: status });
   } catch (err) {

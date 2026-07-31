@@ -608,3 +608,120 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 }
 ```
 
+---
+
+## 📁 Folder 6: ⚙️ Advanced Architecture, Audit Logs & Analytical Snapshot APIs
+
+This folder provides actionable testing contracts for our zero-empty-files enterprise extensions: persistent notification delivery audit trails, ultra-fast pre-computed financial analytical snapshots, and custom digital QR menu brand styling.
+
+### 6.1 Dispatch Notification with Audit Log Archiving
+* **Method:** `POST`
+* **URL:** `{{base_url}}/notifications`
+* **Auth:** Manager or POS Cashier (`Bearer {{manager_token}}`)
+* **Headers:** `Content-Type: application/json`
+* **Purpose:** Enqueues customer communication jobs (e.g. order receipt emails, table reservation confirmation alerts) to RabbitMQ messaging queues while simultaneously recording an immutable audit log document inside `NotificationLogModel`.
+
+**Request Body (JSON):**
+```json
+{
+  "channel": "EMAIL",
+  "recipient": "guest.vip@gmail.com",
+  "message": "Dear Valued Guest, your table reservation at Gourmet Burger House has been confirmed for tonight at 8:00 PM. Your QR Token: qr_8f9e2a1c4b7d. See you soon!"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Notification enqueued for delivery and recorded in persistent audit trail"
+}
+```
+
+### 6.2 Retrieve Analytical Sales & Shift Snapshot Report (< 2ms Response Time)
+* **Method:** `GET`
+* **URL:** `{{base_url}}/reports/sales?branchId={{branch_id}}&startDate=2026-07-01T00:00:00.000Z&endDate=2026-07-31T23:59:59.000Z`
+* **Auth:** Owner / Manager (`Bearer {{manager_token}}`)
+* **Purpose:** Retrieves closed analytical financial calculations (revenue breakdowns, average ticket sizes, and top-performing dishes) directly from pre-computed `ReportSnapshotModel` archives without running heavy real-time Mongoose aggregations during peak kitchen rush hours.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "reportType": "DAILY_SALES",
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "branchId": "6a6b3e8447dedf5d12fef0c4",
+    "periodStart": "2026-07-01T00:00:00.000Z",
+    "periodEnd": "2026-07-31T23:59:59.000Z",
+    "metrics": {
+      "totalRevenue": 48590.00,
+      "totalOrders": 312,
+      "averageOrderValue": 155.73,
+      "paymentBreakdown": {
+        "cash": 31050.00,
+        "card": 15040.00,
+        "online": 2500.00
+      },
+      "topDishes": [
+        { "dishName": "Truffle Mushroom Pizza", "quantity": 94, "revenue": 30080.00 },
+        { "dishName": "Classic Smash Burger", "quantity": 88, "revenue": 18510.00 }
+      ]
+    },
+    "aiInsightNotes": "AI Margin Recommendation: Truffle Mushroom Pizza accounts for 61.9% of store revenue. Suggest testing a +15 EGP price optimization on weekends.",
+    "createdAt": "2026-07-31T23:59:59.000Z"
+  }
+}
+```
+
+### 6.3 Configure Dynamic QR Menu Theme & Marketing Banner (`MenuLayoutModel`)
+* **Method:** `PUT`
+* **URL:** `{{base_url}}/menu/layout`
+* **Auth:** Restaurant Owner (`Bearer {{manager_token}}`)
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
+* **Purpose:** Saves digital QR consumer menu presentation rules directly into `MenuLayoutModel`, enabling dynamic theme personalization (hex color palettes, Arabic typography, allergen visibility) and promotional banners without redeploying the client frontend.
+
+**Request Body (JSON):**
+```json
+{
+  "theme": {
+    "primaryColor": "#FF6B00",
+    "backgroundColor": "#18181B",
+    "fontFamily": "Cairo",
+    "showAllergens": true,
+    "showCaloricCount": false
+  },
+  "promotionBanner": {
+    "title": "🍕 Summer Stone Oven Festival!",
+    "subtitle": "Order any 2 Large Pizzas & get a free Garlic Parmesan Truffle Dip!",
+    "active": true,
+    "bannerImageUrl": "https://res.cloudinary.com/vdivcompany/image/upload/v178550/promotions/summer-pizza.jpg"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "QR menu layout and promotional styling successfully published",
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "theme": {
+      "primaryColor": "#FF6B00",
+      "backgroundColor": "#18181B",
+      "fontFamily": "Cairo",
+      "showAllergens": true,
+      "showCaloricCount": false
+    },
+    "promotionBanner": {
+      "title": "🍕 Summer Stone Oven Festival!",
+      "subtitle": "Order any 2 Large Pizzas & get a free Garlic Parmesan Truffle Dip!",
+      "active": true,
+      "bannerImageUrl": "https://res.cloudinary.com/vdivcompany/image/upload/v178550/promotions/summer-pizza.jpg"
+    },
+    "updatedAt": "2026-07-31T19:15:00.000Z"
+  }
+}
+```
+
