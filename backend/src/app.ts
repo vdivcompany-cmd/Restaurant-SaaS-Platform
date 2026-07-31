@@ -6,6 +6,8 @@ import cookieParser from 'cookie-parser';
 import pinoHttp from 'pino-http';
 
 import env from './config/env.js';
+import { connectDatabase } from './config/database.js';
+import { getRedisClient } from './config/redis.js';
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
@@ -31,12 +33,6 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 
-/**
- * Creates and configures the Express application.
- *
- * Middleware order matters:
- *   security → logging → body parsing → rate-limiting → routes → error handling
- */
 export function createApp(): Express {
   const app = express();
 
@@ -50,7 +46,7 @@ export function createApp(): Express {
   app.use(
     cors({
       origin: env.NODE_ENV === 'production'
-        ? (process.env['CORS_ORIGIN'] ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+        ? (process.env['CORS_ORIGIN'] ?? '').split(',').map((o: string) => o.trim()).filter(Boolean)
         : true,
       credentials: true,
     }),
@@ -68,33 +64,29 @@ export function createApp(): Express {
 
   // ─── Parsing ──────────────────────────────────────────────────────────────
   app.use(compression());
-  app.use(express.json({
-    limit: '20mb',
-    verify: (req: any, _res, buf) => {
-      if (req.url?.includes('/webhook') || req.originalUrl?.includes('/webhook')) {
-        req.rawBody = buf.toString('utf8');
-      }
-    }
-  }));
+  app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
-  // Trust proxy — required when behind Nginx on Hostinger VPS
+  // Trust proxy — required when behind Nginx or Serverless reverse proxy
   app.set('trust proxy', 1);
 
   // ─── Health Checks ────────────────────────────────────────────────────────
-  app.get('/health', (_req, res) => {
-    res.json(healthService.getLiveness());
+  app.get('/health', async (_req, res) => {
+    const status = await healthService.getReadiness();
+    const httpCode = status.status === 'ok' ? 200 : 503;
+    res.status(httpCode).json({ success: status.status === 'ok', status: status.status, timestamp: new Date().toISOString() });
   });
 
-  app.get('/live', (_req, res) => {
-    res.json(healthService.getLiveness());
+  app.get('/live', async (_req, res) => {
+    const status = await healthService.getLiveness();
+    res.status(200).json(status);
   });
 
   app.get('/ready', async (_req, res) => {
-    const readiness = await healthService.getReadiness();
-    const statusCode = readiness.status === 'ok' ? 200 : 503;
-    res.status(statusCode).json(readiness);
+    const status = await healthService.getReadiness();
+    const httpCode = status.status === 'ok' ? 200 : 503;
+    res.status(httpCode).json(status);
   });
 
   // ─── Global API Rate Limiter ──────────────────────────────────────────────
@@ -129,4 +121,25 @@ export function createApp(): Express {
   app.use(errorHandler);
 
   return app;
+}
+
+// ─── Vercel Serverless Default Export Handler ───────────────────────────────
+let serverlessAppInstance: Express | null = null;
+let isServerlessInitialized = false;
+
+export default async function serverlessHandler(req: express.Request, res: express.Response): Promise<void> {
+  if (!isServerlessInitialized) {
+    try {
+      await connectDatabase();
+      getRedisClient();
+      isServerlessInitialized = true;
+      logger.info('Vercel serverless application runtime initialized MongoDB & Redis.');
+    } catch (error) {
+      logger.error({ error }, 'Error connecting to cloud services inside Vercel serverless handler.');
+    }
+  }
+  if (!serverlessAppInstance) {
+    serverlessAppInstance = createApp();
+  }
+  serverlessAppInstance(req, res);
 }
