@@ -1,7 +1,7 @@
-import mongoose, { type ClientSession, type Types } from 'mongoose';
+import { Types, type ClientSession } from 'mongoose';
 import { CategoryModel, type ICategory } from '../categories/model.js';
-import { ProductModel, type IProduct } from '../products/model.js';
-import { VariantModel, type IVariant } from '../variants/model.js';
+import { ProductModel } from '../products/model.js';
+import { VariantModel } from '../variants/model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import type { BulkImportPayload } from './validation.js';
 
@@ -45,6 +45,9 @@ export class MenuRepository {
           ],
           session ? { session } : {}
         );
+        if (!newCat) {
+          throw new Error('Failed to create category');
+        }
         category = newCat;
         categoriesCount++;
       }
@@ -68,6 +71,9 @@ export class MenuRepository {
               ],
               session ? { session } : {}
             );
+            if (!variant) {
+              throw new Error('Failed to create variant');
+            }
             createdVariantIds.push(variant._id as Types.ObjectId);
             variantsCount++;
           }
@@ -77,14 +83,14 @@ export class MenuRepository {
         await ProductModel.create(
           [
             {
-              tenantId,
-              categoryId: category._id,
+              tenantId: new Types.ObjectId(tenantId),
+              categoryId: category._id as Types.ObjectId,
               name: prodData.name,
-              description: prodData.description,
               basePrice: prodData.basePrice,
-              imageUrl: prodData.imageUrl || undefined,
               isAvailable: true,
               variantIds: createdVariantIds,
+              ...(prodData.description ? { description: prodData.description } : {}),
+              ...(prodData.imageUrl ? { imageUrl: prodData.imageUrl } : {}),
             },
           ],
           session ? { session } : {}

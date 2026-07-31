@@ -8,7 +8,16 @@ export interface QueueDefinition {
   messageTtlSeconds: number;
 }
 
-export const PLATFORM_QUEUES: Record<string, QueueDefinition> = {
+export type PlatformQueueName =
+  | 'EMAILS'
+  | 'TELEGRAM'
+  | 'INVOICES'
+  | 'SUBSCRIPTION_CHECKS'
+  | 'PAYMENT_RETRIES'
+  | 'REPORTS'
+  | 'BACKUPS';
+
+export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
   EMAILS: {
     name: 'q.emails',
     exchange: 'ex.restaurant',

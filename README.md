@@ -120,3 +120,23 @@ Multi-tenant restaurant management SaaS for the Egyptian market.
 
 **Next phase:** Phase 5 — PM2, Nginx & Production VPS Deployment
 - Configure production build pipelines, PM2 cluster management, Nginx reverse proxy, SSL certification, and deployment scripts.
+
+---
+
+### ✅ Phase 5 — PM2, Nginx & Deploy Tooling (Staging) — Completed 2026-07-31
+**What was implemented:**
+- Upgraded [backend/ecosystem.config.js](file:///d:/Restaurant%20SaaS%20Platform/backend/ecosystem.config.js) to production execution mode running compiled TypeScript JS output (`dist/`) for the API service, all 6 background workers (`worker-email`, `worker-telegram`, `worker-invoice`, `worker-subscription`, `worker-payment-retry`, `worker-backup`), and `n8n`.
+- Enhanced [backend/package.json](file:///d:/Restaurant%20SaaS%20Platform/backend/package.json) with production clean build (`build:clean`, `build:prod`) and PM2 lifecycle management scripts (`pm2:start`, `pm2:reload`, `pm2:status`, `pm2:logs`).
+- Created automated zero-downtime deployment script ([backend/scripts/deploy.sh](file:///d:/Restaurant%20SaaS%20Platform/backend/scripts/deploy.sh)) featuring fast-forward git pull, production dependency installation, TypeScript compilation, PM2 process reloading, and HTTP health check validation (`/health`).
+- Built production-hardened Nginx virtual host proxy configurations for API ([nginx/sites-available/api.conf](file:///d:/Restaurant%20SaaS%20Platform/nginx/sites-available/api.conf)) with TLS Let's Encrypt placeholders, rate limiting, and security headers, and for n8n ([nginx/sites-available/n8n.conf](file:///d:/Restaurant%20SaaS%20Platform/nginx/sites-available/n8n.conf)) with WebSocket upgrades and IP allowlisting rules.
+- Created comprehensive staging VPS operational guide ([docs/STAGING_RUNBOOK.md](file:///d:/Restaurant%20SaaS%20Platform/docs/STAGING_RUNBOOK.md)) covering Ubuntu 24.04 provisioning, UFW firewall rules, Node 20 LTS setup, Certbot SSL configuration, and end-to-end integration checklists.
+- Implemented backup archival script ([backend/scripts/backup.sh](file:///d:/Restaurant%20SaaS%20Platform/backend/scripts/backup.sh)) and backup recovery verification drill script ([backend/scripts/restore-drill.sh](file:///d:/Restaurant%20SaaS%20Platform/backend/scripts/restore-drill.sh)).
+
+**Deliverable achieved:**
+- Full PM2 ecosystem, Nginx reverse proxy configurations, production build pipeline, automated deployment script, and staging VPS runbook engineered and verified — proving the zero-downtime deployment mechanism is complete and ready for staging rehearsals.
+
+**Notes / deviations from the plan:**
+- Managed cloud infrastructure services (MongoDB Atlas, Upstash Redis, CloudAMQP) are used across all environments, eliminating the need to install local Mongo/Redis/RabbitMQ instances on the VPS.
+
+**Next phase:** Phase 6 — Backups & Reliability
+- Configure automated cron backup jobs, health monitoring, failure handling, and disaster recovery restore drills.

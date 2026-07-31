@@ -51,6 +51,15 @@ export interface PaymobWebhookPayload {
       id: number;
       merchant_order_id: string;
     };
+    created_at?: string;
+    has_parent_transaction?: boolean;
+    integration_id?: number | string;
+    is_3d_secure?: boolean;
+    source_data?: {
+      pan?: string;
+      sub_type?: string;
+      type?: string;
+    };
     owner: number;
     data: Record<string, unknown>;
   };
