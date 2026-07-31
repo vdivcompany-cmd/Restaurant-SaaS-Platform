@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import { withTransactionOrFallback } from '../../utils/withTransactionOrFallback.js';
 import { OrderRepository } from './repository.js';
 import { TableModel } from '../tables/model.js';
 import { realtimeService } from '../../services/realtime/index.js';
@@ -22,32 +22,18 @@ export class OrderService {
 
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
     
-    let orderDoc!: IOrder;
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        orderDoc = await this.repo.create(tenantId, { ...dto, orderNumber }, session);
+    const orderDoc = await withTransactionOrFallback(async (session) => {
+      const createdOrder = await this.repo.create(tenantId, { ...dto, orderNumber }, session);
 
-        if (dto.tableId && dto.channel === 'DINE_IN') {
-          const query = tenantQuery.updateOne(TableModel, tenantId, {
-            _id: dto.tableId,
-            branchId: dto.branchId,
-          }, { status: 'OCCUPIED', currentOrderId: orderDoc._id }, { session });
-          await query.exec();
-        }
-      });
-    } catch (err: unknown) {
-      if (err instanceof Error && (err.message.includes('replica set') || err.message.includes('Standalone'))) {
-        orderDoc = await this.repo.create(tenantId, { ...dto, orderNumber });
-        if (dto.tableId && dto.channel === 'DINE_IN') {
-          await tenantQuery.updateOne(TableModel, tenantId, { _id: dto.tableId }, { status: 'OCCUPIED', currentOrderId: orderDoc._id }).exec();
-        }
-      } else {
-        throw err;
+      if (dto.tableId && dto.channel === 'DINE_IN') {
+        const query = tenantQuery.updateOne(TableModel, tenantId, {
+          _id: dto.tableId,
+          branchId: dto.branchId,
+        }, { status: 'OCCUPIED', currentOrderId: createdOrder._id }, { session: session ?? undefined });
+        await query.exec();
       }
-    } finally {
-      await session.endSession();
-    }
+      return createdOrder;
+    });
 
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', orderDoc._id.toString());
     // publishSafe: catches Firestore failures and enqueues retry via q.firestore-retry (Rule #3)

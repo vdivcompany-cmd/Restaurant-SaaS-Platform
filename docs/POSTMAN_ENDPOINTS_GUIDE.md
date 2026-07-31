@@ -532,23 +532,9 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 }
 ```
 
-### 5.2 n8n Workflow Webhook Callback
-* **Method:** `POST`
-* **URL:** `{{base_url}}/integrations/n8n/webhook`
-* **Auth:** HMAC SHA-256 Signature Header (`X-N8N-Signature`)
-* **Headers:** 
-  * `Content-Type: application/json`
-  * `X-N8N-Signature: <hex_encoded_hmac_sha256>`
-* **Purpose:** Receive secure asynchronous workflow execution callbacks from n8n automation engine. Validates incoming signature against `N8N_WEBHOOK_SECRET`.
+### 5.2 External Cloud Automations & AI Agentic Integration
+* **Method:** Standard REST (`GET`, `POST`, `PATCH`, `DELETE`)
+* **Authentication:** Bearer JWT Token (`Authorization: Bearer {{owner_token}}`)
+* **Purpose:** External automation workflows (such as custom cloud AI agents, Make.com, or n8n cloud tasks) integrate directly against standard REST endpoints (e.g. `POST /api/v1/orders` or `POST /api/v1/menu/bulk-import`) without requiring specialized proprietary receiver sub-modules.
+* **Storage & Caching Assurance:** All external API requests immediately invoke Upstash Redis caching layers and multi-tenant Cloudinary asset folder isolating logic (`SaaS_Restaurants/{tenantId}/...`).
 
-**Sample Webhook Payload Body (JSON):**
-```json
-{
-  "event": "workflow.completed",
-  "workflowId": "w_987654",
-  "data": {
-    "status": "success",
-    "details": "Batch task completed"
-  }
-}
-```

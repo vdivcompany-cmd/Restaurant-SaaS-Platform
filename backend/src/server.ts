@@ -35,6 +35,19 @@ async function bootstrap(): Promise<void> {
   getRedisClient(); // Upstash REST client — synchronous init, no async connect needed
   await getRabbitMQChannel();
 
+  // Initialize asynchronous message queues & workers directly within main application process
+  if (env.NODE_ENV !== 'test') {
+    try {
+      const { queueService } = await import('./services/queue/index.js');
+      await queueService.assertQueues();
+      const { startEmailWorker } = await import('./workers/email.worker.js');
+      await startEmailWorker();
+      logger.info('Internal RabbitMQ messaging topology asserted and async email workers actively listening');
+    } catch (err) {
+      logger.warn({ err }, 'RabbitMQ queue worker startup skipped — broker unreachable or running offline');
+    }
+  }
+
   // ── 2. Firebase ───────────────────────────────────────────────────────────
   // Skip Firebase init in test environment to avoid requiring credentials
   if (env.NODE_ENV !== 'test') {

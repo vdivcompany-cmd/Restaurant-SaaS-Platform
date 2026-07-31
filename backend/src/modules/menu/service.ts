@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import { withTransactionOrFallback } from '../../utils/withTransactionOrFallback.js';
 import { CategoryModel } from '../categories/model.js';
 import { ProductModel } from '../products/model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
@@ -31,7 +31,7 @@ export class MenuService {
 
     const [categories, products] = await Promise.all([
       tenantQuery.find(CategoryModel, tenantId, { isActive: true }).sort({ displayOrder: 1 }).exec(),
-      tenantQuery.find(ProductModel, tenantId, { isAvailable: true }).populate('variantIds').exec(),
+      tenantQuery.find(ProductModel, tenantId, { isAvailable: true }).populate({ path: 'variantIds', match: { tenantId } }).exec(),
     ]);
 
     const catalog: MenuCatalog = {
@@ -56,49 +56,15 @@ export class MenuService {
    * Bulk import catalog data atomically and invalidate Upstash Redis menu cache.
    */
   public async bulkImportMenu(tenantId: string, payload: BulkImportPayload): Promise<BulkImportResult> {
-    let session: mongoose.ClientSession | null = null;
-    let useTransaction = false;
+    const result = await withTransactionOrFallback(async (session) => {
+      return await this.repository.bulkImport(tenantId, payload, session);
+    });
 
-    // Use session transactions in production/staging replica sets (not in test env)
-    if (process.env['NODE_ENV'] !== 'test') {
-      session = await mongoose.startSession().catch(() => null);
-      if (session) {
-        try {
-          session.startTransaction();
-          useTransaction = true;
-        } catch {
-          useTransaction = false;
-        }
-      }
-    }
+    // Rule: Clear Upstash Redis menu cache on bulk import
+    const cacheKey = `menu:catalog:${tenantId}`;
+    await cacheService.del(cacheKey);
+    logger.info({ tenantId, result }, 'Bulk menu import completed and cache invalidated');
 
-    try {
-      const result = await this.repository.bulkImport(
-        tenantId,
-        payload,
-        useTransaction && session ? session : undefined
-      );
-
-      if (useTransaction && session) {
-        await session.commitTransaction().catch(() => {});
-      }
-
-      // Rule: Clear Upstash Redis menu cache on bulk import
-      const cacheKey = `menu:catalog:${tenantId}`;
-      await cacheService.del(cacheKey);
-      logger.info({ tenantId, result }, 'Bulk menu import completed and cache invalidated');
-
-      return result;
-    } catch (error) {
-      if (useTransaction && session) {
-        await session.abortTransaction().catch(() => {});
-      }
-      logger.error({ tenantId, error }, 'Bulk menu import transaction failed');
-      throw error;
-    } finally {
-      if (session) {
-        session.endSession().catch(() => {});
-      }
-    }
+    return result;
   }
 }
