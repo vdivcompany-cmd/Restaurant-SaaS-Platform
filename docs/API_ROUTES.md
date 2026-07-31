@@ -96,7 +96,6 @@ All domain endpoints require `Authorization: Bearer <token>` and `tenantMiddlewa
 | Method | Endpoint | Auth | Roles Allowed | Description |
 |---|---|---|---|---|
 | `POST` | `/api/v1/menu/bulk-import` | Auth + Tenant | `super_admin`, `owner`, `manager` | Atomic batch ingestion of Categories, Variants, and Products (manual or via external automation pipeline), clearing Redis menu cache. |
-| `POST` | `/api/v1/integrations/n8n/webhook` | Webhook Signature | External n8n | Incoming n8n workflow callback endpoint protected by HMAC SHA-256 signature verification (`X-N8N-Signature`). |
 
 #### Bulk Import Data Contract Example
 ```json

@@ -37,7 +37,7 @@ export class FirestoreRealtimeService implements IRealtimeService {
         await queueService.enqueue(
           PLATFORM_QUEUES.FIRESTORE_RETRY.name,
           { path, data, failedAt: new Date().toISOString() },
-          { tenantId },
+          tenantId ? { tenantId } : {},
         );
       } catch (enqueueErr) {
         logger.error(

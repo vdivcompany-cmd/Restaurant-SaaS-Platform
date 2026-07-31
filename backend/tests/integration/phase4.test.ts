@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import crypto from 'crypto';
 import { createApp } from '../../src/app.js';
 import { TenantModel } from '../../src/modules/tenants/model.js';
 import { CategoryModel } from '../../src/modules/categories/model.js';
@@ -161,32 +160,6 @@ describe('Phase 4 — Integrations & Background Workers Test Suite', () => {
 
     const alphaCatInB = catalogB.body.data.categories.find((c: any) => c.name === 'Alpha Secret Salad');
     expect(alphaCatInB).toBeUndefined();
-  });
-
-  it('verifies n8n webhook signature authorization per Rule #5', async () => {
-    const webhookSecret = 'default-n8n-secret-key-32chars-minimum';
-    const payload = {
-      event: 'order.notification',
-      tenantId: 'tenant-123',
-      data: { orderId: 'ord-99' },
-    };
-    const jsonBody = JSON.stringify(payload);
-
-    // 1. Unsigned or invalid signature request -> REJECTED 401
-    const badRes = await request(app)
-      .post('/api/v1/integrations/n8n/webhook')
-      .set('X-N8N-Signature', 'invalid-hex-signature')
-      .send(payload);
-    expect(badRes.status).toBe(401);
-
-    // 2. Valid signature request -> ACCEPTED 200
-    const validSignature = crypto.createHmac('sha256', webhookSecret).update(jsonBody).digest('hex');
-    const goodRes = await request(app)
-      .post('/api/v1/integrations/n8n/webhook')
-      .set('X-N8N-Signature', validSignature)
-      .send(payload);
-    expect(goodRes.status).toBe(200);
-    expect(goodRes.body.success).toBe(true);
   });
 
   it('executes background queue consumers reliably with MemoryQueueService', async () => {

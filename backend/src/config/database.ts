@@ -1,5 +1,7 @@
-import dns from "dns"
-dns.setServers(["8.8.8.8","8.8.4.4"])
+import dns from 'dns';
+if (process.env['FORCE_PUBLIC_DNS'] === 'true') {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+}
 import mongoose from 'mongoose';
 import env from './env.js';
 import logger from '../utils/logger.js';

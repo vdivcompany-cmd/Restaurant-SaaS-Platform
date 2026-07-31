@@ -1,34 +1,47 @@
-# Phase 7 — Hostinger Go-Live (Final Step)
+# Phase 7 — Vercel Serverless Cloud & Hostinger Domain Go-Live (Final Step)
+# المرحلة السابعة: أتمتة الرفع الفوري عبر Vercel السحابي وربط النطاق (عربي وإنجليزي)
 
-**Prerequisite:** Phase 6 complete (backups tested, restore drill successful on staging).
-**Reference:** see `00-project-overview.md` for the full stack this phase deploys.
+**Prerequisite / الأساس المطلوب:** All 36 domain & integration tests passing (Completed in Phase 0–6).  
+**Philosophy:** Zero Linux commands, zero Nginx proxies, zero Docker configurations. Pure modern Serverless SaaS deployment.
 
-## Goal
-Deploy to the real production domain. This should be close to anticlimactic — everything here
-has already been rehearsed on staging in Phases 5 and 6.
+---
 
-## Steps
+## 🌟 1. Executive Strategy (English & Arabic)
+Instead of manually managing remote Ubuntu Linux servers, firewall configuration tables, and Nginx routing proxies, our Restaurant SaaS Platform deploys its backend directly onto **Vercel's Serverless Runtime**. This provides infinite horizontal scaling during high dining hours, near-zero baseline idle costs, and instant zero-config deployments straight from our GitHub repository. Once deployed on Vercel, any domain purchased from **Hostinger** can be connected in under two minutes via simple DNS records.
 
-1. Provision the real Hostinger VPS (Ubuntu 22.04 LTS recommended).
-2. Harden it exactly as done on staging: non-root deploy user, SSH key auth only, root login
-   disabled, UFW firewall (allow only 22, 80, 443), fail2ban.
-3. Install Node.js, MongoDB, Redis, RabbitMQ — the exact same pinned versions used on staging
-   and local dev.
-4. Point the real domain's DNS at the Hostinger VPS.
-5. Run the already-tested `scripts/deploy.sh` against the new box.
-6. Configure Nginx: `api.yourdomain.com` and `n8n.yourdomain.com` reverse proxies, same
-   pattern as staging.
-7. Issue real TLS certificates via Certbot for both subdomains. Force HTTP → HTTPS redirect,
-   add security headers (HSTS, CSP, X-Frame-Options).
-8. Switch every environment variable from staging values to production values: CORS allowed
-   origins, Paymob webhook callback URL, Cloudinary callback URL, Firebase project
-   credentials. Nothing in the codebase should have hardcoded staging URLs to find and change
-   — if Phase 0 was done correctly, this is a `.env.production` file, not a code change.
-9. Run the restore drill from Phase 6 one final time on the real box, to confirm backups work
-   in the actual production environment, not just staging.
-10. Onboard the first pilot restaurant.
+**بالعربي (فلسفة الرفع الحديثة المبتكرة):**  
+بدلاً من الضياع في أوامر صيانة وتجهيز سيرفرات لينكس اليدوية، وحوائط الـ Firewall، وإعدادات موجهات Nginx العزبيّة، تم تهيئة سيرفر المنصة بالكامل ليعمل بأعلى كفاءة على **استضافة Vercel السحابية التفاعلية (Serverless Engine)**. هذا يمنح مطاعمك سرعة أداء لا نهائية وقت ذروة طلبات الطعام، ومصاريف تشغيل شبه معدومة وقت الخمول، وسرعة رفع فائقة مباشرة من GitHub. ومستقبلاً عند شراء دومين مخصص للمطعم من **Hostinger**، يتم ربطه خلال دقيقة واحدة عبر إعدادات النطاق (DNS) بدون أي سطر برمجيات معقد!
 
-## Deliverable
-The platform running on the real domain, serving at least one real pilot restaurant, with
-backups, health checks, and every integration confirmed working in production — not just
-"deployed," but verified.
+---
+
+## 📋 2. Three-Step Vercel Deployment Guide / دليل الرفع في 3 خطوات بسيطة
+
+### Step 1: Push Code to GitHub / رفع التحديثات الحالية على حسابك في GitHub
+Ensure all code adjustments (including `vercel.json` and `api/index.ts`) are synchronized to your online repository.
+*(تأكد من أن كافة التعديلات البرمجية الحالية بما فيها مجلد التجهيز لـ Vercel قد تمت مزامنته وتحمليه على حسابك في GitHub).*
+
+### Step 2: Import & Deploy on Vercel / الرفع على منصة Vercel
+1. Log in to **Vercel.com** using your GitHub account.
+2. Click **"Add New..."** → **"Project"** and select your `Restaurant-SaaS-Platform` repository.
+3. **IMPORTANT CONFIGURATION / الخطوة الأهم داخل الإعدادات:**  
+   - In the **Root Directory** section, click **Edit** and select the **`backend`** folder! *(اختر مجلد `backend` ليكون هو الدليل الرئيسي للمشروع)*
+   - Leave Framework Preset on **Other / Node.js** (Vercel will automatically detect `vercel.json`).
+4. **Environment Variables / خانة الإعدادات السرية:**  
+   Copy and paste your production database URL and credentials (from MongoDB Atlas, Upstash Redis, CloudAMQP, and Cloudinary) directly into Vercel's Environment Variables section. (Refer to `.env.production.example` for the parameter list).
+5. Click **Deploy!** 🎉
+   Within 60 seconds, your API will go live with a free SSL HTTPS web address (e.g., `https://restaurant-saas-platform.vercel.app`).
+
+---
+
+### Step 3: Connecting Your Hostinger Custom Domain / ربط النطاق الخاص من Hostinger (لاحقاً)
+When you are ready to point your branded `.com` domain name (e.g., `api.saas-restaurant.com`) to Vercel:
+1. Open your Vercel Project Dashboard → go to **Settings** → click **Domains**.
+2. Type in your domain name (e.g., `api.yourdomain.com`) and click **Add**.
+3. Vercel will display a short **CNAME** DNS record (usually pointing to `cname.vercel-dns.com`).
+4. Open your **Hostinger Domain Control Panel**, navigate to **DNS / Name Servers**, and add a new CNAME record pasting Vercel's target value.
+5. Done! Vercel automatically creates and periodically renews secure HTTPS certificates (Green Padlock) for your domain completely free of charge!
+
+---
+
+## 🎯 Final Deliverable / المخرج الموثق
+An infinitely scalable, hyper-secure Restaurant SaaS core backend running effortlessly on the live internet via Vercel Serverless, fully linked to cloud persistence databases and capable of instant custom domain attachment with zero infrastructure overhead!

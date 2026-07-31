@@ -31,8 +31,6 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 
-import n8nRoutes from './integrations/n8n/routes.js';
-
 /**
  * Creates and configures the Express application.
  *
@@ -70,7 +68,14 @@ export function createApp(): Express {
 
   // ─── Parsing ──────────────────────────────────────────────────────────────
   app.use(compression());
-  app.use(express.json({ limit: '20mb' }));
+  app.use(express.json({
+    limit: '20mb',
+    verify: (req: any, _res, buf) => {
+      if (req.url?.includes('/webhook') || req.originalUrl?.includes('/webhook')) {
+        req.rawBody = buf.toString('utf8');
+      }
+    }
+  }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
@@ -114,9 +119,6 @@ export function createApp(): Express {
   app.use('/api/v1/feedback', feedbackRoutes);
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
-
-  // ─── Integration Webhook Routes ───────────────────────────────────────────
-  app.use('/api/v1/integrations/n8n', n8nRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {

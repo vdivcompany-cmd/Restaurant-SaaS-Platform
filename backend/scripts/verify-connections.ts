@@ -20,8 +20,10 @@
 // dotenv is preloaded via tsx -r dotenv/config (see package.json verify script).
 // DOTENV_CONFIG_PATH points to ../.env.local (repo root).
 import mongoose from 'mongoose';
-import dns from "dns"
-dns.setServers(["8.8.8.8","8.8.4.4"])
+import dns from 'dns';
+if (process.env['FORCE_PUBLIC_DNS'] === 'true') {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+}
 import { Redis } from '@upstash/redis';
 import amqplib from 'amqplib';
 import { initializeApp, deleteApp, cert, type App } from 'firebase-admin/app';

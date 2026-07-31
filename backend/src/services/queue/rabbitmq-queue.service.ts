@@ -57,7 +57,18 @@ export class RabbitMQQueueService implements IQueueService {
     handler: MessageHandler<T>
   ): Promise<void> {
     const channel = await this.getChannel();
-    await channel.assertQueue(queueName, { durable: true });
+    const qDef = Object.values(PLATFORM_QUEUES).find((q) => q.name === queueName);
+    if (qDef) {
+      await channel.assertQueue(qDef.name, {
+        durable: true,
+        arguments: {
+          'x-dead-letter-exchange': qDef.dlxExchange,
+          'x-dead-letter-routing-key': qDef.routingKey,
+        },
+      });
+    } else {
+      await channel.assertQueue(queueName, { durable: true });
+    }
 
     await channel.consume(queueName, async (msg) => {
       if (!msg) return;
