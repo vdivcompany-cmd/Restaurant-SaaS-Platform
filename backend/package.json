@@ -7,11 +7,11 @@
     "test": "tests"
   },
   "scripts": {
-    "dev": "nodemon",
-    "build": "tsc --project tsconfig.json",
-    "build:clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build:prod": "npm run build:clean && tsc --project tsconfig.json",
-    "start": "node dist/server.js",
+    "dev": "node init && nodemon",
+    "build": "node init && tsc --project tsconfig.json",
+    "build:clean": "node init && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build:prod": "node init && npm run build:clean && tsc --project tsconfig.json",
+    "start": "node init && node dist/server.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:reload": "pm2 reload ecosystem.config.js",
     "pm2:status": "pm2 status",
