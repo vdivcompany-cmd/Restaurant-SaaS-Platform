@@ -38,7 +38,8 @@ export async function bulkImportMenuHandler(req: Request, res: Response, next: N
 
 export async function getRagCatalogHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const tenantId = req.params['tenantId'] || (req.query['tenantId'] as string) || req.tenantId || '';
+    const rawTenantId = req.params['tenantId'] || req.query['tenantId'] || req.tenantId || '';
+    const tenantId = Array.isArray(rawTenantId) ? String(rawTenantId[0]) : String(rawTenantId);
     if (!tenantId) {
       res.status(400).json({ success: false, message: 'Tenant ID is required for RAG catalog extraction' });
       return;
