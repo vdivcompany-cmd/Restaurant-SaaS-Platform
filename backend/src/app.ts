@@ -8,6 +8,7 @@ import pinoHttp from 'pino-http';
 import env from './config/env.js';
 import { connectDatabase } from './config/database.js';
 import { getRedisClient } from './config/redis.js';
+import { initFirebase } from './config/firebase.js';
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
@@ -71,6 +72,17 @@ export function createApp(): Express {
   // Trust proxy — required when behind Nginx or Serverless reverse proxy
   app.set('trust proxy', 1);
 
+  // ─── Root Landing Welcome Route ───────────────────────────────────────────
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: '🚀 Restaurant SaaS Platform API is Online & Operational!',
+      version: '1.0.0',
+      environment: env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // ─── Health Checks ────────────────────────────────────────────────────────
   app.get('/health', async (_req, res) => {
     const status = await healthService.getReadiness();
@@ -132,6 +144,7 @@ export default async function serverlessHandler(req: express.Request, res: expre
     try {
       await connectDatabase();
       getRedisClient();
+      try { initFirebase(); } catch (_fbErr) { /* ignore in serverless without credentials */ }
       isServerlessInitialized = true;
       logger.info('Vercel serverless application runtime initialized MongoDB & Redis.');
     } catch (error) {
