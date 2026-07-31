@@ -1,0 +1,721 @@
+{
+	"info": {
+		"_postman_id": "a8f79e2c-3b4a-4c12-8e9f-5b6c7d8e9f01",
+		"name": "Restaurant SaaS Platform API Collection",
+		"description": "Master Postman Collection v2.1.0 for the Restaurant SaaS Platform, covering all 18 backend domain modules, health probes, AI gateways, and POS ticket lifecycle workflows.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "base_url", "value": "http://localhost:3000/api/v1", "type": "string" },
+		{ "key": "tenant_id", "value": "6a6b3e8447dedf5d12fef0c5", "type": "string" },
+		{ "key": "tenant_slug", "value": "gourmet-pizza-cairo", "type": "string" },
+		{ "key": "super_admin_token", "value": "eyJhbGciOi...", "type": "string" },
+		{ "key": "owner_token", "value": "eyJhbGciOi...", "type": "string" },
+		{ "key": "manager_token", "value": "eyJhbGciOi...", "type": "string" },
+		{ "key": "cashier_token", "value": "eyJhbGciOi...", "type": "string" },
+		{ "key": "branch_id", "value": "6a6b3e8447dedf5d12fef0c4", "type": "string" },
+		{ "key": "category_id", "value": "6a6b3e8447dedf5d12fef0c3", "type": "string" },
+		{ "key": "variant_id", "value": "6a6b3e8447dedf5d12fef0c2", "type": "string" },
+		{ "key": "product_id", "value": "6a6b3e8447dedf5d12fef0c1", "type": "string" },
+		{ "key": "table_id", "value": "6a6b3e8447dedf5d12fef0c0", "type": "string" },
+		{ "key": "qr_code_token", "value": "qr_8f9e2a1c4b7d5f6a9e2c1b", "type": "string" },
+		{ "key": "order_id", "value": "6a6b3e8447dedf5d12fef0bf", "type": "string" },
+		{ "key": "customer_id", "value": "6a6b3e8447dedf5d12fef0be", "type": "string" },
+		{ "key": "employee_id", "value": "6a6b3e8447dedf5d12fef0bd", "type": "string" },
+		{ "key": "coupon_id", "value": "6a6b3e8447dedf5d12fef0bc", "type": "string" }
+	],
+	"item": [
+		{
+			"name": "0. System Health & Probes",
+			"item": [
+				{
+					"name": "Root Landing Welcome",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "http://localhost:3000/", "protocol": "http", "host": ["localhost"], "port": "3000", "path": [""] }
+					}
+				},
+				{
+					"name": "Liveness Probe",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "http://localhost:3000/live", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["live"] }
+					}
+				},
+				{
+					"name": "Full Service Readiness Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "http://localhost:3000/ready", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["ready"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "1. Authentication Module",
+			"item": [
+				{
+					"name": "Register Super Admin",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"superadmin@saas-ecosystem.com\",\n  \"password\": \"SuperSecretAdminPassword2026!\",\n  \"phone\": \"+201000000001\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/register/super-admin", "host": ["{{base_url}}"], "path": ["auth", "register", "super-admin"] }
+					}
+				},
+				{
+					"name": "Register Restaurant Owner",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{super_admin_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"email\": \"owner@gourmetpizza.eg\",\n  \"password\": \"SecureOwnerPassword2026!\",\n  \"phone\": \"+201098765432\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/register/owner", "host": ["{{base_url}}"], "path": ["auth", "register", "owner"] }
+					}
+				},
+				{
+					"name": "Register Staff (Manager / Cashier / Kitchen)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"cashier.zamalek@gourmetpizza.eg\",\n  \"password\": \"CashierPassword123!\",\n  \"role\": \"cashier\",\n  \"phone\": \"+201011223344\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/register/staff", "host": ["{{base_url}}"], "path": ["auth", "register", "staff"] }
+					}
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"owner@gourmetpizza.eg\",\n  \"password\": \"SecureOwnerPassword2026!\",\n  \"tenantSlug\": \"{{tenant_slug}}\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+					}
+				},
+				{
+					"name": "Refresh Token Pair",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"eyJhbGciOi...\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] }
+					}
+				},
+				{
+					"name": "Logout Session",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [],
+						"url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] }
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"oldPassword\": \"CashierPassword123!\",\n  \"newPassword\": \"NewSuperSecretPassword2026!\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/change-password", "host": ["{{base_url}}"], "path": ["auth", "change-password"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Tenants Module",
+			"item": [
+				{
+					"name": "Create Tenant (Super Admin Only)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{super_admin_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Gourmet Stone Oven Pizza\",\n  \"slug\": \"gourmet-pizza-cairo\",\n  \"contact\": {\n    \"phone\": \"+201122334455\",\n    \"email\": \"owner@gourmetpizza.eg\"\n  },\n  \"settings\": {\n    \"currency\": \"EGP\",\n    \"timezone\": \"Africa/Cairo\",\n    \"language\": \"en\"\n  }\n}"
+						},
+						"url": { "raw": "{{base_url}}/tenants", "host": ["{{base_url}}"], "path": ["tenants"] }
+					}
+				},
+				{
+					"name": "Get Current Tenant Details",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/tenants/me", "host": ["{{base_url}}"], "path": ["tenants", "me"] }
+					}
+				},
+				{
+					"name": "Update Tenant Settings",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Gourmet Wood-Fired Pizza & Kitchen\",\n  \"settings\": {\n    \"currency\": \"EGP\",\n    \"timezone\": \"Africa/Cairo\",\n    \"language\": \"ar\"\n  }\n}"
+						},
+						"url": { "raw": "{{base_url}}/tenants/settings", "host": ["{{base_url}}"], "path": ["tenants", "settings"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Subscriptions Module",
+			"item": [
+				{
+					"name": "Get Subscription Plan",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/subscriptions", "host": ["{{base_url}}"], "path": ["subscriptions"] }
+					}
+				},
+				{
+					"name": "Update Subscription Plan",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plan\": \"pro\",\n  \"status\": \"active\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/subscriptions", "host": ["{{base_url}}"], "path": ["subscriptions"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Billing Module",
+			"item": [
+				{
+					"name": "List Billing Records",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/billing", "host": ["{{base_url}}"], "path": ["billing"] }
+					}
+				},
+				{
+					"name": "Create Billing Record",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 2499,\n  \"currency\": \"EGP\",\n  \"status\": \"paid\",\n  \"paymentMethod\": \"credit_card\",\n  \"invoiceUrl\": \"https://billing.saas-platform.com/invoices/INV-2026-07-001.pdf\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/billing", "host": ["{{base_url}}"], "path": ["billing"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Restaurants & AI Gateway",
+			"item": [
+				{
+					"name": "Get Restaurant Profile",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/restaurants/profile", "host": ["{{base_url}}"], "path": ["restaurants", "profile"] }
+					}
+				},
+				{
+					"name": "Upsert Profile & AI Settings",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"brandName\": \"Gourmet Stone Oven Pizza\",\n  \"cuisineType\": \"Italian & Mediterranean\",\n  \"description\": \"Authentic Neapolitan wood-fired pizza kitchen.\",\n  \"isOpen\": true,\n  \"isChatbotActive\": true,\n  \"chatbotSettings\": {\n    \"offlineMessage\": \"We are currently closed for online orders. Please check back during operating hours!\",\n    \"aiModelPreference\": \"gpt-4o\"\n  }\n}"
+						},
+						"url": { "raw": "{{base_url}}/restaurants/profile", "host": ["{{base_url}}"], "path": ["restaurants", "profile"] }
+					}
+				},
+				{
+					"name": "n8n Cloud AI Status Probe",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/restaurants/{{tenant_id}}/ai-status", "host": ["{{base_url}}"], "path": ["restaurants", "{{tenant_id}}", "ai-status"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Branches Module",
+			"item": [
+				{
+					"name": "Create Branch Location",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Zamalek Flagship Branch\",\n  \"slug\": \"zamalek-flagship\",\n  \"address\": \"26 July Street, Zamalek, Cairo\",\n  \"phone\": \"+20227350000\",\n  \"isActive\": true\n}"
+						},
+						"url": { "raw": "{{base_url}}/branches", "host": ["{{base_url}}"], "path": ["branches"] }
+					}
+				},
+				{
+					"name": "List Store Branches",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/branches", "host": ["{{base_url}}"], "path": ["branches"] }
+					}
+				},
+				{
+					"name": "Update Branch",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+20227359999\",\n  \"isActive\": true\n}"
+						},
+						"url": { "raw": "{{base_url}}/branches/{{branch_id}}", "host": ["{{base_url}}"], "path": ["branches", "{{branch_id}}"] }
+					}
+				},
+				{
+					"name": "Delete Branch",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "DELETE",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/branches/{{branch_id}}", "host": ["{{base_url}}"], "path": ["branches", "{{branch_id}}"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Categories Module",
+			"item": [
+				{
+					"name": "Create Category",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Wood-Fired Pizzas\",\n  \"description\": \"Hand-stretched sourdough crusts baked at 450°C\",\n  \"displayOrder\": 1\n}"
+						},
+						"url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] }
+					}
+				},
+				{
+					"name": "List Categories",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "8. Variants Module",
+			"item": [
+				{
+					"name": "Create Customization Variant",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Crust Style\",\n  \"minSelect\": 1,\n  \"maxSelect\": 1,\n  \"options\": [\n    { \"name\": \"Classic Neapolitan Thin\", \"priceDelta\": 0 },\n    { \"name\": \"Mozzarella Stuffed Crust\", \"priceDelta\": 45 },\n    { \"name\": \"Gluten-Free Cauliflower Base\", \"priceDelta\": 30 }\n  ]\n}"
+						},
+						"url": { "raw": "{{base_url}}/variants", "host": ["{{base_url}}"], "path": ["variants"] }
+					}
+				},
+				{
+					"name": "List Variants",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/variants", "host": ["{{base_url}}"], "path": ["variants"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "9. Products Module",
+			"item": [
+				{
+					"name": "Create Product SKU",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"categoryId\": \"{{category_id}}\",\n  \"name\": \"Truffle & Wild Mushroom Pizza\",\n  \"description\": \"Porcini mushrooms, fontina cheese, thyme, and black truffle oil\",\n  \"basePrice\": 320,\n  \"imageUrl\": \"https://res.cloudinary.com/demo/image/upload/sample_pizza.jpg\",\n  \"isAvailable\": true,\n  \"variantIds\": [\"{{variant_id}}\"]\n}"
+						},
+						"url": { "raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"] }
+					}
+				},
+				{
+					"name": "List Products",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "10. Menu Catalog & Bulk Import",
+			"item": [
+				{
+					"name": "Public Digital Menu Catalog",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/menu/catalog?tenantId={{tenant_id}}", "host": ["{{base_url}}"], "path": ["menu", "catalog"], "query": [{ "key": "tenantId", "value": "{{tenant_id}}" }] }
+					}
+				},
+				{
+					"name": "Bulk Import Menu (Atomic Insertion)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"categories\": [\n    {\n      \"name\": \"Wood-Fired Pizzas\",\n      \"displayOrder\": 1,\n      \"products\": [\n        {\n          \"name\": \"Truffle Mushroom Pizza\",\n          \"description\": \"Wild mushrooms, fontina, black truffle oil\",\n          \"basePrice\": 320,\n          \"variants\": [\n            {\n              \"name\": \"Crust Style\",\n              \"minSelect\": 1,\n              \"maxSelect\": 1,\n              \"options\": [\n                { \"name\": \"Classic Thin\", \"priceDelta\": 0 },\n                { \"name\": \"Cheese Stuffed\", \"priceDelta\": 45 }\n              ]\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+						},
+						"url": { "raw": "{{base_url}}/menu/bulk-import", "host": ["{{base_url}}"], "path": ["menu", "bulk-import"] }
+					}
+				},
+				{
+					"name": "n8n Cloud RAG Vector Menu Extract",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/menu/rag-catalog/{{tenant_id}}", "host": ["{{base_url}}"], "path": ["menu", "rag-catalog", "{{tenant_id}}"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "11. Tables & QR Module",
+			"item": [
+				{
+					"name": "Resolve Table QR Token (Public Scan)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/tables/qr/{{qr_code_token}}", "host": ["{{base_url}}"], "path": ["tables", "qr", "{{qr_code_token}}"] }
+					}
+				},
+				{
+					"name": "Create Table",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchId\": \"{{branch_id}}\",\n  \"number\": 10,\n  \"capacity\": 6,\n  \"status\": \"AVAILABLE\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/tables", "host": ["{{base_url}}"], "path": ["tables"] }
+					}
+				},
+				{
+					"name": "List Store Tables",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/tables", "host": ["{{base_url}}"], "path": ["tables"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "12. POS Orders & KDS Module",
+			"item": [
+				{
+					"name": "Create Order Ticket",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchId\": \"{{branch_id}}\",\n  \"channel\": \"DINE_IN\",\n  \"tableId\": \"{{table_id}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{product_id}}\",\n      \"name\": \"Truffle & Wild Mushroom Pizza\",\n      \"quantity\": 2,\n      \"unitPrice\": 320,\n      \"totalPrice\": 640,\n      \"selectedVariants\": [\n        {\n          \"variantId\": \"{{variant_id}}\",\n          \"selectedOptionNames\": [\"Mozzarella Stuffed Crust\"]\n        }\n      ]\n    }\n  ],\n  \"subtotal\": 640,\n  \"taxAmount\": 89.6,\n  \"totalAmount\": 729.6\n}"
+						},
+						"url": { "raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"] }
+					}
+				},
+				{
+					"name": "KDS Order Status Transition",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"PREPARING\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}"] }
+					}
+				},
+				{
+					"name": "POS Offline Batch Sync",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchId\": \"{{branch_id}}\",\n  \"orders\": [\n    {\n      \"branchId\": \"{{branch_id}}\",\n      \"channel\": \"TAKEAWAY\",\n      \"items\": [\n        {\n          \"productId\": \"{{product_id}}\",\n          \"quantity\": 1,\n          \"unitPrice\": 320,\n          \"totalPrice\": 320\n        }\n      ],\n      \"subtotal\": 320,\n      \"totalAmount\": 320,\n      \"offlineGuid\": \"pos-terminal-01-tx-9921004\"\n    }\n  ]\n}"
+						},
+						"url": { "raw": "{{base_url}}/orders/offline-sync", "host": ["{{base_url}}"], "path": ["orders", "offline-sync"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "13. Coupons Module",
+			"item": [
+				{
+					"name": "Validate Coupon Code",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/coupons/validate?code=SUMMERPIZZA20", "host": ["{{base_url}}"], "path": ["coupons", "validate"], "query": [{ "key": "code", "value": "SUMMERPIZZA20" }] }
+					}
+				},
+				{
+					"name": "Create Coupon",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"SUMMERPIZZA20\",\n  \"discountPercentage\": 20,\n  \"expiresAt\": \"2026-12-31T23:59:59.000Z\",\n  \"isActive\": true\n}"
+						},
+						"url": { "raw": "{{base_url}}/coupons", "host": ["{{base_url}}"], "path": ["coupons"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "14. Customers CRM Module",
+			"item": [
+				{
+					"name": "Register Customer Profile",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Tariq Al-Mansour\",\n  \"phone\": \"+201099887766\",\n  \"email\": \"tariq@vipguest.eg\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/customers", "host": ["{{base_url}}"], "path": ["customers"] }
+					}
+				},
+				{
+					"name": "List Customers",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/customers", "host": ["{{base_url}}"], "path": ["customers"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "15. Employees Module",
+			"item": [
+				{
+					"name": "Create Employee Record",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchId\": \"{{branch_id}}\",\n  \"fullName\": \"Chef Marco Rossi\",\n  \"position\": \"Head Pizzaiolo\",\n  \"phone\": \"+201112223333\",\n  \"hourlyRate\": 180,\n  \"isActive\": true\n}"
+						},
+						"url": { "raw": "{{base_url}}/employees", "host": ["{{base_url}}"], "path": ["employees"] }
+					}
+				},
+				{
+					"name": "List Employees",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/employees", "host": ["{{base_url}}"], "path": ["employees"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "16. Guest Feedback Module",
+			"item": [
+				{
+					"name": "Submit Guest Feedback (Public)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchId\": \"{{branch_id}}\",\n  \"customerName\": \"Tariq Al-Mansour\",\n  \"rating\": 5,\n  \"comment\": \"Outstanding stone-oven crust pizza and fast staff service!\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/feedback", "host": ["{{base_url}}"], "path": ["feedback"] }
+					}
+				},
+				{
+					"name": "List Guest Feedback Reviews",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/feedback", "host": ["{{base_url}}"], "path": ["feedback"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "17. Reports & Analytics",
+			"item": [
+				{
+					"name": "Get Sales Analytical Snapshot",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }],
+						"url": { "raw": "{{base_url}}/reports/sales?branchId={{branch_id}}&startDate=2026-07-01T00:00:00.000Z&endDate=2026-07-31T23:59:59.000Z", "host": ["{{base_url}}"], "path": ["reports", "sales"], "query": [{ "key": "branchId", "value": "{{branch_id}}" }, { "key": "startDate", "value": "2026-07-01T00:00:00.000Z" }, { "key": "endDate", "value": "2026-07-31T23:59:59.000Z" }] }
+					}
+				}
+			]
+		},
+		{
+			"name": "18. Notifications Audit Log",
+			"item": [
+				{
+					"name": "Dispatch Notification",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "X-Tenant-Id", "value": "{{tenant_id}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"channel\": \"EMAIL\",\n  \"recipient\": \"guest.vip@gmail.com\",\n  \"subject\": \"Table Reservation Confirmation\",\n  \"message\": \"Your table reservation at Gourmet Stone Oven Pizza for 8:00 PM is confirmed!\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/notifications/dispatch", "host": ["{{base_url}}"], "path": ["notifications", "dispatch"] }
+					}
+				}
+			]
+		}
+	]
+}

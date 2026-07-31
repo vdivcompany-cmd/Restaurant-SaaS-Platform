@@ -40,7 +40,7 @@ class CacheRateLimitStore implements Store {
  */
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: env.NODE_ENV === 'production' ? 10 : 100,
+  max: env.NODE_ENV === 'production' ? 50 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   store: new CacheRateLimitStore(15 * 60 * 1000, 'auth'),

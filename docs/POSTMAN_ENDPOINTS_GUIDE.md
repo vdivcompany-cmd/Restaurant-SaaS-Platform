@@ -1,51 +1,84 @@
-# Postman Collection & API Endpoints Guide
+# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform
 
-This document serves as the master **Postman Reference & Integration Manual** for the Restaurant SaaS Platform. It provides exact endpoint URLs, required authentication headers, query parameters, and copy-pasteable JSON request/response payloads grouped by operational user role.
+This document serves as the master **Postman Reference & Integration Manual** for the Restaurant SaaS Platform. It provides exact endpoint URLs, required authentication headers, query parameters, RBAC permissions, and copy-pasteable JSON request/response payloads grouped logically by operational domain and user role.
 
 > [!IMPORTANT]
-> **Living Documentation Rule:** This file MUST be updated at the conclusion of every development phase whenever new routes, webhooks, or features are introduced. Every endpoint must include clear descriptions, roles allowed, and practical JSON code examples.
+> **Living Documentation Rule:** This file MUST be updated whenever new routes, webhooks, or feature endpoints are introduced. Every endpoint must specify its required HTTP headers, authorization role requirements, and practical JSON examples.
 
 ---
 
 ## 🛠️ Postman Environment Configuration
 
-Create a dedicated Postman Environment named **`Restaurant SaaS (Local / Staging)`** and add the following core variables. Using `{{variable_name}}` syntax in your URLs and headers allows you to seamlessly switch between local testing and production servers without rewriting requests.
+Create a dedicated Postman Environment named **`Restaurant SaaS (Local / Staging)`** and add the following core variables. Using `{{variable_name}}` syntax in URLs and headers allows seamless switching between local development and cloud production deployments.
 
-| Variable Name | Initial Value | Description |
+| Variable Name | Initial / Example Value | Description |
 |---|---|---|
-| `base_url` | `http://localhost:3000/api/v1` | Root base API path |
-| `tenant_id` | `6a6b3e8447dedf5d12fef0c5` | Active test restaurant MongoDB ObjectID |
-| `tenant_slug` | `burger-house` | Readable URL-friendly identifier for headers/links |
-| `super_admin_token` | `eyJhbGciOi...` | JWT Access Token for Platform Super Admin |
-| `manager_token` | `eyJhbGciOi...` | JWT Access Token for Restaurant Owner/Manager |
-| `cashier_token` | `eyJhbGciOi...` | JWT Access Token for POS Register/Cashier |
-| `branch_id` | `6a6b3e8447dedf5d12fef0c4` | Created store branch ObjectID |
-| `category_id` | `6a6b3e8447dedf5d12fef0c3` | Created menu category ObjectID |
-| `variant_id` | `6a6b3e8447dedf5d12fef0c2` | Created customization variant ObjectID |
-| `product_id` | `6a6b3e8447dedf5d12fef0c1` | Created food dish SKU ObjectID |
-| `table_id` | `6a6b3e8447dedf5d12fef0c0` | Created dining table ObjectID |
-| `qr_code_token` | `qr_8f9e2a1c4b7d5f6a9e2c1b` | Automatically generated cryptographically signed QR token |
-| `order_id` | `6a6b3e8447dedf5d12fef0bf` | Active ticket order ObjectID |
+| `base_url` | `http://localhost:3000/api/v1` | Root API path prefix |
+| `tenant_id` | `6a6b3e8447dedf5d12fef0c5` | Target restaurant tenant MongoDB ObjectId |
+| `tenant_slug` | `burger-house` | Readable URL-friendly identifier for headers (`X-Tenant-Slug`) |
+| `super_admin_token` | `eyJhbGciOi...` | JWT Access Token for Ecosystem Super Admin |
+| `owner_token` | `eyJhbGciOi...` | JWT Access Token for Restaurant Owner |
+| `manager_token` | `eyJhbGciOi...` | JWT Access Token for Restaurant Branch Manager |
+| `cashier_token` | `eyJhbGciOi...` | JWT Access Token for POS Register Cashier |
+| `branch_id` | `6a6b3e8447dedf5d12fef0c4` | Store branch MongoDB ObjectId |
+| `category_id` | `6a6b3e8447dedf5d12fef0c3` | Menu category MongoDB ObjectId |
+| `variant_id` | `6a6b3e8447dedf5d12fef0c2` | Customization variant option set ObjectId |
+| `product_id` | `6a6b3e8447dedf5d12fef0c1` | Food item product SKU ObjectId |
+| `table_id` | `6a6b3e8447dedf5d12fef0c0` | Dining table MongoDB ObjectId |
+| `qr_code_token` | `qr_8f9e2a1c4b7d5f6a9e2c1b` | Cryptographically signed table QR token |
+| `order_id` | `6a6b3e8447dedf5d12fef0bf` | Active ticket order ObjectId |
+| `customer_id` | `6a6b3e8447dedf5d12fef0be` | Customer CRM profile ObjectId |
+| `employee_id` | `6a6b3e8447dedf5d12fef0bd` | Staff employee ObjectId |
+| `coupon_id` | `6a6b3e8447dedf5d12fef0bc` | Promo coupon ObjectId |
 
 ---
 
-## 📁 Folder 1: 🛡️ Platform Super Admin (Ecosystem Owner)
+## 🌐 0. System Probes & Health Checks
 
-As the creator and owner of the SaaS ecosystem, the `super_admin` role possesses overriding privileges across all tenant environments. Super Admins bypass standard RBAC barriers and can target any client restaurant by passing custom headers (`X-Target-Tenant-Id` or `X-Tenant-Id`).
+These endpoints operate synchronously to provide instant uptime and readiness diagnostics for cloud load balancers and orchestrators.
 
-### 1.1 Register Super Admin Account
+| Method | Endpoint | Auth Required | Description |
+|---|---|---|---|
+| `GET` | `/` | Public | Root welcome route returning platform runtime metadata |
+| `GET` | `/health` | Public | Fast container readiness probe |
+| `GET` | `/live` | Public | Liveness probe checking Node.js event loop health |
+| `GET` | `/ready` | Public | Full readiness probe checking MongoDB, Redis, RabbitMQ & Firebase connections |
+
+### 0.1 Service Readiness Check
+* **Method:** `GET`
+* **URL:** `http://localhost:3000/ready`
+* **Auth:** Public
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "services": {
+    "mongodb": { "status": "ok" },
+    "redis": { "status": "ok", "latencyMs": 8 },
+    "rabbitmq": { "status": "ok" },
+    "firebase": { "status": "ok" }
+  },
+  "timestamp": "2026-07-31T21:55:00.000Z"
+}
+```
+
+---
+
+## 🛡️ 1. Platform Super Admin Operations (`super_admin`)
+
+Super Admin accounts exist at the global ecosystem scope and manage tenant onboarding and platform operations.
+
+### 1.1 Register Platform Super Admin Account
 * **Method:** `POST`
 * **URL:** `{{base_url}}/auth/register/super-admin`
-* **Auth:** Public (Testing)
+* **Auth:** Public (Initial Setup)
 * **Headers:** `Content-Type: application/json`
-
-> [!TIP]
-> **Global Root Scope:** Platform Super Admin accounts exist above client restaurants. Do NOT include a `tenantId` when creating or logging into your ecosystem master account!
 
 **Request Body (JSON):**
 ```json
 {
-  "email": "superadmin@restaurant-saas-ecosystem.com",
+  "email": "superadmin@saas-ecosystem.com",
   "password": "SuperSecretAdminPassword2026!",
   "phone": "+201000000001"
 }
@@ -58,7 +91,7 @@ As the creator and owner of the SaaS ecosystem, the `super_admin` role possesses
   "data": {
     "user": {
       "id": "6a6b48a90192837465012345",
-      "email": "superadmin@restaurant-saas-ecosystem.com",
+      "email": "superadmin@saas-ecosystem.com",
       "role": "super_admin"
     },
     "tokens": {
@@ -70,24 +103,10 @@ As the creator and owner of the SaaS ecosystem, the `super_admin` role possesses
 }
 ```
 
-### 1.2 Login as Super Admin
-* **Method:** `POST`
-* **URL:** `{{base_url}}/auth/login`
-* **Auth:** Public
-* **Headers:** `Content-Type: application/json`
-
-**Request Body (JSON):**
-```json
-{
-  "email": "superadmin@restaurant-saas-ecosystem.com",
-  "password": "SuperSecretAdminPassword2026!"
-}
-```
-
-### 1.3 Create New Restaurant Tenant (SaaS Client Onboarding)
+### 1.2 Onboard New Restaurant Tenant
 * **Method:** `POST`
 * **URL:** `{{base_url}}/tenants`
-* **Auth:** Public or Super Admin
+* **Auth:** Bearer `{{super_admin_token}}`
 * **Headers:** `Content-Type: application/json`
 
 **Request Body (JSON):**
@@ -107,58 +126,212 @@ As the creator and owner of the SaaS ecosystem, the `super_admin` role possesses
 }
 ```
 
-### 1.4 Super Admin: Cross-Tenant Menu Audit & Inspection
-* **Method:** `GET`
-* **URL:** `{{base_url}}/menu/catalog?tenantId={{tenant_id}}`
-* **Auth:** Bearer `{{super_admin_token}}`
-* **Description:** Retrieve the complete digital menu catalog for any target restaurant without logging in as their manager.
-
-### 1.5 Super Admin: Override Restaurant Profile Settings
-* **Method:** `PUT`
-* **URL:** `{{base_url}}/restaurants/profile`
-* **Auth:** Bearer `{{super_admin_token}}`
-* **Headers:** 
-  * `Content-Type: application/json`
-  * `X-Target-Tenant-Id: {{tenant_id}}`
-
-**Request Body (JSON):**
-```json
-{
-  "brandName": "Gourmet Stone Oven Pizza & Italian Kitchen",
-  "cuisineType": "Italian & Mediterranean",
-  "currency": "EGP",
-  "description": "Authentic Neapolitan wood-fired dining experience."
-}
-```
-
----
-
-## 📁 Folder 2: 👔 Restaurant Owner & Manager (`owner`, `manager`)
-
-These endpoints power the management dashboard where business operators configure physical branch locations, hire employees, build digital menus, and monitor gross revenue.
-
-### 2.1 Register Restaurant Manager Account
+### 1.3 Provision First Restaurant Owner User Account
 * **Method:** `POST`
-* **URL:** `{{base_url}}/auth/register`
-* **Auth:** Public
+* **URL:** `{{base_url}}/auth/register/owner`
+* **Auth:** Bearer `{{super_admin_token}}`
 * **Headers:** `Content-Type: application/json`
 
 **Request Body (JSON):**
 ```json
 {
   "tenantId": "{{tenant_id}}",
-  "email": "manager@gourmetpizza.eg",
-  "password": "SecureManagerPassword123!",
-  "role": "manager",
+  "email": "owner@gourmetpizza.eg",
+  "password": "SecureOwnerPassword2026!",
   "phone": "+201098765432"
 }
 ```
 
-### 2.2 Create Storefront Branch Location
+---
+
+## 👔 2. Restaurant Owner & Management (`owner`, `manager`)
+
+### 2.1 Authenticate User (Login)
+* **Method:** `POST`
+* **URL:** `{{base_url}}/auth/login`
+* **Auth:** Public
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "email": "owner@gourmetpizza.eg",
+  "password": "SecureOwnerPassword2026!",
+  "tenantSlug": "gourmet-pizza-cairo"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "6a6b48a90192837465012345",
+      "email": "owner@gourmetpizza.eg",
+      "role": "owner",
+      "tenantId": "6a6b3e8447dedf5d12fef0c5"
+    },
+    "accessToken": "eyJhbGciOi...",
+    "refreshToken": "eyJhbGciOi..."
+  }
+}
+```
+
+### 2.2 Register Staff Member Account (Manager, Cashier, Kitchen)
+* **Method:** `POST`
+* **URL:** `{{base_url}}/auth/register/staff`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-Tenant-Id: {{tenant_id}}`
+
+**Request Body (JSON):**
+```json
+{
+  "email": "cashier.zamalek@gourmetpizza.eg",
+  "password": "CashierPassword123!",
+  "role": "cashier",
+  "phone": "+201011223344"
+}
+```
+
+### 2.3 Rotate Access & Refresh Tokens
+* **Method:** `POST`
+* **URL:** `{{base_url}}/auth/refresh`
+* **Auth:** Public
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "refreshToken": "eyJhbGciOi..."
+}
+```
+
+### 2.4 Logout Session
+* **Method:** `POST`
+* **URL:** `{{base_url}}/auth/logout`
+* **Auth:** Bearer `{{manager_token}}`
+
+---
+
+## 🏬 3. Tenant Workspace & Subscription Management
+
+### 3.1 Get Tenant Workspace Details
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tenants/me`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
+
+### 3.2 Update Tenant Settings
+* **Method:** `PATCH`
+* **URL:** `{{base_url}}/tenants/settings`
+* **Auth:** Bearer `{{owner_token}}`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-Tenant-Id: {{tenant_id}}`
+
+**Request Body (JSON):**
+```json
+{
+  "name": "Gourmet Wood-Fired Pizza & Kitchen",
+  "settings": {
+    "currency": "EGP",
+    "timezone": "Africa/Cairo",
+    "language": "ar"
+  }
+}
+```
+
+### 3.3 Retrieve Active Subscription
+* **Method:** `GET`
+* **URL:** `{{base_url}}/subscriptions`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
+
+### 3.4 Update Subscription Plan
+* **Method:** `PATCH`
+* **URL:** `{{base_url}}/subscriptions`
+* **Auth:** Bearer `{{owner_token}}`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-Tenant-Id: {{tenant_id}}`
+
+**Request Body (JSON):**
+```json
+{
+  "plan": "pro",
+  "status": "active"
+}
+```
+
+---
+
+## 🍕 4. Restaurant Profile & AI Gateway Settings
+
+### 4.1 Get Restaurant Profile
+* **Method:** `GET`
+* **URL:** `{{base_url}}/restaurants/profile`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
+
+### 4.2 Upsert Restaurant Profile & AI Settings
+* **Method:** `PUT` (or `POST`)
+* **URL:** `{{base_url}}/restaurants/profile`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-Tenant-Id: {{tenant_id}}`
+
+**Request Body (JSON):**
+```json
+{
+  "brandName": "Gourmet Stone Oven Pizza",
+  "cuisineType": "Italian & Mediterranean",
+  "description": "Authentic Neapolitan wood-fired pizza kitchen.",
+  "isOpen": true,
+  "isChatbotActive": true,
+  "chatbotSettings": {
+    "offlineMessage": "We are currently closed for online orders. Please check back during operating hours!",
+    "aiModelPreference": "gpt-4o"
+  }
+}
+```
+
+### 4.3 n8n Cloud AI Status Probe (Public Gateway)
+* **Method:** `GET`
+* **URL:** `{{base_url}}/restaurants/{{tenant_id}}/ai-status`
+* **Auth:** Public / n8n Cloud
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6b3e8447dedf5d12fef0c5",
+    "brandName": "Gourmet Stone Oven Pizza",
+    "currency": "EGP",
+    "isOpen": true,
+    "isChatbotActive": true,
+    "canAnswer": true,
+    "offlineReply": null,
+    "aiModelPreference": "gpt-4o"
+  }
+}
+```
+
+---
+
+## 🏢 5. Branch Location Management
+
+### 5.1 Create Store Branch
 * **Method:** `POST`
 * **URL:** `{{base_url}}/branches`
-* **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -171,31 +344,63 @@ These endpoints power the management dashboard where business operators configur
 }
 ```
 
-### 2.3 Create Menu Category
+### 5.2 List All Branches
+* **Method:** `GET`
+* **URL:** `{{base_url}}/branches`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
+
+### 5.3 Update Branch
+* **Method:** `PUT`
+* **URL:** `{{base_url}}/branches/{{branch_id}}`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** 
+  * `Content-Type: application/json`
+  * `X-Tenant-Id: {{tenant_id}}`
+
+**Request Body (JSON):**
+```json
+{
+  "phone": "+20227359999",
+  "isActive": true
+}
+```
+
+### 5.4 Delete Branch
+* **Method:** `DELETE`
+* **URL:** `{{base_url}}/branches/{{branch_id}}`
+* **Auth:** Bearer `{{owner_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
+
+---
+
+## 📋 6. Menu Catalog, Categories, Variants & Products
+
+### 6.1 Create Menu Category
 * **Method:** `POST`
 * **URL:** `{{base_url}}/categories`
 * **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
 {
   "name": "Wood-Fired Pizzas",
-  "description": "Hand-stretched authentic sourdough crusts baked at 450°C",
+  "description": "Hand-stretched sourdough crusts baked at 450°C",
   "displayOrder": 1
 }
 ```
 
-### 2.4 Create Customization Variant (Menu Modifiers)
+### 6.2 Create Customization Variant Option Set
 * **Method:** `POST`
 * **URL:** `{{base_url}}/variants`
 * **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
 {
-  "name": "Crust Style & Cheese stuffed",
+  "name": "Crust Style",
   "minSelect": 1,
   "maxSelect": 1,
   "options": [
@@ -206,11 +411,11 @@ These endpoints power the management dashboard where business operators configur
 }
 ```
 
-### 2.5 Create Dish Product SKU
+### 6.3 Create Product SKU (Food Item)
 * **Method:** `POST`
 * **URL:** `{{base_url}}/products`
 * **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -225,25 +430,82 @@ These endpoints power the management dashboard where business operators configur
 }
 ```
 
-### 2.6 Edit Existing Product Details (Manager / Super Admin)
-* **Method:** `PUT`
-* **URL:** `{{base_url}}/products/{{product_id}}`
-* **Auth:** Bearer `{{manager_token}}` or `{{super_admin_token}}`
-* **Headers:** `Content-Type: application/json`
+### 6.4 Public Guest Digital Menu Catalog
+* **Method:** `GET`
+* **URL:** `{{base_url}}/menu/catalog?tenantId={{tenant_id}}`
+* **Auth:** Public
+* **Headers:** `X-Tenant-Id: {{tenant_id}}` (or query param `?tenantId=...`)
+
+### 6.5 Bulk Import Full Menu (Atomic Transaction)
+* **Method:** `POST`
+* **URL:** `{{base_url}}/menu/bulk-import`
+* **Auth:** Bearer `{{super_admin_token}}`, `{{owner_token}}`, or `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
 {
-  "basePrice": 350,
-  "description": "Porcini mushrooms, premium fontina cheese, fresh oregano, and white truffle oil"
+  "categories": [
+    {
+      "name": "Wood-Fired Pizzas",
+      "displayOrder": 1,
+      "products": [
+        {
+          "name": "Truffle Mushroom Pizza",
+          "description": "Wild mushrooms, fontina, black truffle oil",
+          "basePrice": 320,
+          "variants": [
+            {
+              "name": "Crust Style",
+              "minSelect": 1,
+              "maxSelect": 1,
+              "options": [
+                { "name": "Classic Thin", "priceDelta": 0 },
+                { "name": "Cheese Stuffed", "priceDelta": 45 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
-### 2.7 Create Dining Floor Table & Generate QR Code Token
+### 6.6 n8n Cloud RAG Vector Menu Extract
+* **Method:** `GET`
+* **URL:** `{{base_url}}/menu/rag-catalog/{{tenant_id}}`
+* **Auth:** Public / n8n Cloud
+
+---
+
+## 🪑 7. Dining Tables & QR Token Resolution
+
+### 7.1 Resolve QR Token to Dining Table (Public Scan)
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/qr/{{qr_code_token}}`
+* **Auth:** Public
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "6a6b3e8447dedf5d12fef0c0",
+    "branchId": "6a6b3e8447dedf5d12fef0c4",
+    "number": 10,
+    "capacity": 6,
+    "status": "AVAILABLE",
+    "qrCodeToken": "qr_8f9e2a1c4b7d5f6a9e2c1b"
+  }
+}
+```
+
+### 7.2 Create Store Table & Generate QR Token
 * **Method:** `POST`
 * **URL:** `{{base_url}}/tables`
 * **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -255,73 +517,28 @@ These endpoints power the management dashboard where business operators configur
 }
 ```
 
-### 2.8 Hire & Register Kitchen Employee Staff
-* **Method:** `POST`
-* **URL:** `{{base_url}}/employees`
-* **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+### 7.3 Update Table Status
+* **Method:** `PUT`
+* **URL:** `{{base_url}}/tables/{{table_id}}`
+* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
 {
-  "branchId": "{{branch_id}}",
-  "fullName": "Chef Marco Rossi",
-  "position": "Head Pizzaiolo",
-  "phone": "+201112223333",
-  "hourlyRate": 180,
-  "isActive": true
-}
-```
-
-### 2.9 Create Promotional Discount Coupon
-* **Method:** `POST`
-* **URL:** `{{base_url}}/coupons`
-* **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
-
-**Request Body (JSON):**
-```json
-{
-  "code": "SUMMERPIZZA20",
-  "discountPercentage": 20,
-  "expiresAt": "2026-12-31T23:59:59.000Z",
-  "isActive": true
-}
-```
-
-### 2.10 Generate Real-Time Sales & Revenue Analytics
-* **Method:** `GET`
-* **URL:** `{{base_url}}/reports/sales?branchId={{branch_id}}`
-* **Auth:** Bearer `{{manager_token}}` or `{{super_admin_token}}`
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "tenantId": "6a6b3e8447dedf5d12fef0c5",
-    "branchId": "6a6b3e8447dedf5d12fef0c4",
-    "totalOrders": 142,
-    "paidOrders": 138,
-    "totalRevenue": 48560
-  }
+  "status": "OCCUPIED"
 }
 ```
 
 ---
 
-## 📁 Folder 3: 🖥️ POS Terminal, Cashier & Kitchen Staff (`cashier`, `kitchen`, `waiter`)
+## 🧾 8. POS Ticket Orders & KDS Workflow
 
-These routes handle everyday dine-in ticket creation, checkout billing, table occupancy automation, and offline register synchronization.
-
-### 3.1 Create Dine-In Table Order (Automated Table Lock)
+### 8.1 Create Dine-In / Takeaway Ticket Order
 * **Method:** `POST`
 * **URL:** `{{base_url}}/orders`
-* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
-
-> [!TIP]
-> **Automated Floor Plan Effect:** When an order is successfully placed for a table with channel `DINE_IN`, our system automatically alters the table's state from `AVAILABLE` to `OCCUPIED` without requiring extra API requests!
+* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}` (or Public Guest with `X-Tenant-Id`)
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -334,21 +551,27 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
       "productId": "{{product_id}}",
       "name": "Truffle & Wild Mushroom Pizza",
       "quantity": 2,
-      "unitPrice": 350,
-      "totalPrice": 700
+      "unitPrice": 320,
+      "totalPrice": 640,
+      "selectedVariants": [
+        {
+          "variantId": "{{variant_id}}",
+          "selectedOptionNames": ["Mozzarella Stuffed Crust"]
+        }
+      ]
     }
   ],
-  "subtotal": 700,
-  "taxAmount": 98,
-  "totalAmount": 798
+  "subtotal": 640,
+  "taxAmount": 89.6,
+  "totalAmount": 729.6
 }
 ```
 
-### 3.2 Kitchen Display System (KDS) Status Update
+### 8.2 Kitchen Display System (KDS) Order Status Transition
 * **Method:** `PATCH`
 * **URL:** `{{base_url}}/orders/{{order_id}}`
 * **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -356,32 +579,13 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
   "status": "PREPARING"
 }
 ```
-*(Valid statuses: `PENDING`, `PREPARING`, `READY`, `SERVED`, `PAID`, `CANCELLED`)*
+*(Valid lifecycle statuses: `PENDING`, `PREPARING`, `READY`, `SERVED`, `PAID`, `CANCELLED`)*
 
-### 3.3 Settle Checkout Bill to PAID (Automated Table Release)
-* **Method:** `PATCH`
-* **URL:** `{{base_url}}/orders/{{order_id}}`
-* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
-
-> [!TIP]
-> **Automated Table Release:** Updating an active table order's status to `PAID` automatically resets Table #10's status back to `AVAILABLE` and clears its `currentOrderId` hold!
-
-**Request Body (JSON):**
-```json
-{
-  "status": "PAID"
-}
-```
-
-### 3.4 POS Offline-Sync & Duplicate Replay Defense
+### 8.3 POS Offline Batch Sync with Replay Deduplication
 * **Method:** `POST`
 * **URL:** `{{base_url}}/orders/offline-sync`
 * **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
-
-> [!IMPORTANT]
-> **Replay Deduplication Guarantee:** Every offline transaction MUST attach a unique `offlineGuid`. If poor WiFi causes a register to upload the exact same batch twice, our backend identifies duplicate GUIDs and ignores them (`{ "synced": 1, "skipped": 1 }`), ensuring zero double-billing!
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -394,15 +598,14 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
       "items": [
         {
           "productId": "{{product_id}}",
-          "name": "Truffle Pizza (Offline Ticket)",
           "quantity": 1,
-          "unitPrice": 350,
-          "totalPrice": 350
+          "unitPrice": 320,
+          "totalPrice": 320
         }
       ],
-      "subtotal": 350,
-      "totalAmount": 350,
-      "offlineGuid": "pos-guid-terminal01-txn-889977"
+      "subtotal": 320,
+      "totalAmount": 320,
+      "offlineGuid": "pos-terminal-01-tx-9921004"
     }
   ]
 }
@@ -419,11 +622,37 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 }
 ```
 
-### 3.5 Register Customer CRM Profile
+---
+
+## 🏷️ 9. Promotional Coupons & Customer CRM
+
+### 9.1 Create Promo Coupon
+* **Method:** `POST`
+* **URL:** `{{base_url}}/coupons`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
+
+**Request Body (JSON):**
+```json
+{
+  "code": "SUMMERPIZZA20",
+  "discountPercentage": 20,
+  "expiresAt": "2026-12-31T23:59:59.000Z",
+  "isActive": true
+}
+```
+
+### 9.2 Validate Promo Coupon at Checkout
+* **Method:** `GET`
+* **URL:** `{{base_url}}/coupons/validate?code=SUMMERPIZZA20`
+* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
+
+### 9.3 Register Customer CRM Profile
 * **Method:** `POST`
 * **URL:** `{{base_url}}/customers`
 * **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -434,52 +663,33 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 }
 ```
 
-### 3.6 Validate Promo Coupon at Checkout
-* **Method:** `GET`
-* **URL:** `{{base_url}}/coupons/validate?code=SUMMERPIZZA20`
-* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
-
 ---
 
-## 📁 Folder 4: 📱 Unauthenticated Dining Guest (Public QR Code Scans)
+## 👥 10. Staff Employees, Guest Feedback & Analytics
 
-> [!WARNING]
-> **NO AUTHENTICATION REQUIRED:** Do NOT include a JWT Authorization Bearer token when executing these Postman calls. These endpoints represent customers using smartphone browsers to scan physical QR tags on their dining tables.
+### 10.1 Hire & Register Store Employee
+* **Method:** `POST`
+* **URL:** `{{base_url}}/employees`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
-### 4.1 Scan Table QR Code Token (Resolve Floor Details)
-* **Method:** `GET`
-* **URL:** `{{base_url}}/tables/qr/{{qr_code_token}}`
-* **Auth:** **None (Public)**
-
-**Response (200 OK):**
+**Request Body (JSON):**
 ```json
 {
-  "success": true,
-  "data": {
-    "_id": "6a6b3e8447dedf5d12fef0c0",
-    "number": 10,
-    "capacity": 6,
-    "status": "AVAILABLE",
-    "qrCodeToken": "qr_8f9e2a1c4b7d5f6a9e2c1b"
-  }
+  "branchId": "{{branch_id}}",
+  "fullName": "Chef Marco Rossi",
+  "position": "Head Pizzaiolo",
+  "phone": "+201112223333",
+  "hourlyRate": 180,
+  "isActive": true
 }
 ```
 
-### 4.2 Retrieve Interactive Digital Menu (Served via Upstash Redis RAM)
-* **Method:** `GET`
-* **URL:** `{{base_url}}/menu/catalog?tenantId={{tenant_id}}`
-* **Auth:** **None (Public)**
-
-> [!TIP]
-> **Tenant Resolution Fallback:** Our upgraded `tenantMiddleware` accepts the restaurant identifier either via custom headers (`X-Tenant-Id: {{tenant_id}}` / `X-Tenant-Slug: {{tenant_slug}}`) OR straight from the URL query parameter (`?tenantId={{tenant_id}}` / `?tenantSlug={{tenant_slug}}`).
-
-### 4.3 Submit Guest Star Rating & Dining Feedback Review
+### 10.2 Submit Guest Dining Feedback & Rating (Public)
 * **Method:** `POST`
-* **URL:** `{{base_url}}/feedback?tenantId={{tenant_id}}`
-* **Auth:** **None (Public)**
-* **Headers:** 
-  * `Content-Type: application/json`
-  * `X-Tenant-Id: {{tenant_id}}` *(or simply pass `?tenantId={{tenant_id}}` in URL)*
+* **URL:** `{{base_url}}/feedback`
+* **Auth:** Public
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
@@ -487,241 +697,57 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
   "branchId": "{{branch_id}}",
   "customerName": "Tariq Al-Mansour",
   "rating": 5,
-  "comment": "Incredible truffle wood-fired pizza and super responsive service on Table #10!"
+  "comment": "Outstanding stone-oven crust pizza and fast staff service!"
 }
 ```
 
----
-
-## 📁 Folder 5: ⚙️ Phase 4 — Integrations Gateway
-
-### 5.1 Bulk Menu Import Gateway
-* **Method:** `POST`
-* **URL:** `{{base_url}}/menu/bulk-import`
-* **Auth:** Bearer `{{super_admin_token}}`, `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
-* **Purpose:** Atomic batch ingestion of Categories, Variants, and Products (manual or via external automation pipelines), clearing Upstash Redis menu cache.
-
-**Expected Data Contract Body (JSON):**
-```json
-{
-  "categories": [
-    {
-      "name": "Wood-Fired Pizzas",
-      "displayOrder": 1,
-      "products": [
-        {
-          "name": "Truffle Mushroom Pizza",
-          "description": "Wild mushrooms, mozzarella, truffle oil spray",
-          "basePrice": 320.00,
-          "variants": [
-            {
-              "name": "Crust Selection",
-              "minSelect": 1,
-              "maxSelect": 1,
-              "options": [
-                { "name": "Classic Neapolitan Thin", "priceDelta": 0 },
-                { "name": "Mozzarella Stuffed Crust", "priceDelta": 45 }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-### 5.2 External Cloud Automations & AI Agentic Integration
-* **Method:** Standard REST (`GET`, `POST`, `PATCH`, `DELETE`)
-* **Authentication:** Bearer JWT Token (`Authorization: Bearer {{owner_token}}`)
-* **Purpose:** External automation workflows (such as custom cloud AI agents, Make.com, or n8n cloud tasks) integrate directly against standard REST endpoints (e.g. `POST /api/v1/orders` or `POST /api/v1/menu/bulk-import`) without requiring specialized proprietary receiver sub-modules.
-* **Storage & Caching Assurance:** All external API requests immediately invoke Upstash Redis caching layers and multi-tenant Cloudinary asset folder isolating logic (`SaaS_Restaurants/{tenantId}/...`).
-
-### 5.3 n8n Cloud Chatbot Status & Manager Switch Query
+### 10.3 Analytical Sales Report Snapshot
 * **Method:** `GET`
-* **URL:** `{{base_url}}/restaurants/{{tenant_id}}/ai-status`
-* **Auth:** Public / n8n Cloud Integration
-* **Purpose:** Ultra-fast operational query executed as Node #1 in external n8n chatbot workflows. Verifies whether the restaurant kitchen is open (`isOpen`) and whether the manager has active AI chat enabled (`isChatbotActive`). If `canAnswer` is false, n8n immediately aborts without executing LLM inference or RAG database lookup!
+* **URL:** `{{base_url}}/reports/sales?branchId={{branch_id}}&startDate=2026-07-01T00:00:00.000Z&endDate=2026-07-31T23:59:59.000Z`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
 
-**Response (200 OK - Active & Open):**
-```json
-{
-  "success": true,
-  "data": {
-    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
-    "brandName": "Gourmet Burger House",
-    "currency": "EGP",
-    "isOpen": true,
-    "isChatbotActive": true,
-    "canAnswer": true,
-    "offlineReply": null,
-    "aiModelPreference": "gpt-4o"
-  }
-}
-```
-
-**Response (200 OK - Manager Paused Chatbot / Kitchen Closed):**
-```json
-{
-  "success": true,
-  "data": {
-    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
-    "brandName": "Gourmet Burger House",
-    "currency": "EGP",
-    "isOpen": false,
-    "isChatbotActive": true,
-    "canAnswer": false,
-    "offlineReply": "We are currently closed for orders or our chatbot is on a break. Please check back during operating hours!",
-    "aiModelPreference": "gpt-4o"
-  }
-}
-```
-
-### 5.4 n8n Cloud RAG Vector Menu Catalog Synchronization
-* **Method:** `GET`
-* **URL:** `{{base_url}}/menu/rag-catalog/{{tenant_id}}` (or simply `{{base_url}}/menu/rag-catalog` with `X-Tenant-Id` header)
-* **Auth:** Public / n8n Cloud Integration
-* **Purpose:** Exports all available menu items in a clean, token-optimized textual embedding format (`ragItems[*].text`) alongside precise pricing and availability metadata for direct ingestion into Upstash Vector database namespaces.
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
-    "count": 1,
-    "ragItems": [
-      {
-        "id": "6a6cbb8a0192837465000111",
-        "text": "Dish: Truffle Mushroom Pizza | Category: Wood-Fired Pizzas | Base Price: 320 EGP | Description: Wild mushrooms, mozzarella, truffle oil spray | Variants available: [Classic Neapolitan Thin (+0 EGP), Mozzarella Stuffed Crust (+45 EGP)] | Available: Yes",
-        "metadata": {
-          "productId": "6a6cbb8a0192837465000111",
-          "categoryName": "Wood-Fired Pizzas",
-          "basePrice": 320,
-          "isAvailable": true,
-          "tenantId": "6a6caa2fc2f7b5caa316ba3b"
-        }
-      }
-    ]
-  }
-}
-```
-
----
-
-## 📁 Folder 6: ⚙️ Advanced Architecture, Audit Logs & Analytical Snapshot APIs
-
-This folder provides actionable testing contracts for our zero-empty-files enterprise extensions: persistent notification delivery audit trails, ultra-fast pre-computed financial analytical snapshots, and custom digital QR menu brand styling.
-
-### 6.1 Dispatch Notification with Audit Log Archiving
+### 10.4 Dispatch System Notification (Audit Trail Integration)
 * **Method:** `POST`
-* **URL:** `{{base_url}}/notifications`
-* **Auth:** Manager or POS Cashier (`Bearer {{manager_token}}`)
-* **Headers:** `Content-Type: application/json`
-* **Purpose:** Enqueues customer communication jobs (e.g. order receipt emails, table reservation confirmation alerts) to RabbitMQ messaging queues while simultaneously recording an immutable audit log document inside `NotificationLogModel`.
+* **URL:** `{{base_url}}/notifications/dispatch`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
 
 **Request Body (JSON):**
 ```json
 {
   "channel": "EMAIL",
   "recipient": "guest.vip@gmail.com",
-  "message": "Dear Valued Guest, your table reservation at Gourmet Burger House has been confirmed for tonight at 8:00 PM. Your QR Token: qr_8f9e2a1c4b7d. See you soon!"
+  "subject": "Table Reservation Confirmation",
+  "message": "Your table reservation at Gourmet Stone Oven Pizza for 8:00 PM is confirmed!"
 }
 ```
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Notification enqueued for delivery and recorded in persistent audit trail"
-}
-```
+---
 
-### 6.2 Retrieve Analytical Sales & Shift Snapshot Report (< 2ms Response Time)
+## 💳 11. Billing Invoices & Financial Ledger
+
+### 11.1 List Tenant Billing Records
 * **Method:** `GET`
-* **URL:** `{{base_url}}/reports/sales?branchId={{branch_id}}&startDate=2026-07-01T00:00:00.000Z&endDate=2026-07-31T23:59:59.000Z`
-* **Auth:** Owner / Manager (`Bearer {{manager_token}}`)
-* **Purpose:** Retrieves closed analytical financial calculations (revenue breakdowns, average ticket sizes, and top-performing dishes) directly from pre-computed `ReportSnapshotModel` archives without running heavy real-time Mongoose aggregations during peak kitchen rush hours.
+* **URL:** `{{base_url}}/billing`
+* **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
+* **Headers:** `X-Tenant-Id: {{tenant_id}}`
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "reportType": "DAILY_SALES",
-    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
-    "branchId": "6a6b3e8447dedf5d12fef0c4",
-    "periodStart": "2026-07-01T00:00:00.000Z",
-    "periodEnd": "2026-07-31T23:59:59.000Z",
-    "metrics": {
-      "totalRevenue": 48590.00,
-      "totalOrders": 312,
-      "averageOrderValue": 155.73,
-      "paymentBreakdown": {
-        "cash": 31050.00,
-        "card": 15040.00,
-        "online": 2500.00
-      },
-      "topDishes": [
-        { "dishName": "Truffle Mushroom Pizza", "quantity": 94, "revenue": 30080.00 },
-        { "dishName": "Classic Smash Burger", "quantity": 88, "revenue": 18510.00 }
-      ]
-    },
-    "aiInsightNotes": "AI Margin Recommendation: Truffle Mushroom Pizza accounts for 61.9% of store revenue. Suggest testing a +15 EGP price optimization on weekends.",
-    "createdAt": "2026-07-31T23:59:59.000Z"
-  }
-}
-```
-
-### 6.3 Configure Dynamic QR Menu Theme & Marketing Banner (`MenuLayoutModel`)
-* **Method:** `PUT`
-* **URL:** `{{base_url}}/menu/layout`
-* **Auth:** Restaurant Owner (`Bearer {{manager_token}}`)
+### 11.2 Create Billing Record
+* **Method:** `POST`
+* **URL:** `{{base_url}}/billing`
+* **Auth:** Bearer `{{owner_token}}`
 * **Headers:** `Content-Type: application/json`, `X-Tenant-Id: {{tenant_id}}`
-* **Purpose:** Saves digital QR consumer menu presentation rules directly into `MenuLayoutModel`, enabling dynamic theme personalization (hex color palettes, Arabic typography, allergen visibility) and promotional banners without redeploying the client frontend.
 
 **Request Body (JSON):**
 ```json
 {
-  "theme": {
-    "primaryColor": "#FF6B00",
-    "backgroundColor": "#18181B",
-    "fontFamily": "Cairo",
-    "showAllergens": true,
-    "showCaloricCount": false
-  },
-  "promotionBanner": {
-    "title": "🍕 Summer Stone Oven Festival!",
-    "subtitle": "Order any 2 Large Pizzas & get a free Garlic Parmesan Truffle Dip!",
-    "active": true,
-    "bannerImageUrl": "https://res.cloudinary.com/vdivcompany/image/upload/v178550/promotions/summer-pizza.jpg"
-  }
+  "amount": 2499,
+  "currency": "EGP",
+  "status": "paid",
+  "paymentMethod": "credit_card",
+  "invoiceUrl": "https://billing.saas-platform.com/invoices/INV-2026-07-001.pdf"
 }
 ```
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "QR menu layout and promotional styling successfully published",
-  "data": {
-    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
-    "theme": {
-      "primaryColor": "#FF6B00",
-      "backgroundColor": "#18181B",
-      "fontFamily": "Cairo",
-      "showAllergens": true,
-      "showCaloricCount": false
-    },
-    "promotionBanner": {
-      "title": "🍕 Summer Stone Oven Festival!",
-      "subtitle": "Order any 2 Large Pizzas & get a free Garlic Parmesan Truffle Dip!",
-      "active": true,
-      "bannerImageUrl": "https://res.cloudinary.com/vdivcompany/image/upload/v178550/promotions/summer-pizza.jpg"
-    },
-    "updatedAt": "2026-07-31T19:15:00.000Z"
-  }
-}
-```
-
+---
