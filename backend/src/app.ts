@@ -68,8 +68,8 @@ export function createApp(): Express {
 
   // ─── Parsing ──────────────────────────────────────────────────────────────
   app.use(compression());
-  app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '20mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
   // Trust proxy — required when behind Nginx on Hostinger VPS

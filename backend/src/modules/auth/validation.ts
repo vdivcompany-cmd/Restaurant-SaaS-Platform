@@ -18,7 +18,7 @@ export const RegisterStaffSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters long'),
   phone: z.string().optional(),
   role: z.enum(['manager', 'cashier', 'kitchen'], {
-    errorMap: () => ({ message: 'Staff role must be one of: manager, cashier, kitchen' }),
+    message: 'Staff role must be one of: manager, cashier, kitchen',
   }),
 });
 

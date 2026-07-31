@@ -31,7 +31,9 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
           }
         }
       }
-      req.tenantId = req.user.tenantId;
+      if (req.user.tenantId) {
+        req.tenantId = req.user.tenantId;
+      }
       return next();
     }
 

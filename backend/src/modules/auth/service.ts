@@ -194,7 +194,7 @@ export class AuthService {
     tenantId?: string | null | undefined;
     email: string;
     password: string;
-    phone?: string;
+    phone?: string | undefined;
   }): Promise<AuthResponse> {
     const existingUser = await UserRepository.findSuperAdminByEmail(data.email);
     if (existingUser) {
