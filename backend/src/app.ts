@@ -12,9 +12,9 @@ import { initFirebase } from './config/firebase.js';
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
+import { requestLogger } from './middleware/requestLogger.middleware.js';
 
 import { healthService } from './health/health.service.js';
-
 import authRoutes from './modules/auth/routes.js';
 import tenantRoutes from './modules/tenants/routes.js';
 import subscriptionRoutes from './modules/subscriptions/routes.js';
@@ -43,7 +43,6 @@ export function createApp(): Express {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
-
   app.use(
     cors({
       origin: env.NODE_ENV === 'production'
@@ -53,7 +52,8 @@ export function createApp(): Express {
     }),
   );
 
-  // ─── Request Logging ──────────────────────────────────────────────────────
+  // ─── Request Logging & Telemetry ──────────────────────────────────────────
+  app.use(requestLogger);
   app.use(
     pinoHttp({
       logger,
