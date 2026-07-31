@@ -10,6 +10,8 @@ import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
 
+import { healthService } from './health/health.service.js';
+
 import authRoutes from './modules/auth/routes.js';
 import tenantRoutes from './modules/tenants/routes.js';
 import subscriptionRoutes from './modules/subscriptions/routes.js';
@@ -77,15 +79,17 @@ export function createApp(): Express {
 
   // ─── Health Checks ────────────────────────────────────────────────────────
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
-
-  app.get('/ready', (_req, res) => {
-    res.json({ status: 'ready', timestamp: new Date().toISOString() });
+    res.json(healthService.getLiveness());
   });
 
   app.get('/live', (_req, res) => {
-    res.json({ status: 'live', timestamp: new Date().toISOString() });
+    res.json(healthService.getLiveness());
+  });
+
+  app.get('/ready', async (_req, res) => {
+    const readiness = await healthService.getReadiness();
+    const statusCode = readiness.status === 'ok' ? 200 : 503;
+    res.status(statusCode).json(readiness);
   });
 
   // ─── Global API Rate Limiter ──────────────────────────────────────────────

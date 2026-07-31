@@ -8,13 +8,15 @@ import env from '../config/env.js';
  */
 class CacheRateLimitStore implements Store {
   private windowSeconds: number;
+  private keyPrefix: string;
 
-  constructor(windowMs: number) {
+  constructor(windowMs: number, keyPrefix: string = 'api') {
     this.windowSeconds = Math.ceil(windowMs / 1000);
+    this.keyPrefix = keyPrefix;
   }
 
   public async increment(key: string): Promise<ClientRateLimitInfo> {
-    const cacheKey = `ratelimit:${key}`;
+    const cacheKey = `ratelimit:${this.keyPrefix}:${key}`;
     const totalHits = await cacheService.incr(cacheKey);
     if (totalHits === 1) {
       await cacheService.expire(cacheKey, this.windowSeconds);
@@ -28,7 +30,7 @@ class CacheRateLimitStore implements Store {
   }
 
   public async resetKey(key: string): Promise<void> {
-    await cacheService.del(`ratelimit:${key}`);
+    await cacheService.del(`ratelimit:${this.keyPrefix}:${key}`);
   }
 }
 
@@ -41,7 +43,7 @@ export const authRateLimiter = rateLimit({
   max: env.NODE_ENV === 'production' ? 10 : 100,
   standardHeaders: true,
   legacyHeaders: false,
-  store: new CacheRateLimitStore(15 * 60 * 1000),
+  store: new CacheRateLimitStore(15 * 60 * 1000, 'auth'),
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again in 15 minutes.',
@@ -58,11 +60,11 @@ export const apiRateLimiter = rateLimit({
   max: env.NODE_ENV === 'production' ? 200 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  store: new CacheRateLimitStore(60 * 1000),
+  store: new CacheRateLimitStore(60 * 1000, 'api'),
   message: {
     success: false,
     message: 'Too many requests, please slow down.',
   },
-  skip: () => env.NODE_ENV === 'test',
+  skip: (req) => env.NODE_ENV === 'test' || req.originalUrl.startsWith('/api/v1/auth'),
 });
 

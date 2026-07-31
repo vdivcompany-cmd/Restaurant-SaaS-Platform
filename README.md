@@ -138,5 +138,24 @@ Multi-tenant restaurant management SaaS for the Egyptian market.
 **Notes / deviations from the plan:**
 - Managed cloud infrastructure services (MongoDB Atlas, Upstash Redis, CloudAMQP) are used across all environments, eliminating the need to install local Mongo/Redis/RabbitMQ instances on the VPS.
 
-**Next phase:** Phase 6 — Backups & Reliability
-- Configure automated cron backup jobs, health monitoring, failure handling, and disaster recovery restore drills.
+---
+
+### ✅ Phase 6 — Backups, Health & Reliability — Completed 2026-07-31
+**What was implemented:**
+- Implemented real infrastructure health service ([src/health/health.service.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/src/health/health.service.ts)) checking live connectivity to MongoDB Atlas (`readyState`), Upstash Redis (`ping`), CloudAMQP RabbitMQ (`channel`), and Firebase Admin SDK.
+- Updated `/health`, `/live`, and `/ready` endpoints in [src/app.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/src/app.ts), returning 200 for healthy states and 503 Service Unavailable with per-service diagnostic telemetry when degraded.
+- Enforced **MongoDB-first Rule #3** with `publishSafe()` in `IRealtimeService`, `FirestoreRealtimeService`, and `MemoryRealtimeService` ([src/services/realtime/](file:///d:/Restaurant%20SaaS%20Platform/backend/src/services/realtime/)), catching Firestore write failures and auto-enqueuing retry jobs to RabbitMQ (`q.firestore-retry`).
+- Expanded RabbitMQ topology definitions in [src/services/queue/queue-definitions.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/src/services/queue/queue-definitions.ts) and [infra/rabbitmq/definitions.json](file:///d:/Restaurant%20SaaS%20Platform/infra/rabbitmq/definitions.json) to include `q.firestore-retry` and `q.firestore-retry.dlq`.
+- Wired automated process execution in [src/workers/backup.worker.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/src/workers/backup.worker.ts) using `child_process.exec` against `scripts/backup.sh` and added `node-cron` daily scheduler (`0 2 * * *`).
+- Authored comprehensive disaster recovery runbook ([docs/runbook.md](file:///d:/Restaurant%20SaaS%20Platform/docs/runbook.md)) covering Atlas point-in-time restores, Upstash cache recovery, RabbitMQ definition re-imports, and service outage playbooks.
+- Created unit test suites for HealthService ([tests/unit/health.test.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/tests/unit/health.test.ts)) and Firestore write-failure resilience ([tests/unit/firestore-retry.test.ts](file:///d:/Restaurant%20SaaS%20Platform/backend/tests/unit/firestore-retry.test.ts)).
+- Updated API route documentation ([docs/API_ROUTES.md](file:///d:/Restaurant%20SaaS%20Platform/docs/API_ROUTES.md)).
+
+**Deliverable achieved:**
+- A documented, rehearsed restore process, real health check endpoints verifying infrastructure state, Firestore write resilience matching Rule #3, and written operational runbooks in `docs/runbook.md` covering all failure modes.
+
+**Notes / deviations from the plan:**
+- Managed cloud infrastructure services (MongoDB Atlas continuous backups, Upstash Redis auto-persistence, CloudAMQP TLS) eliminate self-hosted database disk backup requirements.
+
+**Next phase:** Phase 7 — Hostinger Go-Live
+- Final production deployment on Hostinger VPS, DNS configuration, and production SSL.

@@ -15,7 +15,8 @@ export type PlatformQueueName =
   | 'SUBSCRIPTION_CHECKS'
   | 'PAYMENT_RETRIES'
   | 'REPORTS'
-  | 'BACKUPS';
+  | 'BACKUPS'
+  | 'FIRESTORE_RETRY';
 
 export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
   EMAILS: {
@@ -79,6 +80,15 @@ export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
     dlqName: 'q.backups.dlq',
     dlxExchange: 'ex.restaurant.dlx',
     maxRetries: 2,
+    messageTtlSeconds: 86400,
+  },
+  FIRESTORE_RETRY: {
+    name: 'q.firestore-retry',
+    exchange: 'ex.restaurant',
+    routingKey: 'firestore.retry',
+    dlqName: 'q.firestore-retry.dlq',
+    dlxExchange: 'ex.restaurant.dlx',
+    maxRetries: 5,
     messageTtlSeconds: 86400,
   },
 };

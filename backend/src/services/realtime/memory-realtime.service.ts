@@ -15,6 +15,10 @@ export class MemoryRealtimeService implements IRealtimeService {
     this.store.set(path, { ...existing, ...data, _updatedAt: new Date().toISOString() });
   }
 
+  public async publishSafe(path: string, data: Record<string, unknown>, _tenantId?: string): Promise<void> {
+    await this.publish(path, data);
+  }
+
   public async delete(path: string): Promise<void> {
     this.store.delete(path);
   }
