@@ -14,6 +14,16 @@ This document maintains a living catalog of all completed API endpoints in the s
 
 ## Active Endpoints
 
+### 🩺 Health & Reliability Endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/health` | Public | Liveness probe returning process status, uptime, and timestamp |
+| `GET` | `/live` | Public | Liveness probe alias for container/k8s orchestration checks |
+| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, CloudAMQP RabbitMQ, and Firebase Admin SDK |
+
+---
+
 ### 🔑 Authentication Module (`/api/v1/auth`)
 
 | Method | Endpoint | Auth | Description |

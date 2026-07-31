@@ -50,14 +50,13 @@ export class OrderService {
     }
 
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', orderDoc._id.toString());
-    realtimeService.publish(firestorePath, {
+    // publishSafe: catches Firestore failures and enqueues retry via q.firestore-retry (Rule #3)
+    void realtimeService.publishSafe(firestorePath, {
       orderNumber: orderDoc.orderNumber,
       status: orderDoc.status,
       items: orderDoc.items,
       branchId: dto.branchId,
-    }).catch((err) => {
-      console.error('Firestore projection publishing error (non-blocking):', err);
-    });
+    }, tenantId);
 
     eventBus.emitEvent('order.completed', {
       tenantId,
@@ -114,9 +113,11 @@ export class OrderService {
 
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());
     if (dto.status === 'PAID' || dto.status === 'CANCELLED') {
-      realtimeService.delete(firestorePath).catch(() => null);
+      // delete is fire-and-forget: removal failure only means a stale projection — acceptable
+      void realtimeService.delete(firestorePath).catch(() => null);
     } else {
-      realtimeService.publish(firestorePath, { status: dto.status }).catch(() => null);
+      // publishSafe: catches Firestore failures and enqueues retry via q.firestore-retry (Rule #3)
+      void realtimeService.publishSafe(firestorePath, { status: dto.status }, tenantId);
     }
 
     return order;
