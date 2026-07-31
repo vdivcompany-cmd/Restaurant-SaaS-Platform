@@ -9,6 +9,12 @@ export interface IRestaurant extends Document {
   currency: string;
   contactEmail?: string;
   contactPhone?: string;
+  isOpen: boolean;
+  isChatbotActive: boolean;
+  chatbotSettings?: {
+    offlineMessage?: string;
+    aiModelPreference?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +29,12 @@ const RestaurantSchema = new Schema<IRestaurant>(
     currency: { type: String, default: 'EGP' },
     contactEmail: { type: String },
     contactPhone: { type: String },
+    isOpen: { type: Boolean, default: true },
+    isChatbotActive: { type: Boolean, default: true },
+    chatbotSettings: {
+      offlineMessage: { type: String, default: 'We are currently closed for orders. Please check back during operating hours!' },
+      aiModelPreference: { type: String, default: 'gpt-4o' },
+    },
   },
   { timestamps: true },
 );

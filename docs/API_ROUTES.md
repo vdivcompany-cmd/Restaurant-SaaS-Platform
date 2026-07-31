@@ -1,128 +1,168 @@
-# API Routes Reference — Restaurant SaaS Platform
+# API Routes & Integration Manual — Restaurant SaaS Platform
 
-This document maintains a living catalog of all completed API endpoints in the system. It is updated at the conclusion of every phase per [PROJECT_RULES.md](file:///d:/Restaurant%20SaaS%20Platform/docs/PROJECT_RULES.md).
-
----
-
-## Overview
-
-- **Base URL:** `/api/v1`
-- **Authentication Header:** `Authorization: Bearer <access_token>`
-- **Tenant Header (Bot / Public Context):** `X-Tenant-Slug: <tenant_slug>` or `X-Tenant-Id: <tenant_id>`
+This document serves as the master API Routing manual for our Vercel Serverless cloud architecture. Every endpoint is cataloged below along with practical copy-pasteable JSON payload examples for developer integration.
 
 ---
 
-## Active Endpoints
+## 🌐 Root & Serverless Infrastructure Probes
+All health probes operate synchronously with zero database locking, allowing external uptime monitoring (Uptime Robot, Vercel Health, Vercel Edge) to verify system state.
 
-### 🩺 Health & Reliability Endpoints
-
-| Method | Endpoint | Auth | Description |
+| Method | Endpoint | Auth Required | Description & Response Example |
 |---|---|---|---|
-| `GET` | `/health` | Public | Liveness probe returning process status, uptime, and timestamp |
-| `GET` | `/live` | Public | Liveness probe alias for container/k8s orchestration checks |
-| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, CloudAMQP RabbitMQ, and Firebase Admin SDK |
+| `GET` | `/` | Public | Welcome operational root displaying server identification and status. |
+| `GET` | `/health` | Public | Liveness probe returning process status, uptime, and timestamp. |
+| `GET` | `/live` | Public | Liveness probe alias for container/orchestration checks. |
+| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, CloudAMQP RabbitMQ, and Firebase Admin SDK. |
 
----
-
-### 🔑 Authentication Module (`/api/v1/auth`)
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/auth/register/super-admin` | Public | Register a new platform Super Admin account (testing) |
-| `POST` | `/api/v1/auth/register/owner` | Auth (`super_admin`) | Create first owner account for a tenant |
-| `POST` | `/api/v1/auth/register/staff` | Auth + Tenant (`owner`, `manager`, `super_admin`) | Invite staff member (manager, cashier, kitchen) to a tenant |
-| `POST` | `/api/v1/auth/login` | Public | Authenticate user via tenantId or tenantSlug |
-| `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token and issue new token pair |
-| `POST` | `/api/v1/auth/logout` | Auth | Invalidate current user refresh token & access token |
-| `POST` | `/api/v1/auth/change-password` | Auth + Tenant | Change current user password |
-
----
-
-### 🏬 Tenants Module (`/api/v1/tenants`)
-
-| Method | Endpoint | Auth | Roles Allowed | Description |
-|---|---|---|---|---|
-| `POST` | `/api/v1/tenants` | Public | None | Create a new tenant (Trial mode) |
-| `GET` | `/api/v1/tenants/me` | Auth + Tenant | `owner`, `manager` | Get current tenant profile |
-| `GET` | `/api/v1/tenants/:id` | Auth + Tenant | `owner`, `manager` | Get tenant profile by ID (isolated) |
-| `PATCH` | `/api/v1/tenants/settings` | Auth + Tenant | `owner` | Update current tenant settings & contact |
-| `PATCH` | `/api/v1/tenants/:id/settings` | Auth + Tenant | `owner` | Update tenant settings by ID (isolated) |
-
----
-
-### 📋 Subscriptions Module (`/api/v1/subscriptions`)
-
-| Method | Endpoint | Auth | Roles Allowed | Description |
-|---|---|---|---|---|
-| `GET` | `/api/v1/subscriptions` | Auth + Tenant | `owner`, `manager` | Get the active subscription for the current tenant |
-| `PATCH` | `/api/v1/subscriptions` | Auth + Tenant | `owner` | Update subscription plan/status |
-
----
-
-### 💳 Billing Module (`/api/v1/billing`)
-
-| Method | Endpoint | Auth | Roles Allowed | Description |
-|---|---|---|---|---|
-| `GET` | `/api/v1/billing` | Auth + Tenant | `owner`, `manager` | List all billing records (most recent first) |
-| `GET` | `/api/v1/billing/:id` | Auth + Tenant | `owner`, `manager` | Get a specific billing record by ID |
-| `POST` | `/api/v1/billing` | Auth + Tenant | `owner` | Create a billing record |
-
----
-
-### 🍽️ Phase 3 — Core Domain Modules (`/api/v1/*`)
-
-All domain endpoints require `Authorization: Bearer <token>` and `tenantMiddleware` scoping, except for guest QR digital menu retrieval and table resolving which resolve tenant context via URL query parameters or headers (`X-Tenant-Id` / `X-Tenant-Slug`).
-
-| Module | Base Route | Key Operations | Roles Allowed / Public Note |
-|---|---|---|---|
-| **Branches** | `/api/v1/branches` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` (Super Admin bypass) |
-| **Restaurants** | `/api/v1/restaurants/profile` | `GET`, `PUT` | `owner`, `manager` |
-| **Categories** | `/api/v1/categories` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` |
-| **Variants** | `/api/v1/variants` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` |
-| **Products** | `/api/v1/products` | `POST`, `GET`, `PUT`, `DELETE` | `owner`, `manager` (Full Manager & Super Admin editing) |
-| **Menu Catalog** | `/api/v1/menu` or `/api/v1/menu/catalog` | `GET /api/v1/menu?tenantId=...` | **Public Guest Access** (Served via Upstash Redis cache) |
-| **Tables & QR** | `/api/v1/tables` | `POST /api/v1/tables`, `GET /qr/:token` | `owner`, `manager` for management; `/qr/:token` is Public |
-| **Orders & Sync**| `/api/v1/orders` | `POST /`, `PATCH /:id`, `POST /offline-sync` | Automated table state transitions & `offlineGuid` POS deduplication |
-| **Coupons** | `/api/v1/coupons` | `POST /`, `GET /validate?code=...` | `owner`, `manager` for creation; Auth for validation |
-| **Customers** | `/api/v1/customers` | `POST /`, `GET /` | Auth + Tenant scoping |
-| **Employees** | `/api/v1/employees` | `POST /`, `GET /`, `PUT /`, `DELETE /` | `owner`, `manager` |
-| **Feedback** | `/api/v1/feedback` | `POST /`, `GET /` | `POST` requires `X-Tenant-Id` header or query param |
-| **Reports** | `/api/v1/reports/sales` | `GET /sales?branchId=...` | `owner`, `manager` (Real-time Mongoose aggregation) |
-
----
-
-### ⚙️ Phase 4 — Integrations Gateway (`/api/v1/*`)
-
-| Method | Endpoint | Auth | Roles Allowed | Description |
-|---|---|---|---|---|
-| `POST` | `/api/v1/menu/bulk-import` | Auth + Tenant | `super_admin`, `owner`, `manager` | Atomic batch ingestion of Categories, Variants, and Products (manual or via external automation pipeline), clearing Redis menu cache. |
-
-#### Bulk Import Data Contract Example
+**Example Response (`GET /ready` - 200 OK):**
 ```json
 {
-  "categories": [
+  "status": "ok",
+  "services": {
+    "mongodb": { "status": "ok" },
+    "redis": { "status": "ok", "latencyMs": 12 },
+    "rabbitmq": { "status": "ok" },
+    "firebase": { "status": "ok" }
+  },
+  "timestamp": "2026-07-31T18:15:00.000Z"
+}
+```
+
+---
+
+## 🤖 Phase 8 — Cloud AI & n8n RAG Automation Gateways
+These endpoints are engineered explicitly for seamless integration with external automation architectures (n8n Cloud, Make.com, Upstash Vector DB) without embedding heavy workflow logic in our core backend.
+
+| Method | Endpoint | Auth Required | Purpose & n8n Node Behavior |
+|---|---|---|---|
+| `GET` | `/api/v1/restaurants/:tenantId/ai-status` | Public / n8n Cloud | **Node #1 in n8n Chatbot Workflow:** Verifies if kitchen is `isOpen` and `isChatbotActive`. If false, n8n aborts LLM inference immediately and emits `offlineReply`. |
+| `GET` | `/api/v1/menu/rag-catalog/:tenantId` | Public / n8n Cloud | **Upstash Vector Ingestion Feed:** Exports active menu items in clean textual string summaries (`ragItems[*].text`) alongside precise pricing metadata. |
+
+**Example Response (`GET /api/v1/restaurants/6a6caa2fc2f7b5caa316ba3b/ai-status`):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "brandName": "Gourmet Burger House",
+    "currency": "EGP",
+    "isOpen": false,
+    "isChatbotActive": true,
+    "canAnswer": false,
+    "offlineReply": "We are currently closed for orders or our chatbot is on a break. Please check back during operating hours!",
+    "aiModelPreference": "gpt-4o"
+  }
+}
+```
+
+---
+
+## 🔑 Authentication Module (`/api/v1/auth`)
+Handles user onboarding, JWT access token issuance, and secure refresh token rotation (single-session per user per Rule #2).
+
+| Method | Endpoint | Auth & RBAC | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register/super-admin` | Public | Register platform Super Admin account (root ecosystem scope). |
+| `POST` | `/api/v1/auth/register/owner` | Auth (`super_admin`) | Provision first owner account for a client restaurant tenant. |
+| `POST` | `/api/v1/auth/register/staff` | Auth (`owner`, `manager`) | Invite staff members (manager, cashier, kitchen) to tenant. |
+| `POST` | `/api/v1/auth/login` | Public | Authenticate user via email/password and return token pair. |
+| `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token and invalidate previous session token. |
+| `POST` | `/api/v1/auth/logout` | Auth | Invalidate current refresh and access tokens immediately. |
+
+**Example Login Request (`POST /api/v1/auth/login`):**
+```json
+{
+  "email": "owner@burgerhouse.com",
+  "password": "SecurePassword123!"
+}
+```
+**Example Login Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "6a6b48a90192837465012345",
+      "email": "owner@burgerhouse.com",
+      "role": "owner",
+      "tenantId": "6a6b3e8447dedf5d12fef0c5"
+    },
+    "accessToken": "eyJhbGciOi...",
+    "refreshToken": "eyJhbGciOi..."
+  }
+}
+```
+
+---
+
+## 🏬 Tenant & Restaurant Management (`/api/v1/*`)
+All domain queries enforce strict zero-bleed data isolation via our `tenantQuery` Mongoose wrapping engine.
+
+| Method | Endpoint | Auth & RBAC | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/tenants` | Public | Create a new tenant trial account (slug, brand name, currency). |
+| `GET` | `/api/v1/tenants/me` | Auth (`owner`, `manager`) | Retrieve current tenant workspace configurations. |
+| `GET` | `/api/v1/restaurants/profile` | Auth (`owner`, `manager`) | Retrieve dining restaurant profile and operational flags. |
+| `PUT` | `/api/v1/restaurants/profile` | Auth (`owner`, `manager`) | Update profile, kitchen status (`isOpen`), and AI toggles (`isChatbotActive`). |
+
+**Example Manager Override Request (`PUT /api/v1/restaurants/profile`):**
+```json
+{
+  "brandName": "Gourmet Burger House",
+  "isOpen": true,
+  "isChatbotActive": false,
+  "chatbotSettings": {
+    "offlineMessage": "Kitchen is in peak rush hour! Our AI assistant is taking a 30-minute break. Please order from our cashier directly.",
+    "aiModelPreference": "gpt-4o"
+  }
+}
+```
+
+---
+
+## 🍽️ POS Menu & Kitchen Operations (`/api/v1/*`)
+
+| Module & Route | Allowed Operations & RBAC | Description & Caching Mechanics |
+|---|---|---|
+| **Branches (`/api/v1/branches`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Storefront management with compound index (`tenantId` + `branchId`). |
+| **Categories (`/api/v1/categories`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Menu organization sorted by `displayOrder`. |
+| **Products (`/api/v1/products`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Dish items linked with pricing and customization variants. |
+| **Menu Catalog (`/api/v1/menu/catalog`)**| `GET` (**Public Guest / QR Scanning**) | Returns full organized menu; automatically cached via Upstash Redis. |
+| **Bulk Import (`/api/v1/menu/bulk-import`)**| `POST` (`super_admin`, `owner`, `manager`) | Atomic transactional insertion of categories, dishes, and variants in one request; invalidates menu cache instantly. |
+| **Tables & QR (`/api/v1/tables`)** | `POST`, `GET`, `DELETE` (`owner`, `manager`); `GET /qr/:token` is Public | Dining tables paired with unforgeable SHA cryptographic QR tokens. |
+| **POS Orders (`/api/v1/orders`)** | `POST /`, `PATCH /:id`, `POST /offline-sync` | POS checkout ticket lifecycle and offline batch synchronization recovery. |
+
+**Example POS Order Creation Request (`POST /api/v1/orders`):**
+```json
+{
+  "branchId": "6a6b3e8447dedf5d12fef0c4",
+  "tableId": "6a6b3e8447dedf5d12fef0c0",
+  "orderType": "dine-in",
+  "paymentMethod": "cash",
+  "items": [
     {
-      "name": "Wood-Fired Pizzas",
-      "displayOrder": 1,
-      "products": [
-        {
-          "name": "Truffle Mushroom Pizza",
-          "description": "Wild mushrooms, mozzarella, truffle oil spray",
-          "basePrice": 280.00,
-          "variants": [
-            {
-              "name": "Crust Selection",
-              "minSelect": 1,
-              "maxSelect": 1,
-              "options": [
-                { "name": "Classic Neapolitan", "priceDelta": 0 },
-                { "name": "Cheese Stuffed Crust", "priceDelta": 35 }
-              ]
-            }
-          ]
-        }
-      ]
+      "productId": "6a6cbb8a0192837465000111",
+      "quantity": 2,
+      "selectedVariants": [
+        { "variantId": "6a6b3e8447dedf5d12fef0c2", "selectedOptionNames": ["Cheese Stuffed Crust"] }
+      ],
+      "notes": "Extra crispy crust please!"
     }
-  ]
+  ],
+  "totalAmount": 710.00
+}
+```
+**Example Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "6a6cbb8a0192837465099999",
+    "orderNumber": "ORD-202607-0042",
+    "status": "received",
+    "tableId": "6a6b3e8447dedf5d12fef0c0",
+    "totalAmount": 710.00,
+    "createdAt": "2026-07-31T18:15:30.000Z"
+  }
 }
 ```

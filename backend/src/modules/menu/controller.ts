@@ -35,3 +35,17 @@ export async function bulkImportMenuHandler(req: Request, res: Response, next: N
     next(err);
   }
 }
+
+export async function getRagCatalogHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.params['tenantId'] || (req.query['tenantId'] as string) || req.tenantId || '';
+    if (!tenantId) {
+      res.status(400).json({ success: false, message: 'Tenant ID is required for RAG catalog extraction' });
+      return;
+    }
+    const ragData = await service.getRagCatalog(tenantId);
+    res.status(200).json({ success: true, data: ragData });
+  } catch (err) {
+    next(err);
+  }
+}
