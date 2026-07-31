@@ -538,3 +538,73 @@ These routes handle everyday dine-in ticket creation, checkout billing, table oc
 * **Purpose:** External automation workflows (such as custom cloud AI agents, Make.com, or n8n cloud tasks) integrate directly against standard REST endpoints (e.g. `POST /api/v1/orders` or `POST /api/v1/menu/bulk-import`) without requiring specialized proprietary receiver sub-modules.
 * **Storage & Caching Assurance:** All external API requests immediately invoke Upstash Redis caching layers and multi-tenant Cloudinary asset folder isolating logic (`SaaS_Restaurants/{tenantId}/...`).
 
+### 5.3 n8n Cloud Chatbot Status & Manager Switch Query
+* **Method:** `GET`
+* **URL:** `{{base_url}}/restaurants/{{tenant_id}}/ai-status`
+* **Auth:** Public / n8n Cloud Integration
+* **Purpose:** Ultra-fast operational query executed as Node #1 in external n8n chatbot workflows. Verifies whether the restaurant kitchen is open (`isOpen`) and whether the manager has active AI chat enabled (`isChatbotActive`). If `canAnswer` is false, n8n immediately aborts without executing LLM inference or RAG database lookup!
+
+**Response (200 OK - Active & Open):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "brandName": "Gourmet Burger House",
+    "currency": "EGP",
+    "isOpen": true,
+    "isChatbotActive": true,
+    "canAnswer": true,
+    "offlineReply": null,
+    "aiModelPreference": "gpt-4o"
+  }
+}
+```
+
+**Response (200 OK - Manager Paused Chatbot / Kitchen Closed):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "brandName": "Gourmet Burger House",
+    "currency": "EGP",
+    "isOpen": false,
+    "isChatbotActive": true,
+    "canAnswer": false,
+    "offlineReply": "We are currently closed for orders or our chatbot is on a break. Please check back during operating hours!",
+    "aiModelPreference": "gpt-4o"
+  }
+}
+```
+
+### 5.4 n8n Cloud RAG Vector Menu Catalog Synchronization
+* **Method:** `GET`
+* **URL:** `{{base_url}}/menu/rag-catalog/{{tenant_id}}` (or simply `{{base_url}}/menu/rag-catalog` with `X-Tenant-Id` header)
+* **Auth:** Public / n8n Cloud Integration
+* **Purpose:** Exports all available menu items in a clean, token-optimized textual embedding format (`ragItems[*].text`) alongside precise pricing and availability metadata for direct ingestion into Upstash Vector database namespaces.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "count": 1,
+    "ragItems": [
+      {
+        "id": "6a6cbb8a0192837465000111",
+        "text": "Dish: Truffle Mushroom Pizza | Category: Wood-Fired Pizzas | Base Price: 320 EGP | Description: Wild mushrooms, mozzarella, truffle oil spray | Variants available: [Classic Neapolitan Thin (+0 EGP), Mozzarella Stuffed Crust (+45 EGP)] | Available: Yes",
+        "metadata": {
+          "productId": "6a6cbb8a0192837465000111",
+          "categoryName": "Wood-Fired Pizzas",
+          "basePrice": 320,
+          "isAvailable": true,
+          "tenantId": "6a6caa2fc2f7b5caa316ba3b"
+        }
+      }
+    ]
+  }
+}
+```
+

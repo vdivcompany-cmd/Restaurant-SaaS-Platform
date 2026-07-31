@@ -2,9 +2,14 @@ import { Router } from 'express';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
 import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
-import { upsertRestaurantHandler, getRestaurantHandler } from './controller.js';
+import { upsertRestaurantHandler, getRestaurantHandler, getAiStatusHandler } from './controller.js';
 
 const router = Router();
+
+// ─── Public AI Gateway Endpoint for n8n Cloud ──────────────────────────────
+router.get('/:tenantId/ai-status', getAiStatusHandler);
+
+// ─── Protected Manager Profile Routes ──────────────────────────────────────
 router.use(authMiddleware, tenantMiddleware);
 
 router.route('/profile')

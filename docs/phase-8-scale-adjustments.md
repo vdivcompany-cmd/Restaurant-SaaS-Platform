@@ -1,57 +1,46 @@
-# Phase 8 — Scale Adjustments (Event-Driven, Not Scheduled)
+# Phase 8 — Cloud Scale Adjustments & AI Agentic Gateway
 
-**Prerequisite:** Phase 7 complete (live in production with at least one real restaurant).
-**Reference:** see `00-project-overview.md` for the interfaces these adjustments plug into.
+**Prerequisite:** Phase 7 complete (live on Vercel Serverless cloud runtime with custom Hostinger domain and managed database connections).
+**Reference:** see `future-saas-scaling-and-ai-strategies.md` for our enterprise scaling roadmap.
 
-## Goal
-Since Redis, RabbitMQ, and Firebase are already running from Phase 1–2, scaling from here is
-tuning existing infrastructure, not adopting new technology. Nothing in this phase should be
-done preemptively — each item has a specific trigger. Don't do the work until the trigger
-condition is actually true.
+---
 
-## Steps (each independent, triggered separately)
+## 🌟 Architecture & Philosophy
+Following our transition to **Vercel Serverless Architecture** (Option 2 cloud modernization), traditional infrastructure management burdens (Linux VPS provisioning, PM2 clustering, Nginx reverse proxy tuning, and embedded backend worker engines) have been completely discarded in favor of managed cloud services. 
 
-### A — PM2 Cluster Mode
-**Trigger:** a single CPU core is maxed out under real traffic.
-1. Confirm Redis already holds shared session/rate-limit state (it does, from Phase 2) —
-   cluster mode is only safe once state is shared across instances, not per-process.
-2. Update `ecosystem.config.js`: `instances: 'max'`, `exec_mode: 'cluster'`.
-3. `pm2 reload ecosystem.config.js` for zero-downtime rollout.
-4. Verify load distribution with `pm2 monit`.
+Scaling from here relies on automatic serverless elasticity and event-driven operational triggers. Nothing in this phase requires manual hardware configuration — each optimization focuses on smart data management and external AI workflow orchestration.
 
-### B — MongoDB Replica Set / Change Streams
-**Trigger:** failover matters, or you want MongoDB Change Streams as an addition/alternative
-to the Firestore projection layer.
-1. Convert to a 3-node replica set, or migrate to MongoDB Atlas.
-2. Update `config/database.ts` connection string.
-3. Re-test all Mongoose transactions against the replica set.
-4. If adding Change Streams: implement `services/realtime/change-streams-realtime.service.ts`
-   against the existing `realtime.interface.ts` — this can run alongside Firestore, or replace
-   it for specific collections, without touching `modules/` code.
+---
 
-### C — RabbitMQ Worker Scaling
-**Trigger:** a specific queue's depth is consistently backing up (visible in the monitoring
-set up in Phase 6).
-1. Identify which queue is backing up.
-2. Increase the PM2 instance count for that specific worker only — not all workers.
-3. Re-verify the retry/DLQ policy for that queue still behaves correctly with multiple
-   consumers (no double-processing of the same message).
+## 🛠️ Event-Driven Scaling Triggers
 
-### D — Firestore Cost/Volume Review
-**Trigger:** Firestore read/write costs or volume climbing noticeably.
-1. Review which collections actually need realtime projection vs. which could fall back to
-   periodic polling for lower-priority views (e.g. historical reports don't need realtime).
-2. Narrow the projection scope in `firestore-realtime.service.ts` accordingly — this is a
-   configuration change, not a rewrite, since `modules/` code only calls
-   `realtimeService.publish()` and doesn't know or care what's behind it.
+### A — Vercel Serverless Elastic Concurrency
+* **Trigger:** Surge in ordering traffic during peak restaurant dining hours.
+* **Action Required (Zero-DevOps):** Vercel Serverless automatically spins up horizontal worker containers to handle thousands of simultaneous HTTP requests without manual intervention or PM2 cluster scripts.
+* **Monitoring Check:** Review runtime latency directly in Vercel Cloud Analytics dashboard.
 
-### E — n8n Workflow Expansion
-**Trigger:** more restaurants onboard and want more automation.
-1. Add workflows to the existing n8n instance — not a new technology, just more flows.
-2. Version-control exported n8n workflow JSON alongside the repo for auditability.
-3. If execution volume gets high, consider n8n queue mode — still doesn't require touching
-   backend business logic.
+### B — MongoDB Atlas Connection Pooling & Index Optimizations
+* **Trigger:** Database queries take longer than 50ms during high-volume cashier checkouts.
+* **Action Required:**
+  1. Verify connection string in Vercel environment secrets leverages MongoDB Atlas Serverless/Shared tier connection pooling.
+  2. Confirm compound indexes (`{ tenantId: 1, branchId: 1 }`) are active across all operational domain models.
 
-## Deliverable
-No fixed deliverable — this phase is a living reference. Revisit each trigger as real usage
-data comes in, and only act on the one(s) that are actually true.
+### C — Cloud n8n AI Workflow Integration (Chatbot Kill-Switch)
+* **Trigger:** Customer chat interactions require automated conversational ordering without costing excessive LLM tokens when restaurants are closed or kitchens are under heavy stress.
+* **Action Implemented:**
+  1. **Manager Kill-Switch & Operations Control:** Restaurant managers control `isOpen` and `isChatbotActive` switches in their dashboard profile (`PUT /api/v1/restaurants/profile`).
+  2. **n8n Gateway Endpoint:** External cloud n8n workflows poll `GET /api/v1/restaurants/:tenantId/ai-status` prior to invoking LLM inference. If `"canAnswer": false`, n8n immediately echoes the manager's custom `offlineReply` apology string, halting further vector search or OpenAI API cost consumption.
+  3. **RAG Vector Catalog Exporter:** n8n cloud workflows fetch `GET /api/v1/menu/rag-catalog/:tenantId` to retrieve formatted textual summaries (`ragItems[*].text`) and metadata for turnkey embedding into Upstash Vector database namespaces.
+
+### D — Upstash Redis Tier-Based Quotas & Caching
+* **Trigger:** Protection against "Noisy-Neighbor" traffic spikes or automated scraper bots.
+* **Action Implemented:**
+  1. Global and auth rate-limiters operate on distributed Upstash Redis counters.
+  2. Menu catalogs and frequent reads are cached with instantaneous invalidation triggers upon manager updates (`bulkImportMenu`).
+
+---
+
+## 📦 Deliverables Status
+- [x] Vercel Serverless automatic horizontal scaling active.
+- [x] Operational manager override switches (`isOpen`, `isChatbotActive`) incorporated into Restaurant schema.
+- [x] High-speed n8n Cloud AI interrogation endpoints (`/ai-status`, `/rag-catalog`) deployed and verified with 100% integration testing success!

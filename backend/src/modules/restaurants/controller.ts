@@ -24,3 +24,13 @@ export async function getRestaurantHandler(req: Request, res: Response, next: Ne
     next(err);
   }
 }
+
+export async function getAiStatusHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.params['tenantId'] || req.tenantId || '';
+    const status = await service.getAiStatus(tenantId);
+    res.status(200).json({ success: true, data: status });
+  } catch (err) {
+    next(err);
+  }
+}

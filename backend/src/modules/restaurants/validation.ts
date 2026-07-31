@@ -8,6 +8,12 @@ export const restaurantProfileSchema = z.object({
   currency: z.string().length(3).optional().default('EGP'),
   contactEmail: z.string().email().optional(),
   contactPhone: z.string().max(25).optional(),
+  isOpen: z.boolean().optional().default(true),
+  isChatbotActive: z.boolean().optional().default(true),
+  chatbotSettings: z.object({
+    offlineMessage: z.string().max(300).optional(),
+    aiModelPreference: z.string().max(50).optional(),
+  }).optional(),
 });
 
 export type RestaurantProfileDto = z.infer<typeof restaurantProfileSchema>;

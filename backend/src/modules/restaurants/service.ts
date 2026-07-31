@@ -15,4 +15,25 @@ export class RestaurantService {
     if (!profile) throw new AppError('Restaurant profile not found', 404);
     return profile;
   }
+
+  public async getAiStatus(tenantId: string) {
+    const profile = await this.repo.getByTenant(tenantId);
+    if (!profile) throw new AppError('Restaurant profile not found for this tenant', 404);
+
+    const isOpen = profile.isOpen !== false;
+    const isChatbotActive = profile.isChatbotActive !== false;
+    const canAnswer = isOpen && isChatbotActive;
+    const offlineReply = profile.chatbotSettings?.offlineMessage || 'We are currently closed for orders or our chatbot is on a break. Please check back during operating hours!';
+
+    return {
+      tenantId,
+      brandName: profile.brandName,
+      currency: profile.currency,
+      isOpen,
+      isChatbotActive,
+      canAnswer,
+      offlineReply: canAnswer ? null : offlineReply,
+      aiModelPreference: profile.chatbotSettings?.aiModelPreference || 'gpt-4o',
+    };
+  }
 }

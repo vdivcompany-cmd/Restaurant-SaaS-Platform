@@ -2,9 +2,13 @@ import { Router } from 'express';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
-import { getMenuCatalogHandler, bulkImportMenuHandler } from './controller.js';
+import { getMenuCatalogHandler, bulkImportMenuHandler, getRagCatalogHandler } from './controller.js';
 
 const router = Router();
+
+// Public RAG catalog extraction route for n8n Cloud & Vector Embeddings
+router.get('/rag-catalog/:tenantId', getRagCatalogHandler);
+router.get('/rag-catalog', tenantMiddleware, getRagCatalogHandler);
 
 // Public route for scanning table QR code
 router.get('/', tenantMiddleware, getMenuCatalogHandler);

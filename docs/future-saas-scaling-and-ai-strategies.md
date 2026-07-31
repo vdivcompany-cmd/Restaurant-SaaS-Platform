@@ -31,13 +31,13 @@ This document serves as the authoritative strategic roadmap from the Principal T
 
 ## 🤖 2. Advanced AI Agentic Dominance | قدرات وهيمنة وكلاء الذكاء الاصطناعي التفاعلي
 
-### 2.1 Action-Oriented AI Dining Assistant (وكيل الذكاء الاصطناعي التنفيذي المباشر)
-- **Evolutionary Step:** Upgrade our existing Upstash Vector RAG read-only menu semantic search into an active **Autonomous Function-Calling AI Agent**.
-- **Execution Workflow:**
-  When a dining guest or floor waitstaff interacts with our intelligent messaging layer (via Web Chat, WhatsApp integration, or Voice Order kiosks):
-  1. The AI evaluates semantic conversational intent and retrieves verified ingredients, allergen profiles, and pricing from `RagVectorService`.
-  2. Instead of merely generating text advice, the agent executes authenticated internal API tool invocations against `TableService` and `OrderService`.
-  3. *Example Action:* A customer states: *"Book an indoor table for 6 people at 7:00 PM tonight and pre-order two Family Platter Meals."* The AI automatically reserves the seating zone, inserts the draft kitchen sequence into the messaging queue, and returns an instant digital confirmation ticket without manual staff intervention!
+### 2.1 Action-Oriented AI Dining Assistant & n8n Cloud Gateway (وكيل الذكاء الاصطناعي التنفيذي المباشر)
+- **Evolutionary Step:** Upgrade our existing Upstash Vector RAG read-only menu semantic search into an active **Autonomous Function-Calling AI Agent via External n8n Cloud Workflows**.
+- **Implemented Architecture (Delivered Today in Phase 8):**
+  1. **Manager Emergency Kill-Switches:** Restaurant owners maintain ultimate real-time control over automated chatbot order intake by toggling `isOpen` and `isChatbotActive` directly in their profile dashboard, preventing kitchen floods during rush-hour emergencies.
+  2. **n8n High-Speed Status Query:** External cloud n8n workflows poll `GET /api/v1/restaurants/:tenantId/ai-status` as Node #1. If the restaurant is closed or paused by the manager, n8n immediately emits the customized apology fallback string without wasting LLM inference or vector search API tokens!
+  3. **Turnkey RAG Catalog Synchronization:** External workflows fetch clean textual dish representations (`ragItems[*].text`) via `GET /api/v1/menu/rag-catalog/:tenantId` for instant ingestion into Upstash Vector namespaces.
+  4. *Example Action:* When active, the AI evaluates semantic conversational intent, verifies dish availability/prices from Upstash RAG, and invokes authenticated backend API endpoints (`POST /api/v1/orders`) to book seating and dispatch kitchen order tickets automatically!
 
 ### 2.2 Automated Menu OCR Ingestion Pipeline (القراءة التلقائية الفورية لقوائم الأطعمة)
 - **Evolutionary Step:** Remove all manual friction when restaurant managers create or update their product catalogs.
@@ -73,7 +73,7 @@ This document serves as the authoritative strategic roadmap from the Principal T
 | Target Milestone | Primary Focus Area | Key Strategies to Deploy | جدول التنفيذ المقترح بأرقام العملاء |
 |:---:|:---|:---|:---|
 | **0 – 10 Tenants (Now)** | **Live Launch & Usability Validation** | Deploy existing validated engine to Vercel, onboard initial pilot restaurants, evaluate UX. | **تم إنجازه والرفع لايف اليوم عبر Vercel** |
-| **10 – 100 Tenants** | **Onboarding Speed & AI RAG Differentiation** | Deploy *Zero-to-Value Auto-Seeding* & the *Action-Oriented AI Dining Assistant*. | **بمجرد الوصول لعشرة مطاعم فعلية أونلاين** |
+| **10 – 100 Tenants** | **Onboarding Speed & AI RAG Differentiation** | Deploy *Zero-to-Value Auto-Seeding* (Next) & *Action-Oriented AI Dining Assistant* (n8n RAG Gateway & switches built today!). | **تم بناء بوابات n8n AI اليوم، ويتبقى تفعيل ميزة الزرع التجريبي الفوري (Auto-Seeding) عند اتساع المبيعات** |
 | **100 – 1000 Tenants**| **Platform Protection & Enterprise ERP Sync**| Implement *Tiered Tenant Rate-Limiting*, *Hot/Cold Archival*, & *Webhook Event Hub*. | **عند اتساع العمل واستقبال سلاسل المطاعم الضخمة** |
 
 ---
