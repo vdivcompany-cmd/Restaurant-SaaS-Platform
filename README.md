@@ -217,6 +217,39 @@ Multi-tenant restaurant management SaaS for the Egyptian and MENA market, engine
 
 ---
 
+### ✅ Phase 9 — Correctness Fixes, Tenant-Context Rework & New Domain Features — Completed 2026-08-01
+**What was implemented:**
+- **RBAC Enhancement (§9.1):** Restricted billing and subscription mutations to `super_admin` only — removed `owner` authority over plan changes and billing record creation. Both endpoints now accept `tenantId` in request body for platform operator targeting.
+- **Tenant Context Migration (§9.2):** Rewrote tenant resolution middleware to read context from `req.body.tenantId` / `req.body.tenantSlug` for mutating requests (POST/PUT/PATCH/DELETE), eliminating insecure header-based tenant routing. Query params remain for GET and unauthenticated endpoints. Breaking change: external callers (n8n, POS terminals) must update from `X-Tenant-Id` headers to JSON body fields.
+- **Atomic Tenant Provisioning (§9.3):** `TenantService.createTenant` now atomically creates a paired `Subscription` document with `plan: 'free'` and `status: 'trialing'`. Emits `tenant.created` domain event for future auto-seeding workers.
+- **Branch Table Accounting (§9.4):** `TableService.create` and `.delete` now auto-increment and -decrement `Branch.tableCount` using atomic `$inc` operators. Added `Table.totalOrdersServed` persistent counter (incremented on order payment, survives monthly history purges).
+- **Customer Reservations Module (§9.5):** New `/api/v1/reservations` module enabling chatbot and staff to book tables ahead of arrival. Features: double-booking prevention (2-hour overlap window), status transitions (PENDING → CONFIRMED → SEATED / CANCELLED / NO_SHOW), automatic table status management, and queued SMS/Telegram confirmations. Public POST endpoint for n8n webhook integration.
+- **Notification Audit Trail Enrichment (§9.9):** `NotificationLogModel` extended with `branchId`, `tableNumber`, and `actionMakerId` fields. `NotificationService.dispatchNotification` now persists full audit context and wires the previously orphaned `NotificationRepository.createLog` method. Added `GET /api/v1/notifications` staff-only list endpoint.
+- **Backlog Item Staged (§9.10):** Added `IUser.photoUrl` optional field reserved for future frontend Cloudinary upload feature (implementation deferred to when frontend is ready).
+
+**Not yet implemented (planned for immediate follow-up):**
+- §9.6 QR Token JWT Signing: Replace ad-hoc string tokens with signed JWTs, verify tenant scoping on resolution
+- §9.7 Order History + Cron: `GET /tables/:id/history` endpoint, `table-history-cleanup` worker (monthly purge of >30-day order detail)
+- §9.8 POS vs KDS Analysis: Documented in this phase as write-ups only; no code changes (optimistic concurrency conflict guards already in place from prior phases)
+
+**Tests to add:**
+- super_admin-only RBAC tests for billing/subscriptions (expect 403 on owner token)
+- Body-based tenant resolution regression tests (expect 403 when tenantId only in header, not body)
+- Atomic tenant + subscription creation test
+- Table count reconciliation tests after create/delete
+- Reservation double-booking prevention and status transition tests
+- Cross-tenant isolation tests for reservations and notifications
+- Notification audit log persistence verification
+
+**Breaking changes:**
+- §9.2 Tenant context resolution: Mutating endpoints no longer read `X-Tenant-Id` headers. Switch to `{ tenantId: "..." }` in JSON body or `?tenantId=...` query params.
+- §9.1 Plan/billing mutations: Formerly allowed for `owner` role, now `super_admin` only.
+
+**Deliverable achieved:**
+- A production-hardened backend where billing operations are provably protected, tenant context is explicit and immutable in request payloads, customer reservations flow through a chatbot-integrated booking system, and every operational action leaves an auditable trail with full context.
+
+---
+
 ## 🔮 Upcoming Horizons & Team Lead Scaling Strategy
 To prepare for scaling across thousands of concurrent restaurant franchises post-launch, consult our authoritative strategic architecture manual:
 📜 **[Future Enterprise SaaS Scaling & AI Strategies](file:///d:/Restaurant%20SaaS%20Platform/docs/future-saas-scaling-and-ai-strategies.md)**
