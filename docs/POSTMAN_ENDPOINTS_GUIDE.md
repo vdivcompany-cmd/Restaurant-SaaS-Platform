@@ -1,6 +1,14 @@
-# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform
+# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform v2.2.0
+
+**Phase 9 Complete — BREAKING CHANGES APPLY**
 
 This document serves as the master **Postman Reference & Integration Manual** for the Restaurant SaaS Platform. It provides exact endpoint URLs, required authentication headers, query parameters, RBAC permissions, and copy-pasteable JSON request/response payloads grouped logically by operational domain and user role.
+
+> [!CRITICAL]
+> **PHASE 9 BREAKING CHANGE: Tenant Context Migration**
+> 
+> All POST/PUT/PATCH/DELETE endpoints now read `tenantId` from **JSON body** instead of `X-Tenant-Id` header.  
+> GET/public endpoints use query parameters. See [Tenant Context Migration](#tenant-context-migration-breaking) for details.
 
 > [!IMPORTANT]
 > **Living Documentation Rule:** This file MUST be updated whenever new routes, webhooks, or feature endpoints are introduced. Every endpoint must specify its required HTTP headers, authorization role requirements, and practical JSON examples.
@@ -749,5 +757,370 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
   "invoiceUrl": "https://billing.saas-platform.com/invoices/INV-2026-07-001.pdf"
 }
 ```
+
+---
+
+# 🚀 PHASE 9: New Features & Breaking Changes
+
+## Tenant Context Migration (BREAKING) {#tenant-context-migration-breaking}
+
+### Old Pattern ❌ (DEPRECATED - No longer works)
+
+```bash
+curl -X POST http://localhost:3000/api/v1/tables \
+  -H "Authorization: Bearer {{manager_token}}" \
+  -H "X-Tenant-Id: {{tenant_id}}" \
+  -H "Content-Type: application/json" \
+  -d '{ "branchId": "...", "number": 10 }'
+```
+
+### New Pattern ✅ (REQUIRED)
+
+```bash
+curl -X POST http://localhost:3000/api/v1/tables \
+  -H "Authorization: Bearer {{manager_token}}" \
+  -H "Content-Type: application/json" \
+  -d '{ 
+    "tenantId": "{{tenant_id}}", 
+    "branchId": "...", 
+    "number": 10 
+  }'
+```
+
+### Key Changes
+
+- **Mutations (POST/PUT/PATCH/DELETE):** Read `tenantId` from JSON body
+- **Reads (GET):** Use `?tenantId=` query parameter or body
+- **Removed:** `X-Tenant-Id` header for all endpoints
+- **Added:** Explicit `tenantId` field in all request bodies
+
+---
+
+## 🆕 12. Reservations Module (Phase 9)
+
+### 12.1 Public: Submit Table Reservation (Chatbot)
+
+* **Method:** `POST`
+* **URL:** `{{base_url}}/reservations`
+* **Auth:** Public (no authentication required)
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "tenantId": "{{tenant_id}}",
+  "branchId": "{{branch_id}}",
+  "customerName": "Ahmed Hassan",
+  "customerPhone": "+201234567890",
+  "partySize": 4,
+  "reservedFor": "2026-08-15T19:30:00Z",
+  "channel": "TELEGRAM",
+  "tableId": "{{table_id}}"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "_id": "66c7b8c9f4a1e2b3c4d5e6f7",
+  "tenantId": "{{tenant_id}}",
+  "branchId": "{{branch_id}}",
+  "customerId": null,
+  "customerName": "Ahmed Hassan",
+  "customerPhone": "+201234567890",
+  "partySize": 4,
+  "reservedFor": "2026-08-15T19:30:00Z",
+  "channel": "TELEGRAM",
+  "tableId": "{{table_id}}",
+  "status": "PENDING",
+  "notes": null,
+  "createdAt": "2026-08-01T17:30:00Z"
+}
+```
+
+### 12.2 Staff: List Reservations
+
+* **Method:** `GET`
+* **URL:** `{{base_url}}/reservations?tenantId={{tenant_id}}&branchId={{branch_id}}&status=CONFIRMED`
+* **Auth:** Bearer `{{manager_token}}` or `{{cashier_token}}`
+* **Headers:** `Content-Type: application/json`
+
+**Query Parameters:**
+- `tenantId` (required) — Target tenant
+- `branchId` (optional) — Filter by branch
+- `status` (optional) — PENDING | CONFIRMED | SEATED | CANCELLED | NO_SHOW
+- `from` (optional) — Start date (ISO 8601)
+- `to` (optional) — End date (ISO 8601)
+
+### 12.3 Staff: Update Reservation Status
+
+* **Method:** `PATCH`
+* **URL:** `{{base_url}}/reservations/{{reservation_id}}`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "tenantId": "{{tenant_id}}",
+  "status": "CONFIRMED",
+  "tableId": "{{table_id}}",
+  "notes": "VIP guest - prepare welcome drink"
+}
+```
+
+**Status Transitions:**
+- PENDING → CONFIRMED (assign table)
+- CONFIRMED → SEATED (guest arrived)
+- SEATED → (complete service)
+- PENDING/CONFIRMED → CANCELLED (customer cancels)
+- CONFIRMED → NO_SHOW (guest didn't arrive)
+
+### 12.4 Staff: Cancel Reservation
+
+* **Method:** `DELETE`
+* **URL:** `{{base_url}}/reservations/{{reservation_id}}`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "tenantId": "{{tenant_id}}"
+}
+```
+
+---
+
+## 🏮 13. Tables Module Updates (Phase 9)
+
+### 13.1 QR Token Resolution (JWT Verified)
+
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/qr/{{qr_code_token}}`
+* **Auth:** Public (no authentication required)
+* **Headers:** None required
+
+**Changes from Before:**
+- QR token now uses **JWT cryptographic signing** (not ad-hoc strings)
+- Token format: `eyJhbGciOiJIUzI1NiIs...` (standard JWT)
+- Invalid/tampered tokens return 404
+- Deleted tables return 404 (even with valid signature)
+
+**Response (200 OK):**
+```json
+{
+  "_id": "{{table_id}}",
+  "branchId": "{{branch_id}}",
+  "number": 10,
+  "capacity": 6,
+  "status": "AVAILABLE",
+  "qrCodeToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "totalOrdersServed": 42,
+  "tenantId": "{{tenant_id}}",
+  "branchId": "{{branch_id}}"
+}
+```
+
+### 13.2 Get Table Order History (NEW)
+
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/{{table_id}}/history?tenantId={{tenant_id}}&limit=50`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`
+
+**Query Parameters:**
+- `tenantId` (required) — Target tenant
+- `limit` (optional, default 50) — Max records to return
+- `sinceDate` (optional) — Only orders after this date (ISO 8601)
+
+**Features:**
+- Returns **last 30 days** of orders by default
+- Automatic **monthly purge** via cron (1st @ 03:00 UTC)
+- Sorted by `createdAt` DESC (newest first)
+- Full order details included
+
+**Response (200 OK):**
+```json
+[
+  {
+    "_id": "{{order_id}}",
+    "tenantId": "{{tenant_id}}",
+    "branchId": "{{branch_id}}",
+    "tableId": "{{table_id}}",
+    "channel": "DINE_IN",
+    "items": [...],
+    "subtotal": 640,
+    "taxAmount": 89.6,
+    "totalAmount": 729.6,
+    "status": "PAID",
+    "createdAt": "2026-08-01T18:30:00Z"
+  }
+]
+```
+
+---
+
+## 🔔 14. Notifications Module Updates (Phase 9)
+
+### 14.1 Dispatch Notification (Enriched Audit Trail)
+
+* **Method:** `POST`
+* **URL:** `{{base_url}}/notifications/dispatch`
+* **Auth:** Bearer `{{manager_token}}` or `{{cashier_token}}`
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "tenantId": "{{tenant_id}}",
+  "channel": "EMAIL",
+  "recipient": "guest@example.com",
+  "subject": "Order Ready for Pickup",
+  "message": "Your order #12345 is ready to collect!",
+  "branchId": "{{branch_id}}",
+  "tableNumber": 10,
+  "actionMakerId": "{{employee_id}}"
+}
+```
+
+**Phase 9 Enhancements:**
+- **branchId** — Which branch sent this notification
+- **tableNumber** — Which table (if applicable)
+- **actionMakerId** — Which staff member took action
+- Automatically logged to audit trail
+- Cross-tenant isolation guaranteed
+
+**Response (201 Created):**
+```json
+{
+  "logId": "66c7b8c9f4a1e2b3c4d5e6f7",
+  "success": true
+}
+```
+
+### 14.2 List Notification Audit Logs (NEW)
+
+* **Method:** `GET`
+* **URL:** `{{base_url}}/notifications?tenantId={{tenant_id}}&branchId={{branch_id}}`
+* **Auth:** Bearer `{{manager_token}}`
+* **Headers:** `Content-Type: application/json`
+
+**Query Parameters:**
+- `tenantId` (required) — Target tenant
+- `branchId` (optional) — Filter by branch
+- `limit` (optional, default 100) — Max records
+
+**Response (200 OK):**
+```json
+[
+  {
+    "_id": "66c7b8c9f4a1e2b3c4d5e6f7",
+    "tenantId": "{{tenant_id}}",
+    "branchId": "{{branch_id}}",
+    "channel": "EMAIL",
+    "recipient": "guest@example.com",
+    "messageSubject": "Order Ready for Pickup",
+    "messageBody": "Your order #12345 is ready to collect!",
+    "status": "QUEUED",
+    "tableNumber": 10,
+    "actionMakerId": "{{employee_id}}",
+    "dispatchedAt": "2026-08-01T18:30:00Z"
+  }
+]
+```
+
+---
+
+## 🔐 15. RBAC Changes (Phase 9)
+
+### Subscriptions PATCH Endpoint
+
+**BEFORE (Deprecated):**
+```
+Auth: Bearer {{owner_token}}
+Header: X-Tenant-Id
+```
+
+**AFTER (Phase 9 - BREAKING):**
+```
+Auth: Bearer {{super_admin_token}} (REQUIRED)
+Body: { "tenantId": "...", "plan": "pro" }
+```
+
+### Billing POST Endpoint
+
+**BEFORE (Deprecated):**
+```
+Auth: Bearer {{owner_token}}
+Header: X-Tenant-Id
+```
+
+**AFTER (Phase 9 - BREAKING):**
+```
+Auth: Bearer {{super_admin_token}} (REQUIRED)
+Body: { "tenantId": "...", "amount": 2499 }
+```
+
+### Impact
+
+- **Tenant owners** can no longer upgrade their own plans
+- **Super admins** control all plan changes (prevents abuse)
+- **Super admins** control all billing records (audit trail integrity)
+
+---
+
+## 🔄 Updated Endpoints Summary
+
+### All Mutations Now Require `tenantId` in Body
+
+| Endpoint | Method | Change |
+|----------|--------|--------|
+| `/auth/register/owner` | POST | Body tenantId required |
+| `/auth/register/staff` | POST | Body tenantId required |
+| `/auth/change-password` | POST | Body tenantId required |
+| `/tenants/settings` | PATCH | Body tenantId required |
+| `/subscriptions` | PATCH | **super_admin only**, body tenantId required |
+| `/billing` | POST | **super_admin only**, body tenantId required |
+| `/branches` | POST/PUT/DELETE | Body tenantId required |
+| `/categories` | POST/PUT/DELETE | Body tenantId required |
+| `/variants` | POST/PUT/DELETE | Body tenantId required |
+| `/products` | POST/PUT/DELETE | Body tenantId required |
+| `/menu/bulk-import` | POST | Body tenantId required |
+| `/tables` | POST/PUT/DELETE | Body tenantId required |
+| `/orders` | POST/PATCH | Body tenantId required |
+| `/coupons` | POST/DELETE | Body tenantId required |
+| `/customers` | POST/PUT | Body tenantId required |
+| `/employees` | POST/PUT | Body tenantId required |
+| `/reservations` | POST/PATCH/DELETE | Body tenantId required (NEW) |
+| `/notifications/dispatch` | POST | Body tenantId required |
+
+---
+
+## 📊 Phase 9 Summary
+
+### New Features
+✅ Cryptographic QR JWT signing  
+✅ Reservations module (booking system)  
+✅ Order history with 30-day retention  
+✅ Notification audit trail  
+✅ Atomic tenant provisioning  
+
+### Security Improvements
+✅ RBAC enforcement on billing/subscriptions  
+✅ Cross-tenant isolation verified  
+✅ JWT-signed QR tokens  
+✅ Operational accountability (actionMakerId)  
+
+### Breaking Changes
+⚠️ Tenant context: header → body  
+⚠️ Subscriptions/billing: owner → super_admin  
+⚠️ All mutations: explicit tenantId required  
+
+---
+
+**Updated:** 2026-08-01  
+**Version:** 2.2.0 (Phase 9 Complete)  
+**Status:** ✅ Production Ready
 
 ---
