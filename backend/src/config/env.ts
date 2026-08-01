@@ -44,7 +44,7 @@ const env = cleanEnv(process.env, {
   // ─── JWT ──────────────────────────────────────────────────────────────────
   JWT_SECRET: secureSecret(),
   JWT_REFRESH_SECRET: secureSecret(),
-
+  QR_TOKEN_SECRET: secureSecret(),
 
   // ─── Paymob ───────────────────────────────────────────────────────────────
   PAYMOB_API_KEY: str({ default: '' }),

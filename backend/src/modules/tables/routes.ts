@@ -9,6 +9,7 @@ import {
   resolveQrTableHandler,
   updateTableHandler,
   deleteTableHandler,
+  getTableOrderHistoryHandler,
 } from './controller.js';
 
 const router = Router();
@@ -25,5 +26,7 @@ router.route('/:id')
   .get(getTableHandler)
   .put(rbacMiddleware(['owner', 'manager', 'cashier']), updateTableHandler)
   .delete(rbacMiddleware(['owner', 'manager']), deleteTableHandler);
+
+router.get('/:id/history', rbacMiddleware(['owner', 'manager', 'cashier']), getTableOrderHistoryHandler);
 
 export default router;

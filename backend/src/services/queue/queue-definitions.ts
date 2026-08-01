@@ -16,7 +16,8 @@ export type PlatformQueueName =
   | 'PAYMENT_RETRIES'
   | 'REPORTS'
   | 'BACKUPS'
-  | 'FIRESTORE_RETRY';
+  | 'FIRESTORE_RETRY'
+  | 'TABLE_HISTORY_CLEANUP';
 
 export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
   EMAILS: {
@@ -89,6 +90,15 @@ export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
     dlqName: 'q.firestore-retry.dlq',
     dlxExchange: 'ex.restaurant.dlx',
     maxRetries: 5,
+    messageTtlSeconds: 86400,
+  },
+  TABLE_HISTORY_CLEANUP: {
+    name: 'q.table-history-cleanup',
+    exchange: 'ex.restaurant',
+    routingKey: 'table.history.cleanup',
+    dlqName: 'q.table-history-cleanup.dlq',
+    dlxExchange: 'ex.restaurant.dlx',
+    maxRetries: 2,
     messageTtlSeconds: 86400,
   },
 };

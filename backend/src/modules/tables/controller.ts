@@ -69,3 +69,15 @@ export async function deleteTableHandler(req: Request, res: Response, next: Next
     next(err);
   }
 }
+
+export async function getTableOrderHistoryHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const tableId = String(req.params['id'] ?? '');
+    const limit = typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 50;
+    const orders = await service.getOrderHistory(tenantId, tableId, { limit });
+    res.status(200).json({ success: true, data: orders });
+  } catch (err) {
+    next(err);
+  }
+}
