@@ -20,8 +20,9 @@ export class ReservationService {
         throw new AppError('Table not found or out of scope', 404);
       }
 
-      const overlapStart = new Date(dto.reservedFor.getTime() - RESERVATION_OVERLAP_WINDOW_MS);
-      const overlapEnd = new Date(dto.reservedFor.getTime() + RESERVATION_OVERLAP_WINDOW_MS);
+      const reservedTime = new Date(dto.reservedFor);
+      const overlapStart = new Date(reservedTime.getTime() - RESERVATION_OVERLAP_WINDOW_MS);
+      const overlapEnd = new Date(reservedTime.getTime() + RESERVATION_OVERLAP_WINDOW_MS);
 
       const existing = await ReservationRepository.findAll(tenantId, dto.branchId.toString(), undefined, {
         from: overlapStart,
@@ -38,7 +39,7 @@ export class ReservationService {
       }
     }
 
-    const reservation = await ReservationRepository.create(tenantId, dto);
+    const reservation = await ReservationRepository.create(tenantId, dto as any);
 
     // Queue confirmation notification (chatbot channel)
     if (dto.channel) {
@@ -69,7 +70,7 @@ export class ReservationService {
     const updated = await ReservationRepository.update(tenantId, reservationId, {
       ...dto,
       status: 'CONFIRMED',
-    });
+    } as any);
     if (!updated) throw new AppError('Failed to confirm reservation', 500);
 
     // If a table is assigned, mark it as RESERVED

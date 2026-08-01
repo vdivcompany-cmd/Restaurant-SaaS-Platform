@@ -6,7 +6,7 @@ export class NotificationService {
   public async dispatchNotification(
     tenantId: string,
     dto: SendNotificationDto,
-    actionMakerId?: string
+    actionMakerId?: string | any
   ): Promise<{ logId: string; success: boolean }> {
     const targetQueue =
       dto.channel === 'EMAIL'

@@ -19,7 +19,7 @@ export class TenantService {
       language: 'ar' as const,
     };
 
-    const tenant = await withTransactionOrFallback(async (session) => {
+    const tenant = await withTransactionOrFallback(async () => {
       const createdTenant = await TenantRepository.create({
         name: data.name,
         slug: data.slug.toLowerCase(),

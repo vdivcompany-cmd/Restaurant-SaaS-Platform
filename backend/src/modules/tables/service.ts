@@ -28,7 +28,7 @@ export class TableService {
     );
 
     // Update with signed token
-    table = await this.repo.update(tenantId, table._id.toString(), { qrCodeToken }) || table;
+    table = await this.repo.update(tenantId, table._id.toString(), { qrCodeToken } as any) || table;
 
     // Increment branch table count
     await tenantQuery.updateOne(
