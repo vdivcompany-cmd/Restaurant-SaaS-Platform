@@ -8,7 +8,7 @@ import logger from '../utils/logger.js';
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const start = Date.now();
   const { method, url } = req;
-  const tenantId = req.tenantId || req.headers['x-tenant-slug'] || 'public';
+  const tenantId = req.tenantId || req.body?.tenantSlug || req.query?.tenantSlug || 'public';
 
   // Attach completion listener to response stream
   res.on('finish', () => {

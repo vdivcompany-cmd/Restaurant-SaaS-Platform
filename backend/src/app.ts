@@ -33,6 +33,7 @@ import employeeRoutes from './modules/employees/routes.js';
 import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
+import reservationRoutes from './modules/reservations/routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -123,6 +124,7 @@ export function createApp(): Express {
   app.use('/api/v1/feedback', feedbackRoutes);
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
+  app.use('/api/v1/reservations', reservationRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {

@@ -18,12 +18,8 @@ export class SubscriptionController {
 
   public static async updateSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      if (!req.tenantId) {
-        res.status(400).json({ success: false, message: 'Tenant context required' });
-        return;
-      }
       const validated = UpdateSubscriptionSchema.parse(req.body);
-      const subscription = await SubscriptionService.updateSubscription(req.tenantId, validated);
+      const subscription = await SubscriptionService.updateSubscription(validated.tenantId, validated);
       res.json({ success: true, data: subscription });
     } catch (err) {
       next(err);

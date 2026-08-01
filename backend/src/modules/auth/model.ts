@@ -8,6 +8,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: UserRole;
   isActive: boolean;
+  photoUrl?: string;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +34,7 @@ const userSchema = new Schema<IUser>(
       required: true,
     },
     isActive: { type: Boolean, default: true },
+    photoUrl: { type: String, trim: true },
     lastLoginAt: { type: Date },
   },
   {

@@ -94,7 +94,14 @@ export class OrderService {
     if (!order) throw new AppError('Order not found or out of scope', 404);
 
     if ((dto.status === 'PAID' || dto.status === 'CANCELLED') && order.tableId) {
-      await tenantQuery.updateOne(TableModel, tenantId, { _id: order.tableId }, { status: 'AVAILABLE', currentOrderId: null }).exec();
+      const updateQuery: Record<string, unknown> = {
+        $set: { status: 'AVAILABLE', currentOrderId: null },
+      };
+      // Only increment totalOrdersServed on PAID, not on CANCELLED
+      if (dto.status === 'PAID') {
+        updateQuery['$inc'] = { totalOrdersServed: 1 };
+      }
+      await tenantQuery.updateOne(TableModel, tenantId, { _id: order.tableId }, updateQuery).exec();
     }
 
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());

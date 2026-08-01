@@ -1,20 +1,45 @@
 import { queueService, PLATFORM_QUEUES } from '../../services/queue/index.js';
+import { NotificationRepository } from './repository.js';
 import { type SendNotificationDto } from './validation.js';
 
 export class NotificationService {
-  public async dispatchNotification(tenantId: string, dto: SendNotificationDto): Promise<boolean> {
+  public async dispatchNotification(
+    tenantId: string,
+    dto: SendNotificationDto,
+    actionMakerId?: string
+  ): Promise<{ logId: string; success: boolean }> {
     const targetQueue =
       dto.channel === 'EMAIL'
         ? (PLATFORM_QUEUES['EMAILS']?.name ?? 'q.emails')
         : (PLATFORM_QUEUES['TELEGRAM']?.name ?? 'q.telegram');
-    return await queueService.enqueue(
+
+    // Create audit log entry
+    const log = await NotificationRepository.createLog({
+      tenantId: tenantId as any,
+      channel: dto.channel as 'EMAIL' | 'TELEGRAM' | 'SMS' | 'WHATSAPP',
+      recipient: dto.recipient,
+      messageSubject: dto.subject,
+      messageBody: dto.message,
+      status: 'QUEUED',
+      branchId: dto.branchId,
+      tableNumber: dto.tableNumber,
+      actionMakerId: actionMakerId as any,
+      dispatchedAt: new Date(),
+    });
+
+    // Enqueue for actual delivery
+    const success = await queueService.enqueue(
       targetQueue,
       {
+        logId: log._id.toString(),
         recipient: dto.recipient,
         message: dto.message,
+        subject: dto.subject,
         dispatchedAt: new Date(),
       },
-      { tenantId },
+      { tenantId }
     );
+
+    return { logId: log._id.toString(), success };
   }
 }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { BillingController } from './controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
-import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
+import { rbacMiddleware, requireSuperAdmin } from '../../middleware/rbac.middleware.js';
 
 const router = Router();
 
@@ -24,12 +24,12 @@ router.get(
   BillingController.getRecord
 );
 
-// POST /api/v1/billing — create a billing record
+// POST /api/v1/billing — create a billing record (super_admin only, targeting tenant via body)
 router.post(
   '/',
   authMiddleware,
   tenantMiddleware,
-  rbacMiddleware(['owner']),
+  requireSuperAdmin,
   BillingController.createRecord
 );
 

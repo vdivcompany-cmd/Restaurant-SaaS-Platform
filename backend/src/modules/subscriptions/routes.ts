@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { SubscriptionController } from './controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
-import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
+import { rbacMiddleware, requireSuperAdmin } from '../../middleware/rbac.middleware.js';
 
 const router = Router();
 
@@ -15,12 +15,12 @@ router.get(
   SubscriptionController.getSubscription
 );
 
-// PATCH /api/v1/subscriptions — update plan (internal / billing webhook use only, owner)
+// PATCH /api/v1/subscriptions — update plan (super_admin only, targeting tenant via body)
 router.patch(
   '/',
   authMiddleware,
   tenantMiddleware,
-  rbacMiddleware(['owner']),
+  requireSuperAdmin,
   SubscriptionController.updateSubscription
 );
 

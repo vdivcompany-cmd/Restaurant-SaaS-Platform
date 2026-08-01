@@ -1,4 +1,7 @@
 import { TenantRepository } from './repository.js';
+import { SubscriptionRepository } from '../subscriptions/repository.js';
+import { eventBus } from '../../shared/events/index.js';
+import { withTransactionOrFallback } from '../../utils/withTransactionOrFallback.js';
 import type { ITenant } from './model.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 import type { CreateTenantInput, UpdateTenantSettingsInput } from './validation.js';
@@ -16,13 +19,30 @@ export class TenantService {
       language: 'ar' as const,
     };
 
-    const tenant = await TenantRepository.create({
-      name: data.name,
-      slug: data.slug.toLowerCase(),
-      contact: data.contact,
-      settings: data.settings ? { ...defaultSettings, ...data.settings } : defaultSettings,
-      status: 'trial',
-      subscriptionPlan: 'free',
+    const tenant = await withTransactionOrFallback(async (session) => {
+      const createdTenant = await TenantRepository.create({
+        name: data.name,
+        slug: data.slug.toLowerCase(),
+        contact: data.contact,
+        settings: data.settings ? { ...defaultSettings, ...data.settings } : defaultSettings,
+        status: 'trial',
+        subscriptionPlan: 'free',
+      });
+
+      // Atomically create default subscription for the new tenant
+      await SubscriptionRepository.create(createdTenant._id.toString(), {
+        plan: 'free',
+        status: 'trialing',
+      });
+
+      return createdTenant;
+    });
+
+    // Emit domain event so listeners (e.g., Zero-to-Value auto-seeding worker) can react
+    eventBus.emitEvent('tenant.created', {
+      tenantId: tenant._id.toString(),
+      slug: tenant.slug,
+      name: tenant.name,
     });
 
     return tenant;
