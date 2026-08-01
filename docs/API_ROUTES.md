@@ -194,3 +194,32 @@ Mitigates database CPU contention (noisy-neighbor bottlenecks) caused by heavy o
 
 ### 9.5 Dynamic QR Menu Styling & Promotional Theme Config (`MenuLayoutModel`)
 * **Schema Contract (`src/modules/menu/model.ts`):** Persists tenant-specific branding rules including custom hex palettes (`primaryColor`, `backgroundColor`), typography styling (`fontFamily: 'Cairo'`), food safety toggles (`showAllergens`, `showCaloricCount`), and top-of-menu marketing banners (`promotionBanner.active`, `bannerImageUrl`).
+
+---
+
+## ?? Phase 9 — Correctness Fixes & Tenant-Context Rework
+
+### BREAKING CHANGE: Tenant Context Now in Request Body
+All mutating endpoints (POST, PUT, PATCH, DELETE) now require tenant context in JSON body as \	enantId\ or \	enantSlug\, not X-Tenant-Id headers. GET requests continue to use query params (?tenantId=).
+
+### 9.1 — Subscriptions & Billing (super_admin Only)
+- PATCH /api/v1/subscriptions: Changed to require super_admin role; target tenantId in body
+- POST /api/v1/billing: Changed to require super_admin role; target tenantId in body
+
+### 9.5 — Reservations Module (/api/v1/reservations)
+- POST /api/v1/reservations: Public endpoint for chatbot table booking
+- GET /api/v1/reservations: List reservations (staff only)
+- PATCH /api/v1/reservations/:id: Update status (staff only)
+- DELETE /api/v1/reservations/:id: Cancel reservation (staff only)
+
+### 9.6 — QR Code Tokens (JWT Signed)
+- GET /api/v1/tables/qr/:token: Resolve JWT token; verify signature + tenant scope
+
+### 9.7 — Table Order History
+- GET /api/v1/tables/:id/history: Per-table order history (last 30 days, staff only)
+
+### 9.9 — Notification Audit Logs
+- POST /api/v1/notifications/dispatch: Send notification; logs branchId, tableNumber, actionMakerId
+- GET /api/v1/notifications: List notification audit trail (staff only)
+
+See full Phase 9 specification at docs/phase-9-implementation-summary.md
