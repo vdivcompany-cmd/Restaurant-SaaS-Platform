@@ -74,3 +74,58 @@ export async function getRagCatalogHandler(req: Request, res: Response, next: Ne
     next(err);
   }
 }
+
+export async function addProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? req.body?.tenantId ?? '';
+    const product = await service.addOrUpdateProduct(tenantId, req.body);
+    res.status(201).json({ success: true, data: product });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? req.body?.tenantId ?? '';
+    const productId = String(req.params['id'] ?? '');
+    const product = await service.updateProduct(tenantId, productId, req.body);
+    res.status(200).json({ success: true, data: product });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? req.body?.tenantId ?? '';
+    const productId = String(req.params['id'] ?? '');
+    await service.deleteProduct(tenantId, productId);
+    res.status(200).json({ success: true, message: 'Product item removed from menu successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? String(req.query['tenantId'] ?? '');
+    const productId = String(req.params['id'] ?? '');
+    const product = await service.getProduct(tenantId, productId);
+    res.status(200).json({ success: true, data: product });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listProductsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? String(req.query['tenantId'] ?? '');
+    const categoryId = typeof req.query['categoryId'] === 'string' ? req.query['categoryId'] : undefined;
+    const products = await service.listProducts(tenantId, categoryId);
+    res.status(200).json({ success: true, data: products });
+  } catch (err) {
+    next(err);
+  }
+}
+

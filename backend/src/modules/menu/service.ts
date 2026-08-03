@@ -1,13 +1,14 @@
 import { withTransactionOrFallback } from '../../utils/withTransactionOrFallback.js';
 import { CategoryModel } from '../categories/model.js';
-import { ProductModel } from '../products/model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import { cacheService } from '../../services/cache/index.js';
 import { MenuRepository, type BulkImportResult } from './repository.js';
 import type { BulkImportPayload } from './validation.js';
 import { ragVectorService } from '../../integrations/ai/vector.service.js';
 import { uploadTenantMedia } from '../../integrations/cloudinary/index.js';
+import { AppError } from '../../middleware/errorHandler.middleware.js';
 import logger from '../../utils/logger.js';
+import type { IProductSubDoc } from './model.js';
 
 export interface MenuCatalog {
   tenantId: string;
@@ -37,16 +38,16 @@ export class MenuService {
       return cached;
     }
 
-    const [categories, products] = await Promise.all([
-      tenantQuery.find(CategoryModel, tenantId, { isActive: true }).sort({ displayOrder: 1 }).exec(),
-      tenantQuery.find(ProductModel, tenantId, { isAvailable: true }).populate({ path: 'variantIds', match: { tenantId } }).exec(),
-    ]);
+    const categories = await tenantQuery.find(CategoryModel, tenantId, { isActive: true }).sort({ displayOrder: 1 }).exec();
+    const products = await this.repository.findAllProducts(tenantId);
 
     const catalog: MenuCatalog = {
       tenantId,
       categories: categories.map((cat) => {
         const catIdStr = cat._id.toString();
-        const catProducts = products.filter((p) => p.categoryId.toString() === catIdStr);
+        const catProducts = products.filter(
+          (p) => p.categoryId && p.categoryId.toString() === catIdStr
+        );
         return {
           id: catIdStr,
           name: cat.name,
@@ -56,8 +57,72 @@ export class MenuService {
       }),
     };
 
+    // If uncategorized products exist, include them in a default category
+    const uncategorized = products.filter(
+      (p) => !p.categoryId || !categories.some((c) => c._id.toString() === p.categoryId?.toString())
+    );
+    if (uncategorized.length > 0) {
+      catalog.categories.push({
+        id: 'uncategorized',
+        name: 'General Specials',
+        displayOrder: 99,
+        products: uncategorized,
+      });
+    }
+
     await cacheService.set(cacheKey, catalog, MENU_CACHE_TTL);
     return catalog;
+  }
+
+  /**
+   * Adds or updates a single or multi product item in the restaurant's menu array.
+   */
+  public async addOrUpdateProduct(
+    tenantId: string,
+    prodData: {
+      name: string;
+      description?: string;
+      basePrice: number;
+      categoryId?: string;
+      imageUrl?: string;
+      isAvailable?: boolean;
+      variantIds?: string[];
+    }
+  ): Promise<IProductSubDoc> {
+    const product = await this.repository.addOrUpdateProduct(tenantId, prodData);
+    await cacheService.del(`menu:catalog:${tenantId}`);
+    return product;
+  }
+
+  public async updateProduct(
+    tenantId: string,
+    productId: string,
+    dto: any
+  ): Promise<IProductSubDoc> {
+    const updated = await this.repository.updateProduct(tenantId, productId, dto);
+    if (!updated) throw new AppError('Product item not found in restaurant menu', 404);
+    await cacheService.del(`menu:catalog:${tenantId}`);
+    return updated;
+  }
+
+  public async deleteProduct(tenantId: string, productId: string): Promise<void> {
+    const success = await this.repository.deleteProduct(tenantId, productId);
+    if (!success) throw new AppError('Product item not found in restaurant menu', 404);
+    await cacheService.del(`menu:catalog:${tenantId}`);
+  }
+
+  public async getProduct(tenantId: string, productId: string): Promise<IProductSubDoc> {
+    const prod = await this.repository.findProductById(tenantId, productId);
+    if (!prod) throw new AppError('Product item not found in restaurant menu', 404);
+    return prod;
+  }
+
+  public async listProducts(tenantId: string, categoryId?: string): Promise<IProductSubDoc[]> {
+    const products = await this.repository.findAllProducts(tenantId);
+    if (categoryId) {
+      return products.filter((p) => p.categoryId && p.categoryId.toString() === categoryId);
+    }
+    return products;
   }
 
   /**
@@ -97,7 +162,7 @@ export class MenuService {
   }
 
   /**
-   * Uploads a menu file (PDF/Image) to Cloudinary, parses dishes, bulk imports into MongoDB & Redis,
+   * Uploads a menu file (PDF/Image/CSV/Doc) to Cloudinary, parses dishes, bulk imports into MongoDB & Redis,
    * and auto-indexes vectors into Upstash Vector DB.
    */
   public async uploadAndParseMenuFile(
@@ -149,7 +214,6 @@ export class MenuService {
         const prodName = prod.name || 'Unnamed Dish';
         const price = prod.basePrice ?? 0;
         const desc = prod.description || 'Freshly prepared specialty dish.';
-        const prepTime = prod.preparationTime ? ` | Prep time: ${prod.preparationTime} minutes` : '';
 
         let variantInfo = '';
         if (Array.isArray(prod.variantIds) && prod.variantIds.length > 0) {
@@ -157,7 +221,7 @@ export class MenuService {
           variantInfo = ` | Variants available: [${vNames}]`;
         }
 
-        const textSummary = `Dish: ${prodName} | Category: ${cat.name} | Base Price: ${price} EGP | Description: ${desc}${prepTime}${variantInfo} | Available: ${prod.isAvailable ? 'Yes' : 'No'}`;
+        const textSummary = `Dish: ${prodName} | Category: ${cat.name} | Base Price: ${price} EGP | Description: ${desc}${variantInfo} | Available: ${prod.isAvailable ? 'Yes' : 'No'}`;
 
         ragItems.push({
           id: prod._id?.toString() || Math.random().toString(),
@@ -176,3 +240,4 @@ export class MenuService {
     return { tenantId, count: ragItems.length, ragItems };
   }
 }
+

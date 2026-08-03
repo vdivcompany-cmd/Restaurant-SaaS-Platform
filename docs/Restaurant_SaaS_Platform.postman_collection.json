@@ -1,4 +1,4 @@
-{
+﻿{
 	"info": {
 		"_postman_id": "a8f79e2c-3b4a-4c12-8e9f-5b6c7d8e9f01",
 		"name": "Restaurant SaaS Platform API Collection v2.2.0",
@@ -393,7 +393,7 @@
 							"mode": "raw",
 							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"name\": \"Truffle & Wild Mushroom Pizza\",\n  \"description\": \"Porcini mushrooms, fontina cheese, thyme, and black truffle oil\",\n  \"basePrice\": 320,\n  \"imageUrl\": \"https://res.cloudinary.com/demo/image/upload/sample_pizza.jpg\",\n  \"isAvailable\": true,\n  \"variantIds\": [\"{{variant_id}}\"]\n}"
 						},
-						"url": { "raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"] }
+						"url": { "raw": "{{base_url}}/menu/products", "host": ["{{base_url}}"], "path": ["menu", "products"] }
 					}
 				},
 				{

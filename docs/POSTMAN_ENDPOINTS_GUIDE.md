@@ -1,4 +1,4 @@
-# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform v2.2.0
+﻿# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform v2.2.0
 
 **Phase 9 Complete — BREAKING CHANGES APPLY**
 
@@ -419,7 +419,26 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 }
 ```
 
-### 6.3 Create Product SKU (Food Item)
+### 6.3 Add / Update Product in Menu (Deduplicated Array)
+* **Method:** POST`r
+* **URL:** {{base_url}}/menu/products`r
+* **Auth:** Bearer {{owner_token}} or {{manager_token}}`r
+* **Headers:** Content-Type: application/json`r
+
+**Request Body (JSON):**
+`json
+{
+  "tenantId": "{{tenant_id}}",
+  "categoryId": "{{category_id}}",
+  "name": "Truffle & Wild Mushroom Pizza",
+  "description": "Porcini mushrooms, fontina cheese, black truffle oil",
+  "basePrice": 320,
+  "isAvailable": true,
+  "variantIds": ["{{variant_id}}"]
+}
+``r
+
+### 6.3b Legacy Product Endpoint (Alias)
 * **Method:** `POST`
 * **URL:** `{{base_url}}/products`
 * **Auth:** Bearer `{{manager_token}}`

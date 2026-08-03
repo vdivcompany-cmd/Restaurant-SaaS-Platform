@@ -8,6 +8,11 @@ import {
   bulkImportMenuHandler,
   getRagCatalogHandler,
   uploadMenuFileHandler,
+  addProductHandler,
+  updateProductHandler,
+  deleteProductHandler,
+  getProductHandler,
+  listProductsHandler,
 } from './controller.js';
 
 const router = Router();
@@ -19,6 +24,16 @@ router.get('/rag-catalog', tenantMiddleware, getRagCatalogHandler);
 // Public route for scanning table QR code
 router.get('/', tenantMiddleware, getMenuCatalogHandler);
 router.get('/catalog', tenantMiddleware, getMenuCatalogHandler);
+
+// Product sub-document array management routes under Menu
+router.route('/products')
+  .post(authMiddleware, tenantMiddleware, rbacMiddleware(['owner', 'manager']), addProductHandler)
+  .get(tenantMiddleware, listProductsHandler);
+
+router.route('/products/:id')
+  .get(tenantMiddleware, getProductHandler)
+  .put(authMiddleware, tenantMiddleware, rbacMiddleware(['owner', 'manager']), updateProductHandler)
+  .delete(authMiddleware, tenantMiddleware, rbacMiddleware(['owner', 'manager']), deleteProductHandler);
 
 // Secured bulk import API Gateway for AI onboarding / Super Admin / Managers
 router.post(
@@ -40,4 +55,5 @@ router.post(
 );
 
 export default router;
+
 

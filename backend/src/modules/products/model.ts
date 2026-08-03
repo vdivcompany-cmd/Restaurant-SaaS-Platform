@@ -1,32 +1,36 @@
-import { Schema, model, type Document, type Types } from 'mongoose';
+import { MenuModel, type IProductSubDoc } from '../menu/model.js';
 
-export interface IProduct extends Document {
-  tenantId: Types.ObjectId;
-  categoryId: Types.ObjectId;
-  name: string;
-  description?: string;
-  basePrice: number;
-  imageUrl?: string;
-  isAvailable: boolean;
-  variantIds: Types.ObjectId[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type IProduct = IProductSubDoc;
 
-const ProductSchema = new Schema<IProduct>(
-  {
-    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-    categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
-    name: { type: String, required: true },
-    description: { type: String },
-    basePrice: { type: Number, required: true, min: 0 },
-    imageUrl: { type: String },
-    isAvailable: { type: Boolean, default: true },
-    variantIds: [{ type: Schema.Types.ObjectId, ref: 'Variant' }],
+export const ProductModel: any = {
+  async findOne(query: { tenantId?: any; name?: string; _id?: any }) {
+    const tenantIdStr = query.tenantId?.toString();
+    const menu = tenantIdStr
+      ? await MenuModel.findOne({ tenantId: tenantIdStr }).populate('products.variantIds').exec()
+      : await MenuModel.findOne().populate('products.variantIds').exec();
+    if (!menu) return null;
+    if (query._id) {
+      return menu.products.id(query._id) || null;
+    }
+    if (query.name) {
+      return menu.products.find((p) => p.name === query.name) || null;
+    }
+    return menu.products[0] || null;
   },
-  { timestamps: true },
-);
 
-ProductSchema.index({ tenantId: 1, categoryId: 1, isAvailable: 1 });
-ProductSchema.index({ tenantId: 1, name: 1 });
-export const ProductModel = model<IProduct>('Product', ProductSchema);
+  async find(query: { tenantId?: any }) {
+    const tenantIdStr = query.tenantId?.toString();
+    const menu = tenantIdStr
+      ? await MenuModel.findOne({ tenantId: tenantIdStr }).populate('products.variantIds').exec()
+      : await MenuModel.findOne().populate('products.variantIds').exec();
+    return menu ? menu.products : [];
+  },
+
+  async create(data: any) {
+    const { MenuRepository } = await import('../menu/repository.js');
+    const repo = new MenuRepository();
+    return await repo.addOrUpdateProduct(data.tenantId?.toString(), data);
+  },
+};
+
+
