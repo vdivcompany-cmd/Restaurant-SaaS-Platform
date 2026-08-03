@@ -438,6 +438,22 @@
 						"header": [],
 						"url": { "raw": "{{base_url}}/menu/rag-catalog/{{tenant_id}}", "host": ["{{base_url}}"], "path": ["menu", "rag-catalog", "{{tenant_id}}"] }
 					}
+				},
+				{
+					"name": "Upload Menu File (PDF/Image AI Embedding)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "tenantId", "value": "{{tenant_id}}", "type": "text" },
+								{ "key": "file", "type": "file", "src": "sample_menu.pdf" }
+							]
+						},
+						"url": { "raw": "{{base_url}}/menu/upload-file", "host": ["{{base_url}}"], "path": ["menu", "upload-file"] }
+					}
 				}
 			]
 		},

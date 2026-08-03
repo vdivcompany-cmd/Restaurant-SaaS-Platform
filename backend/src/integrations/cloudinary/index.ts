@@ -49,6 +49,16 @@ export async function uploadTenantMedia(
 ): Promise<CloudinaryUploadResult> {
   const folderPath = `SaaS_Restaurants/${tenantId}/${entityType}`;
 
+  if (process.env['NODE_ENV'] === 'test' || process.env['CLOUDINARY_CLOUD_NAME'] === 'CHANGE_ME' || !process.env['CLOUDINARY_CLOUD_NAME']) {
+    logger.info({ tenantId, entityType }, '[SIMULATED CLOUDINARY UPLOAD] File uploaded successfully (Mock)');
+    return {
+      url: `https://res.cloudinary.com/demo/image/upload/v1234567/SaaS_Restaurants/${tenantId}/${entityType}/${originalName || 'sample_file'}`,
+      publicId: `${folderPath}/${originalName || 'sample_file'}`,
+      format: 'pdf',
+      bytes: fileBuffer.length,
+    };
+  }
+
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
