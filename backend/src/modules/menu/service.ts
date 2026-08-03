@@ -45,9 +45,12 @@ export class MenuService {
       tenantId,
       categories: categories.map((cat) => {
         const catIdStr = cat._id.toString();
-        const catProducts = products.filter(
-          (p) => p.categoryId && p.categoryId.toString() === catIdStr
-        );
+        const catProducts = products
+          .filter((p) => p.categoryId && p.categoryId.toString() === catIdStr)
+          .map((p: any) => {
+            const pObj = p.toObject ? p.toObject() : p;
+            return { ...pObj, variantIds: pObj.variants || [] };
+          });
         return {
           id: catIdStr,
           name: cat.name,
@@ -216,8 +219,10 @@ export class MenuService {
         const desc = prod.description || 'Freshly prepared specialty dish.';
 
         let variantInfo = '';
-        if (Array.isArray(prod.variantIds) && prod.variantIds.length > 0) {
-          const vNames = prod.variantIds.map((v: any) => `${v.name} (+${v.additionalPrice || 0} EGP)`).join(', ');
+        if (Array.isArray(prod.variants) && prod.variants.length > 0) {
+          const vNames = prod.variants
+            .map((v: any) => `${v.name} (${(v.options || []).map((o: any) => `${o.name} (+${o.price || o.additionalPrice || 0} EGP)`).join('/')})`)
+            .join(', ');
           variantInfo = ` | Variants available: [${vNames}]`;
         }
 
