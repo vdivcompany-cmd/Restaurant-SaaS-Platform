@@ -2,16 +2,17 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { TenantModel } from '../../src/modules/tenants/model.js';
+import { TenantService } from '../../src/modules/tenants/service.js';
 
 const app = createApp();
 
 describe('Phase 3 Domain Modules Integration Suite', () => {
   it('should execute complete Phase 3 operational user journey across all 12 domain modules', async () => {
     // 0. Setup Tenant & Owner Account
-    const tenant = await TenantModel.create({
+    const tenant = await TenantService.createTenant({
       name: 'Phase 3 Gourmet SaaS',
-      slug: `gourmet-${Date.now()}`,
-      contact: { phone: '0123456789', email: 'owner@gourmet.com' },
+      slug: `gourmet-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      contact: { phone: '0123456789', email: `owner-${Date.now()}@gourmet.com` },
     });
     const tenantId = tenant._id.toString();
 
@@ -124,7 +125,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     expect(tableRes.status).toBe(201);
     const tableId = tableRes.body.data._id;
     const qrCodeToken = tableRes.body.data.qrCodeToken;
-    expect(qrCodeToken).toMatch(/^qr_/);
+    expect(qrCodeToken).toMatch(/^eyJ/);
 
     const resolveRes = await request(app).get(`/api/v1/tables/qr/${qrCodeToken}`);
     expect(resolveRes.status).toBe(200);
@@ -277,6 +278,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
       .post('/api/v1/feedback')
       .set('X-Tenant-ID', tenantId)
       .send({
+        tenantId,
         branchId,
         customerName: 'Tariq Al-Mansour',
         rating: 5,

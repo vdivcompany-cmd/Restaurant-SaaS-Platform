@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { getApps } from 'firebase-admin/app';
 import { getRedisClient } from '../config/redis.js';
-import { getRabbitMQChannel } from '../config/rabbitmq.js';
+import { getQStashClient } from '../config/qstash.js';
 import logger from '../utils/logger.js';
 
 export interface ServiceHealth {
@@ -30,7 +30,7 @@ export class HealthService {
   }
 
   /**
-   * Comprehensive readiness check verifying connectivity to MongoDB, Redis, RabbitMQ, and Firebase.
+   * Comprehensive readiness check verifying connectivity to MongoDB, Redis, QStash, and Firebase.
    */
   public async getReadiness(): Promise<HealthResult> {
     const services: Record<string, ServiceHealth> = {};
@@ -57,16 +57,14 @@ export class HealthService {
       services['redis'] = { status: 'degraded', error: err?.message || 'Redis ping failed' };
     }
 
-    // 3. RabbitMQ Check
+    // 3. QStash Check (replaces RabbitMQ check)
     try {
-      const channel = await getRabbitMQChannel();
-      if (channel) {
-        services['rabbitmq'] = { status: 'ok' };
-      } else {
-        services['rabbitmq'] = { status: 'degraded', error: 'RabbitMQ channel unavailable' };
-      }
+      const qstashStart = Date.now();
+      const client = getQStashClient();
+      await client.schedules.list();
+      services['qstash'] = { status: 'ok', latencyMs: Date.now() - qstashStart };
     } catch (err: any) {
-      services['rabbitmq'] = { status: 'degraded', error: err?.message || 'RabbitMQ check failed' };
+      services['qstash'] = { status: 'degraded', error: err?.message || 'QStash check failed' };
     }
 
     // 4. Firebase Admin SDK Check

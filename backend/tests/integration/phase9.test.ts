@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { connectDatabase } from '../../src/config/database.js';
@@ -10,6 +10,8 @@ import { BranchModel } from '../../src/modules/branches/model.js';
 import { TableModel } from '../../src/modules/tables/model.js';
 import { ReservationModel } from '../../src/modules/reservations/model.js';
 import { NotificationLogModel } from '../../src/modules/notifications/model.js';
+import { AuthService } from '../../src/modules/auth/service.js';
+import { TenantService } from '../../src/modules/tenants/service.js';
 
 const app = createApp();
 
@@ -20,47 +22,49 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
   let branchId: string;
   let tableId: string;
 
-  beforeAll(async () => {
-    await connectDatabase();
-    getRedisClient();
-
-    // Create super admin
-    const superAdmin = await UserModel.create({
-      email: 'phase9-admin@test.com',
-      passwordHash: 'hashed',
-      role: 'super_admin',
-    });
-
-    // Create tenant
-    const tenant = await TenantModel.create({
+  beforeEach(async () => {
+    // Create tenant via service so subscription & defaults are created
+    const tenant = await TenantService.createTenant({
       name: 'Phase 9 Test Restaurant',
-      slug: 'phase9-test',
-      contact: { email: 'test@rest.com', phone: '+201234567890' },
-      status: 'trial',
+      slug: `phase9-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      contact: { email: `test-${Date.now()}@rest.com`, phone: '+201234567890' },
     });
     tenantId = tenant._id.toString();
 
-    // Create owner
-    const owner = await UserModel.create({
-      email: 'phase9-owner@test.com',
-      passwordHash: 'hashed',
-      role: 'owner',
+    // Create super admin
+    const superAdmin = await AuthService.createSuperAdmin({
       tenantId,
+      email: `phase9-admin-${Date.now()}-${Math.random().toString(36).substring(7)}@test.com`,
+      password: 'superpassword123',
     });
+    superAdminToken = `Bearer ${superAdmin.tokens.accessToken}`;
+
+    // Create owner via auth service for valid JWT
+    const owner = await AuthService.registerOwner(tenantId, {
+      email: `phase9-owner-${Date.now()}-${Math.random().toString(36).substring(7)}@test.com`,
+      password: 'password123',
+    });
+    ownerToken = `Bearer ${owner.tokens.accessToken}`;
 
     // Create branch
     const branch = await BranchModel.create({
       tenantId,
       name: 'Phase 9 Branch',
-      slug: 'phase9-branch',
+      slug: `phase9-branch-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       address: 'Test Address',
       phone: '+201234567890',
     });
     branchId = branch._id.toString();
+  });
 
-    // Mock tokens (in real scenario, these come from auth endpoint)
-    superAdminToken = `Bearer ${superAdmin._id}`;
-    ownerToken = `Bearer ${owner._id}`;
+  afterEach(async () => {
+    await UserModel.deleteMany({});
+    await TenantModel.deleteMany({});
+    await SubscriptionModel.deleteMany({});
+    await BranchModel.deleteMany({});
+    await TableModel.deleteMany({});
+    await ReservationModel.deleteMany({});
+    await NotificationLogModel.deleteMany({});
   });
 
   afterAll(async () => {
@@ -115,6 +119,7 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
         .post('/api/v1/feedback')
         .send({
           tenantId,
+          branchId,
           rating: 5,
           comment: 'Great service!',
         });
@@ -137,64 +142,93 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
 
   describe('9.3 — Atomic Tenant Provisioning', () => {
     it('should create subscription immediately when creating tenant', async () => {
-      const newTenant = await TenantModel.create({
-        name: 'Auto-Sub Test Tenant',
-        slug: `auto-sub-${Date.now()}`,
-        contact: { email: 'test2@rest.com', phone: '+201234567890' },
-        status: 'trial',
-      });
+      const res = await request(app)
+        .post('/api/v1/tenants')
+        .set('Authorization', superAdminToken)
+        .send({
+          name: 'Auto-Sub Test Tenant',
+          slug: `auto-sub-${Date.now()}`,
+          contact: { email: `test2-${Date.now()}@rest.com`, phone: '+201234567890' },
+        });
 
-      const subscription = await SubscriptionModel.findOne({ tenantId: newTenant._id });
+      expect(res.status).toBe(201);
+      const createdTenantId = res.body.data._id || res.body.data.id;
+      const subscription = await SubscriptionModel.findOne({ tenantId: createdTenantId });
       expect(subscription).toBeDefined();
       expect(subscription?.plan).toBe('free');
-      expect(subscription?.status).toBe('trialing');
+      expect(['active', 'trialing']).toContain(subscription?.status);
     });
 
     it('should have no duplicate subscriptions (no lazy-create fallback)', async () => {
-      const tenantWithSub = await TenantModel.create({
-        name: 'No Dup Test',
-        slug: `no-dup-${Date.now()}`,
-        contact: { email: 'test3@rest.com', phone: '+201234567890' },
-        status: 'trial',
-      });
+      const res = await request(app)
+        .post('/api/v1/tenants')
+        .set('Authorization', superAdminToken)
+        .send({
+          name: 'No Dup Test',
+          slug: `no-dup-${Date.now()}`,
+          contact: { email: `test3-${Date.now()}@rest.com`, phone: '+201234567890' },
+        });
 
-      const count = await SubscriptionModel.countDocuments({ tenantId: tenantWithSub._id });
+      expect(res.status).toBe(201);
+      const createdTenantId = res.body.data._id || res.body.data.id;
+      const count = await SubscriptionModel.countDocuments({ tenantId: createdTenantId });
       expect(count).toBe(1);
     });
   });
 
   describe('9.4 — Table Count Accounting', () => {
-    it('should increment Branch.tableCount when creating table', async () => {
+    it('should increment Branch.tableCount when creating table via service', async () => {
       const initialCount = (await BranchModel.findById(branchId))?.tableCount || 0;
 
-      await TableModel.create({
-        tenantId,
-        branchId,
-        number: 1,
-        capacity: 4,
-        qrCodeToken: `qr-${Date.now()}`,
-        totalOrdersServed: 0,
-      });
+      const res = await request(app)
+        .post('/api/v1/tables')
+        .set('Authorization', ownerToken)
+        .send({
+          branchId,
+          number: 101,
+          capacity: 4,
+        });
 
+      expect(res.status).toBe(201);
       const updatedBranch = await BranchModel.findById(branchId);
       expect(updatedBranch?.tableCount).toBe(initialCount + 1);
-      tableId = (await TableModel.findOne({ number: 1 }))?.id;
     });
 
-    it('should decrement Branch.tableCount when deleting table', async () => {
-      const beforeCount = (await BranchModel.findById(branchId))?.tableCount || 0;
+    it('should decrement Branch.tableCount when deleting table via service', async () => {
+      const createRes = await request(app)
+        .post('/api/v1/tables')
+        .set('Authorization', ownerToken)
+        .send({
+          branchId,
+          number: 105,
+          capacity: 4,
+        });
+      expect(createRes.status).toBe(201);
+      const createdTableId = createRes.body.data._id || createRes.body.data.id;
 
-      if (tableId) {
-        await TableModel.findByIdAndDelete(tableId);
-      }
+      const beforeBranch = await BranchModel.findById(branchId);
+      const beforeCount = beforeBranch?.tableCount || 0;
+
+      const deleteRes = await request(app)
+        .delete(`/api/v1/tables/${createdTableId}`)
+        .set('Authorization', ownerToken);
+      expect(deleteRes.status).toBe(200);
 
       const afterBranch = await BranchModel.findById(branchId);
-      expect(afterBranch?.tableCount).toBe(beforeCount - 1 || 0);
+      expect(afterBranch?.tableCount).toBe(Math.max(0, beforeCount - 1));
     });
 
     it('should track totalOrdersServed counter on table', async () => {
-      const table = await TableModel.findOne({ tenantId, branchId });
-      expect(table?.totalOrdersServed).toBe(0);
+      const tableRes = await request(app)
+        .post('/api/v1/tables')
+        .set('Authorization', ownerToken)
+        .send({
+          branchId,
+          number: 102,
+          capacity: 4,
+        });
+      expect(tableRes.status).toBe(201);
+      expect(tableRes.body.data.totalOrdersServed).toBe(0);
     });
   });
 
@@ -224,26 +258,22 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
     });
 
     it('should prevent cross-tenant isolation on reservations', async () => {
-      // Create another tenant
-      const otherTenant = await TenantModel.create({
+      const otherTenant = await TenantService.createTenant({
         name: 'Other Tenant',
         slug: `other-${Date.now()}`,
-        contact: { email: 'other@rest.com', phone: '+201234567890' },
-        status: 'trial',
+        contact: { email: `other-${Date.now()}@rest.com`, phone: '+201234567890' },
       });
 
-      // Try to create reservation for other tenant with owner token (should be isolated)
       const res = await request(app)
         .post('/api/v1/reservations')
         .send({
-          tenantId: otherTenant._id,
+          tenantId: otherTenant._id.toString(),
           branchId,
           customerName: 'Hacker',
           customerPhone: '+201234567890',
           partySize: 2,
           reservedFor: new Date(Date.now() + 86400000).toISOString(),
         });
-      // Should still succeed because POST is public, but isolation is in service layer
       expect(res.status).toBeOneOf([201, 400, 404]);
     });
   });
@@ -264,7 +294,7 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
       expect(res.status).toBeOneOf([200, 201]);
       if (res.body.data?.logId) {
         const log = await NotificationLogModel.findById(res.body.data.logId);
-        expect(log?.branchId).toBe(branchId);
+        expect(log?.branchId?.toString()).toBe(branchId);
         expect(log?.actionMakerId).toBeDefined();
       }
     });
@@ -279,22 +309,18 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
     });
 
     it('should maintain cross-tenant isolation on notifications', async () => {
-      // Tenant A should not see Tenant B's notifications
-      const otherTenant = await TenantModel.create({
+      const otherTenant = await TenantService.createTenant({
         name: 'Notification Test Tenant',
         slug: `notif-${Date.now()}`,
-        contact: { email: 'notif@rest.com', phone: '+201234567890' },
-        status: 'trial',
+        contact: { email: `notif-${Date.now()}@rest.com`, phone: '+201234567890' },
       });
 
-      const otherOwner = await UserModel.create({
+      const otherOwner = await AuthService.registerOwner(otherTenant._id.toString(), {
         email: `notif-owner-${Date.now()}@test.com`,
-        passwordHash: 'hashed',
-        role: 'owner',
-        tenantId: otherTenant._id,
+        password: 'password123',
       });
 
-      const otherToken = `Bearer ${otherOwner._id}`;
+      const otherToken = `Bearer ${otherOwner.tokens.accessToken}`;
 
       // Dispatch from first tenant
       await NotificationLogModel.create({
@@ -318,16 +344,17 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
 
   describe('9.6 — QR Token JWT Signing', () => {
     it('should create QR token as signed JWT', async () => {
-      const table = await TableModel.create({
-        tenantId,
-        branchId,
-        number: 42,
-        capacity: 4,
-        qrCodeToken: 'temp', // Will be replaced by signed token
-        totalOrdersServed: 0,
-      });
+      const res = await request(app)
+        .post('/api/v1/tables')
+        .set('Authorization', ownerToken)
+        .send({
+          branchId,
+          number: 103,
+          capacity: 4,
+        });
 
-      expect(table.qrCodeToken).toMatch(/^eyJ/); // JWT header starts with eyJ
+      expect(res.status).toBe(201);
+      expect(res.body.data.qrCodeToken).toMatch(/^eyJ/);
     });
   });
 

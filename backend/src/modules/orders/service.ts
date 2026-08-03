@@ -1,6 +1,7 @@
 import { withTransactionOrFallback } from '../../utils/withTransactionOrFallback.js';
 import { OrderRepository } from './repository.js';
 import { TableModel } from '../tables/model.js';
+import { TableService } from '../tables/service.js';
 import { realtimeService } from '../../services/realtime/index.js';
 import { queueService, PLATFORM_QUEUES } from '../../services/queue/index.js';
 import { eventBus } from '../../shared/events/index.js';
@@ -11,8 +12,13 @@ import { AppError } from '../../middleware/errorHandler.middleware.js';
 
 export class OrderService {
   private repo = new OrderRepository();
+  private tableService = new TableService();
 
-  public async createOrder(tenantId: string, dto: CreateOrderDto): Promise<IOrder> {
+  public async createOrder(
+    tenantId: string,
+    dto: CreateOrderDto,
+    opts?: { skipSessionCheck?: boolean }
+  ): Promise<IOrder> {
     if (dto.offlineGuid) {
       const existing = await this.repo.findByOfflineGuid(tenantId, dto.offlineGuid);
       if (existing) {
@@ -20,12 +26,17 @@ export class OrderService {
       }
     }
 
+    // Fraud prevention: customer QR/DINE_IN orders require proof of an open table session
+    if (!opts?.skipSessionCheck && (dto.channel === 'DINE_IN' || dto.channel === 'QR') && dto.tableId) {
+      await this.tableService.validateTableSession(tenantId, dto.tableId, dto.tableSessionId);
+    }
+
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
     
     const orderDoc = await withTransactionOrFallback(async (session) => {
       const createdOrder = await this.repo.create(tenantId, { ...dto, orderNumber }, session);
 
-      if (dto.tableId && dto.channel === 'DINE_IN') {
+      if (dto.tableId && (dto.channel === 'DINE_IN' || dto.channel === 'QR')) {
         const query = tenantQuery.updateOne(TableModel, tenantId, {
           _id: dto.tableId,
           branchId: dto.branchId,
@@ -72,7 +83,7 @@ export class OrderService {
         continue;
       }
 
-      await this.createOrder(tenantId, { ...orderDto, branchId: dto.branchId });
+      await this.createOrder(tenantId, { ...orderDto, branchId: dto.branchId }, { skipSessionCheck: true });
       synced++;
     }
 
@@ -102,6 +113,9 @@ export class OrderService {
         updateQuery['$inc'] = { totalOrdersServed: 1 };
       }
       await tenantQuery.updateOne(TableModel, tenantId, { _id: order.tableId }, updateQuery).exec();
+
+      // Close table session on terminal order status
+      void this.tableService.closeTableSession(tenantId, order.tableId.toString()).catch(() => null);
     }
 
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());

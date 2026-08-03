@@ -12,20 +12,16 @@
     "build:clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build:prod": "npm run build:clean && tsc --project tsconfig.json",
     "start": "node dist/server.js",
-    "pm2:start": "pm2 start ecosystem.config.js",
-    "pm2:reload": "pm2 reload ecosystem.config.js",
-    "pm2:status": "pm2 status",
-    "pm2:logs": "pm2 logs --lines 100",
     "verify": "cross-env DOTENV_CONFIG_PATH=.env tsx -r dotenv/config scripts/verify-connections.ts",
     "seed:admin": "cross-env DOTENV_CONFIG_PATH=.env tsx -r dotenv/config scripts/seed-superadmin.ts",
-    "test": "cross-env NODE_ENV=test tsx -r dotenv/config node_modules/vitest/vitest.mjs run"
+    "setup:qstash-schedules": "cross-env DOTENV_CONFIG_PATH=.env tsx -r dotenv/config scripts/setup-qstash-schedules.ts",
+    "test": "cross-env NODE_ENV=test FORCE_PUBLIC_DNS=true tsx -r dotenv/config node_modules/vitest/vitest.mjs run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@types/amqplib": "^0.10.8",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
@@ -49,9 +45,9 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
+    "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
     "@upstash/vector": "^1.2.3",
-    "amqplib": "^2.0.1",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",

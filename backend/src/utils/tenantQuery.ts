@@ -127,9 +127,7 @@ export const tenantQuery = {
     if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
       throw new TenantScopeError('TenantId scope missing for aggregation.');
     }
-    const matchVal = Types.ObjectId.isValid(tenantId)
-      ? { $in: [tenantId, new Types.ObjectId(tenantId)] }
-      : tenantId;
+    const matchVal = Types.ObjectId.isValid(tenantId) ? new Types.ObjectId(tenantId) : tenantId;
     const tenantMatch: PipelineStage = { $match: { tenantId: matchVal } };
     return model.aggregate<T>([tenantMatch, ...pipeline]);
   },

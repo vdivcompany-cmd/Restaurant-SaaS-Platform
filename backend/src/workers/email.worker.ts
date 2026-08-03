@@ -1,7 +1,5 @@
 import nodemailer from 'nodemailer';
-import { queueService, PLATFORM_QUEUES } from '../services/queue/index.js';
 import logger from '../utils/logger.js';
-import { connectDatabase } from '../config/database.js';
 
 export type EmailTemplateType = 'WELCOME' | 'OTP_FORGOT_PASSWORD' | 'GENERAL';
 
@@ -77,24 +75,6 @@ export async function processEmailJob(payload: EmailJobPayload, headers?: Record
     logger.info({ to: payload.to, tenantId }, 'Email successfully transmitted via Nodemailer SMTP');
   } catch (error) {
     logger.error({ tenantId, to: payload.to, error }, 'Nodemailer SMTP transmission encountered an error');
-    throw error; // Rethrow so RabbitMQ queue consumer can evaluate retry limits
+    throw error; // Rethrow so QStash queue consumer can evaluate retry limits
   }
-}
-
-export async function startEmailWorker(): Promise<void> {
-  try {
-    await connectDatabase();
-    await queueService.assertQueues();
-
-    logger.info(`Starting internal email queue consumer listening on: ${PLATFORM_QUEUES.EMAILS.name}`);
-    await queueService.consume<EmailJobPayload>(PLATFORM_QUEUES.EMAILS.name, async (payload, headers) => {
-      await processEmailJob(payload, headers);
-    });
-  } catch (error) {
-    logger.error({ error }, 'Error initializing Email Queue Consumer');
-  }
-}
-
-if (process.env['NODE_ENV'] !== 'test' && process.env['START_WORKERS_STANDALONE'] === 'true') {
-  startEmailWorker().catch(() => {});
 }

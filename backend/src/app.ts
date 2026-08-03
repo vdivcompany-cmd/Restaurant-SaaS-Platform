@@ -34,6 +34,7 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import reservationRoutes from './modules/reservations/routes.js';
+import jobsRoutes from './jobs/index.js';
 
 export function createApp(): Express {
   const app = express();
@@ -66,6 +67,14 @@ export function createApp(): Express {
 
   // ─── Parsing ──────────────────────────────────────────────────────────────
   app.use(compression());
+  app.use(
+    '/api/v1/jobs',
+    express.raw({ type: 'application/json' }),
+    (req, _res, next) => {
+      (req as any).rawBody = req.body;
+      next();
+    }
+  );
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
@@ -125,6 +134,7 @@ export function createApp(): Express {
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/reservations', reservationRoutes);
+  app.use('/api/v1/jobs', jobsRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {

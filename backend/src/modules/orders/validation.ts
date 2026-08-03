@@ -17,6 +17,7 @@ export const createOrderSchema = z.object({
   taxAmount: z.number().min(0).optional().default(0),
   totalAmount: z.number().min(0),
   offlineGuid: z.string().optional(),
+  tableSessionId: z.string().uuid().optional(),
 });
 
 export const updateOrderStatusSchema = z.object({

@@ -7,14 +7,15 @@ import { AuthService } from '../../src/modules/auth/service.js';
 const app = createApp();
 
 async function getSuperAdminToken(): Promise<string> {
+  const ts = Date.now();
   const platformTenant = await TenantModel.create({
     name: 'Platform Operations',
-    slug: `platform-${Date.now()}-${Math.random()}`,
-    contact: { phone: '0000000', email: `platform_${Date.now()}@admin.com` },
+    slug: `platform-${ts}-${Math.random().toString(36).substring(7)}`,
+    contact: { phone: '0000000', email: `platform_${ts}@admin.com` },
   });
   const admin = await AuthService.createSuperAdmin({
     tenantId: platformTenant._id.toString(),
-    email: `admin_${Date.now()}_${Math.random().toString(36).substring(7)}@platform.com`,
+    email: `admin_${ts}_${Math.random().toString(36).substring(7)}@platform.com`,
     password: 'superpassword123',
   });
   return admin.tokens.accessToken;
@@ -22,19 +23,20 @@ async function getSuperAdminToken(): Promise<string> {
 
 describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
   it('should reject unauthenticated or non-super_admin attempts to create a tenant', async () => {
+    const ts = Date.now();
     // 1. Unauthenticated attempt
     const unauthRes = await request(app)
       .post('/api/v1/tenants')
       .send({
         name: 'Hacked Place',
-        slug: 'hacked-place',
+        slug: `hacked-place-${ts}`,
       });
     expect(unauthRes.status).toBe(401);
 
     // 2. Normal restaurant owner attempt
-    const tempTenant = await TenantModel.create({ name: 'Temp', slug: 'temp', contact: { phone: '1', email: 't@t.com' } });
+    const tempTenant = await TenantModel.create({ name: 'Temp', slug: `temp-${ts}`, contact: { phone: '1', email: `t-${ts}@t.com` } });
     const normalOwner = await AuthService.registerOwner(tempTenant._id.toString(), {
-      email: 'owner@normal.com',
+      email: `owner-normal-${ts}@normal.com`,
       password: 'password123',
     });
 
@@ -43,37 +45,41 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
       .set('Authorization', `Bearer ${normalOwner.tokens.accessToken}`)
       .send({
         name: 'Unauthorized Place',
-        slug: 'unauthorized-place',
+        slug: `unauthorized-place-${ts}`,
       });
     expect(ownerRes.status).toBe(403);
   });
 
   it('should create a new tenant successfully when called by super_admin', async () => {
+    const ts = Date.now();
     const token = await getSuperAdminToken();
     const res = await request(app)
       .post('/api/v1/tenants')
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'Burger House',
-        slug: 'burger-house',
+        slug: `burger-house-${ts}`,
         contact: {
           phone: '+201001234567',
-          email: 'info@burgerhouse.com',
+          email: `info-${ts}@burgerhouse.com`,
         },
       });
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.slug).toBe('burger-house');
+    expect(res.body.data.slug).toBe(`burger-house-${ts}`);
     expect(res.body.data.status).toBe('trial');
   });
 
   it('should reject duplicate tenant slug when created by super_admin', async () => {
+    const ts = Date.now();
     const token = await getSuperAdminToken();
+    const dupSlug = `pizza-place-dup-${ts}`;
+
     await TenantModel.create({
       name: 'Pizza Place',
-      slug: 'pizza-place',
-      contact: { phone: '123456', email: 'p@pizza.com' },
+      slug: dupSlug,
+      contact: { phone: '123456', email: `p-${ts}@pizza.com` },
     });
 
     const res = await request(app)
@@ -81,8 +87,8 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'Pizza Place Duplicate',
-        slug: 'pizza-place',
-        contact: { phone: '654321', email: 'p2@pizza.com' },
+        slug: dupSlug,
+        contact: { phone: '654321', email: `p2-${ts}@pizza.com` },
       });
 
     expect(res.status).toBe(409);
@@ -90,22 +96,24 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
   });
 
   it('CROSS-TENANT ISOLATION: User of Tenant A cannot read or modify Tenant B data', async () => {
+    const ts = Date.now();
+
     // 1. Create Tenant A & Tenant B
     const tenantA = await TenantModel.create({
       name: 'Restaurant A',
-      slug: 'restaurant-a',
-      contact: { phone: '111111', email: 'owner@a.com' },
+      slug: `restaurant-a-${ts}`,
+      contact: { phone: '111111', email: `owner-a-${ts}@a.com` },
     });
 
     const tenantB = await TenantModel.create({
       name: 'Restaurant B',
-      slug: 'restaurant-b',
-      contact: { phone: '222222', email: 'owner@b.com' },
+      slug: `restaurant-b-${ts}`,
+      contact: { phone: '222222', email: `owner-b-${ts}@b.com` },
     });
 
     // 2. Register Owner for Tenant A & Owner for Tenant B
     const userA = await AuthService.registerOwner(tenantA._id.toString(), {
-      email: 'owner@a.com',
+      email: `owner-a-${ts}@a.com`,
       password: 'password123',
     });
 
@@ -135,11 +143,12 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
   });
 
   it('SUPER ADMIN EXCEPTION: super_admin can inspect tenant details via X-Target-Tenant-Id without being blocked by cross-tenant checks', async () => {
+    const ts = Date.now();
     const token = await getSuperAdminToken();
     const targetTenant = await TenantModel.create({
       name: 'Client Restaurant',
-      slug: 'client-restaurant',
-      contact: { phone: '999999', email: 'client@rest.com' },
+      slug: `client-restaurant-${ts}`,
+      contact: { phone: '999999', email: `client-${ts}@rest.com` },
     });
 
     const res = await request(app)
