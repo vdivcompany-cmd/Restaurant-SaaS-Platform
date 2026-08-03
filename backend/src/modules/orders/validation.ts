@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createOrderSchema = z.object({
-  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID'),
+  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID').optional(),
   channel: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY', 'QR', 'WEB', 'TELEGRAM']).optional().default('DINE_IN'),
   tableId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
   items: z.array(
@@ -11,6 +11,15 @@ export const createOrderSchema = z.object({
       quantity: z.number().int().min(1),
       unitPrice: z.number().min(0),
       totalPrice: z.number().min(0),
+      selectedVariants: z.array(
+        z.object({
+          variantId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+          variantName: z.string().optional(),
+          selectedOptionNames: z.array(z.string()).optional(),
+          priceDelta: z.number().optional().default(0),
+        })
+      ).optional().default([]),
+      notes: z.string().optional(),
     })
   ).min(1, 'Order must contain at least one item'),
   subtotal: z.number().min(0),
@@ -25,7 +34,7 @@ export const updateOrderStatusSchema = z.object({
 });
 
 export const offlineSyncSchema = z.object({
-  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID'),
+  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID').optional(),
   orders: z.array(createOrderSchema).min(1, 'At least one offline order is required for synchronization'),
 });
 

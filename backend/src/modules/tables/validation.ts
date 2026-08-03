@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createTableSchema = z.object({
-  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID'),
+  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID').optional(),
   number: z.number().int().min(1),
   capacity: z.number().int().min(1).optional().default(4),
   status: z.enum(['AVAILABLE', 'OCCUPIED', 'RESERVED', 'BILL_REQUESTED']).optional().default('AVAILABLE'),

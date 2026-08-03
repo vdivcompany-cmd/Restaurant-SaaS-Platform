@@ -15,15 +15,32 @@ export class TableService {
   private repo = new TableRepository();
 
   public async createTable(tenantId: string, dto: CreateTableDto): Promise<ITable> {
+    let targetBranchId = dto.branchId;
+
+    if (!targetBranchId) {
+      const branches = await tenantQuery.find(BranchModel, tenantId, {}).exec();
+      if (!branches || branches.length === 0) {
+        throw new AppError('No branches found for this restaurant. Please create a branch first.', 400);
+      }
+      if (branches.length === 1 && branches[0]) {
+        targetBranchId = branches[0]._id.toString();
+      } else {
+        throw new AppError('Multiple branches found for this restaurant. branchId is required.', 400);
+      }
+    }
+
+    const finalBranchId = targetBranchId;
+    const tablePayload = { ...dto, branchId: finalBranchId };
+
     // Create table first to get its ID
     const tempToken = `temp_${crypto.randomBytes(8).toString('hex')}`;
-    let table = await this.repo.create(tenantId, { ...dto, qrCodeToken: tempToken });
+    let table = await this.repo.create(tenantId, { ...tablePayload, qrCodeToken: tempToken });
 
     // Sign JWT with table identity
     const qrCodeToken = jwt.sign(
       {
         tenantId,
-        branchId: dto.branchId,
+        branchId: finalBranchId,
         tableId: table._id.toString(),
         number: dto.number,
       },
@@ -37,7 +54,7 @@ export class TableService {
     await tenantQuery.updateOne(
       BranchModel,
       tenantId,
-      { _id: dto.branchId },
+      { _id: finalBranchId },
       { $inc: { tableCount: 1 } }
     ).exec();
 

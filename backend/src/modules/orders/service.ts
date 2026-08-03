@@ -10,6 +10,8 @@ import type { IOrder } from './model.js';
 import type { CreateOrderDto, UpdateOrderStatusDto, OfflineSyncDto } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 
+import { BranchModel } from '../branches/model.js';
+
 export class OrderService {
   private repo = new OrderRepository();
   private tableService = new TableService();
@@ -26,6 +28,22 @@ export class OrderService {
       }
     }
 
+    let targetBranchId = dto.branchId;
+    if (!targetBranchId) {
+      const branches = await tenantQuery.find(BranchModel, tenantId, {}).exec();
+      if (!branches || branches.length === 0) {
+        throw new AppError('No branches found for this restaurant. Please create a branch first.', 400);
+      }
+      if (branches.length === 1 && branches[0]) {
+        targetBranchId = branches[0]._id.toString();
+      } else {
+        throw new AppError('Multiple branches found for this restaurant. branchId is required.', 400);
+      }
+    }
+
+    const finalBranchId = targetBranchId;
+    const orderPayload = { ...dto, branchId: finalBranchId };
+
     // Fraud prevention: customer QR/DINE_IN orders require proof of an open table session
     if (!opts?.skipSessionCheck && (dto.channel === 'DINE_IN' || dto.channel === 'QR') && dto.tableId) {
       await this.tableService.validateTableSession(tenantId, dto.tableId, dto.tableSessionId);
@@ -34,12 +52,12 @@ export class OrderService {
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
     
     const orderDoc = await withTransactionOrFallback(async (session) => {
-      const createdOrder = await this.repo.create(tenantId, { ...dto, orderNumber }, session);
+      const createdOrder = await this.repo.create(tenantId, { ...orderPayload, orderNumber }, session);
 
       if (dto.tableId && (dto.channel === 'DINE_IN' || dto.channel === 'QR')) {
         const query = tenantQuery.updateOne(TableModel, tenantId, {
           _id: dto.tableId,
-          branchId: dto.branchId,
+          branchId: finalBranchId,
         }, { status: 'OCCUPIED', currentOrderId: createdOrder._id }, { session: session ?? undefined });
         await query.exec();
       }
@@ -52,12 +70,12 @@ export class OrderService {
       orderNumber: orderDoc.orderNumber,
       status: orderDoc.status,
       items: orderDoc.items,
-      branchId: dto.branchId,
+      branchId: finalBranchId,
     }, tenantId);
 
     eventBus.emitEvent('order.completed', {
       tenantId,
-      branchId: dto.branchId,
+      branchId: finalBranchId,
       orderId: orderDoc._id.toString(),
       totalAmount: orderDoc.totalAmount,
     });

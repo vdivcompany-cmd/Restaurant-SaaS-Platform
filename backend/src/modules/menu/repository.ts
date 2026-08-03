@@ -1,7 +1,6 @@
 import { Types, type ClientSession } from 'mongoose';
 import { CategoryModel, type ICategory } from '../categories/model.js';
-import { VariantModel } from '../variants/model.js';
-import { MenuModel, type IMenu, type IProductSubDoc } from './model.js';
+import { MenuModel, type IMenu, type IProductSubDoc, type IVariantSubDoc } from './model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import type { BulkImportPayload } from './validation.js';
 
@@ -13,7 +12,7 @@ export interface BulkImportResult {
 
 export class MenuRepository {
   /**
-   * Ensures a active Menu document exists for the tenant.
+   * Ensures an active Menu document exists for the tenant.
    */
   public async findOrCreateMenu(tenantId: string, session?: ClientSession): Promise<IMenu> {
     let menu = await tenantQuery.findOne<IMenu>(MenuModel, tenantId, {});
@@ -36,7 +35,7 @@ export class MenuRepository {
   }
 
   /**
-   * Performs an atomic bulk import of menu categories, products, and variants
+   * Performs an atomic bulk import of menu categories, products, and embedded variants
    * directly into the MenuModel products array with strict deduplication by product name.
    */
   public async bulkImport(
@@ -79,28 +78,18 @@ export class MenuRepository {
 
       // 2. Process Products for this Category
       for (const prodData of catData.products) {
-        const createdVariantIds: Types.ObjectId[] = [];
-
-        // Import Variants for this product
-        if (prodData.variants && prodData.variants.length > 0) {
-          for (const varData of prodData.variants) {
-            const [variant] = await VariantModel.create(
-              [
-                {
-                  tenantId,
-                  name: varData.name,
-                  minSelect: varData.minSelect,
-                  maxSelect: varData.maxSelect,
-                  options: varData.options,
-                },
-              ],
-              session ? { session } : {}
-            );
-            if (variant) {
-              createdVariantIds.push(variant._id as Types.ObjectId);
-              variantsCount++;
-            }
-          }
+        const embeddedVariants = (prodData.variants || []).map((v) => ({
+          name: v.name,
+          minSelect: v.minSelect ?? 0,
+          maxSelect: v.maxSelect ?? 1,
+          options: (v.options || []).map((o: any) => ({
+            name: o.name,
+            price: o.priceDelta ?? o.price ?? o.additionalPrice ?? 0,
+            additionalPrice: o.priceDelta ?? o.additionalPrice ?? o.price ?? 0,
+          })),
+        }));
+        if (embeddedVariants.length > 0) {
+          variantsCount += embeddedVariants.length;
         }
 
         // Deduplicate against existing products array in MenuModel by normalized name
@@ -116,7 +105,7 @@ export class MenuRepository {
           if (prodData.imageUrl) existingProduct.imageUrl = prodData.imageUrl;
           existingProduct.categoryId = category._id as Types.ObjectId;
           existingProduct.categoryName = category.name;
-          if (createdVariantIds.length > 0) existingProduct.variantIds = createdVariantIds;
+          if (embeddedVariants.length > 0) existingProduct.variants = embeddedVariants as any;
         } else {
           // Push new product sub-document
           menu.products.push({
@@ -128,7 +117,7 @@ export class MenuRepository {
             categoryName: category.name,
             imageUrl: prodData.imageUrl,
             isAvailable: true,
-            variantIds: createdVariantIds,
+            variants: embeddedVariants as any,
             createdAt: new Date(),
             updatedAt: new Date(),
           } as IProductSubDoc);
@@ -144,7 +133,7 @@ export class MenuRepository {
   }
 
   /**
-   * Adds or updates a product in the restaurant's menu array.
+   * Adds or updates a product with embedded variants in the restaurant's menu array.
    */
   public async addOrUpdateProduct(
     tenantId: string,
@@ -155,7 +144,7 @@ export class MenuRepository {
       categoryId?: string;
       imageUrl?: string;
       isAvailable?: boolean;
-      variantIds?: string[];
+      variants?: IVariantSubDoc[];
     }
   ): Promise<IProductSubDoc> {
     const menu = await this.findOrCreateMenu(tenantId);
@@ -170,7 +159,26 @@ export class MenuRepository {
       if (cat) catName = cat.name;
     }
 
-    const varIdObjs = (prodData.variantIds || []).map((v) => new Types.ObjectId(v));
+    let variantsList = prodData.variants || [];
+    if (variantsList.length === 0 && (prodData as any).variantIds && Array.isArray((prodData as any).variantIds)) {
+      const { VariantModel } = await import('../variants/model.js');
+      for (const vId of (prodData as any).variantIds) {
+        const vDoc = await VariantModel.findById(vId);
+        if (vDoc) {
+          variantsList.push({
+            _id: vDoc._id,
+            name: vDoc.name,
+            minSelect: vDoc.minSelect,
+            maxSelect: vDoc.maxSelect,
+            options: (vDoc.options || []).map((o: any) => ({
+              name: o.name,
+              price: o.additionalPrice ?? o.price ?? 0,
+              additionalPrice: o.additionalPrice ?? o.price ?? 0,
+            })),
+          } as any);
+        }
+      }
+    }
 
     if (existingProduct) {
       existingProduct.basePrice = prodData.basePrice;
@@ -179,7 +187,7 @@ export class MenuRepository {
       if (prodData.isAvailable !== undefined) existingProduct.isAvailable = prodData.isAvailable;
       if (catIdObj) existingProduct.categoryId = catIdObj;
       if (catName) existingProduct.categoryName = catName;
-      if (varIdObjs.length > 0) existingProduct.variantIds = varIdObjs;
+      if (variantsList.length > 0) existingProduct.variants = variantsList as any;
       existingProduct.updatedAt = new Date();
     } else {
       const newProd = {
@@ -191,7 +199,7 @@ export class MenuRepository {
         categoryName: catName,
         imageUrl: prodData.imageUrl,
         isAvailable: prodData.isAvailable ?? true,
-        variantIds: varIdObjs,
+        variants: variantsList,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as IProductSubDoc;
@@ -217,7 +225,7 @@ export class MenuRepository {
       categoryId: string;
       imageUrl: string;
       isAvailable: boolean;
-      variantIds: string[];
+      variants: IVariantSubDoc[];
     }>
   ): Promise<IProductSubDoc | null> {
     const menu = await this.findOrCreateMenu(tenantId);
@@ -234,8 +242,8 @@ export class MenuRepository {
       const cat = await CategoryModel.findById(updateData.categoryId);
       if (cat) prod.categoryName = cat.name;
     }
-    if (updateData.variantIds) {
-      prod.variantIds = updateData.variantIds.map((v) => new Types.ObjectId(v));
+    if (updateData.variants) {
+      prod.variants = updateData.variants as any;
     }
     prod.updatedAt = new Date();
 
@@ -260,8 +268,7 @@ export class MenuRepository {
    * Finds a product by ID inside the tenant's menu array.
    */
   public async findProductById(tenantId: string, productId: string): Promise<IProductSubDoc | null> {
-    const menu = await tenantQuery.findOne<IMenu>(MenuModel, tenantId, {}).populate('products.variantIds').exec();
-    if (!menu) return null;
+    const menu = await this.findOrCreateMenu(tenantId);
     const prod = menu.products.id(productId);
     return prod || null;
   }
@@ -270,8 +277,9 @@ export class MenuRepository {
    * Returns all products inside the tenant's menu array.
    */
   public async findAllProducts(tenantId: string): Promise<IProductSubDoc[]> {
-    const menu = await tenantQuery.findOne<IMenu>(MenuModel, tenantId, {}).populate('products.variantIds').exec();
-    return menu ? menu.products : [];
+    const menu = await this.findOrCreateMenu(tenantId);
+    return menu.products;
   }
 }
+
 

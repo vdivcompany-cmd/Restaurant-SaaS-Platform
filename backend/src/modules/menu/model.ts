@@ -1,5 +1,19 @@
 import { Schema, model, type Document, type Types } from 'mongoose';
 
+export interface IVariantOptionSubDoc {
+  name: string;
+  price?: number;
+  additionalPrice?: number;
+}
+
+export interface IVariantSubDoc {
+  _id?: Types.ObjectId;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  options: IVariantOptionSubDoc[];
+}
+
 export interface IProductSubDoc {
   _id: Types.ObjectId;
   name: string;
@@ -9,7 +23,7 @@ export interface IProductSubDoc {
   categoryName?: string;
   imageUrl?: string;
   isAvailable: boolean;
-  variantIds: Types.ObjectId[];
+  variants: IVariantSubDoc[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +53,25 @@ export interface IMenu extends Document {
 
 export type IMenuLayout = IMenu;
 
+const variantOptionSubSchema = new Schema<IVariantOptionSubDoc>(
+  {
+    name: { type: String, required: true, trim: true },
+    price: { type: Number, default: 0, min: 0 },
+    additionalPrice: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false }
+);
+
+const variantSubSchema = new Schema<IVariantSubDoc>(
+  {
+    name: { type: String, required: true, trim: true },
+    minSelect: { type: Number, default: 0, min: 0 },
+    maxSelect: { type: Number, default: 1, min: 1 },
+    options: [variantOptionSubSchema],
+  },
+  { timestamps: true }
+);
+
 const productSubSchema = new Schema<IProductSubDoc>(
   {
     name: { type: String, required: true, trim: true },
@@ -48,7 +81,7 @@ const productSubSchema = new Schema<IProductSubDoc>(
     categoryName: { type: String, trim: true },
     imageUrl: { type: String },
     isAvailable: { type: Boolean, default: true },
-    variantIds: [{ type: Schema.Types.ObjectId, ref: 'Variant' }],
+    variants: [variantSubSchema],
   },
   { timestamps: true }
 );
