@@ -6,7 +6,7 @@ This document is the official operational runbook for disaster recovery, service
 
 ## 1. Architecture Overview & Storage Tiering
 
-The platform operates on a single Hostinger VPS running Node.js via PM2 and Nginx reverse proxy, coupled with cloud-managed stateful services:
+The platform operates on a single Hostinger VPS running Node.js via Vercel Serverless, coupled with cloud-managed stateful services:
 
 | Infrastructure Service | Deployment Mode | Storage Purpose | Recovery Priority |
 |---|---|---|---|
@@ -162,3 +162,17 @@ Expected Response:
   }
 }
 ```
+
+---
+
+## 4. Local QStash Development & QR Table Session Operations
+
+### Local QStash Development
+QStash publishes to a public destination URL, so local development requires either:
+1. npx @upstash/qstash-cli dev (local emulator that runs jobs synchronously, no signing needed), or
+2. A tunnel (ngrok http 3000) with PUBLIC_API_BASE_URL pointed at the tunnel URL for full signature-verified end-to-end testing against real Upstash QStash.
+
+### QR Table Session Fraud Prevention
+- Scan: GET /api/v1/tables/qr/:token validates signed QR JWT and opens a 90-minute Redis session (table_session:{tenantId}:{tableId}). Returns sessionId to client.
+- Order: POST /api/v1/orders/qr validates tableSessionId before allowing customer order creation.
+- Closure: Session automatically deleted on order payment (PAID) or cancellation (CANCELLED), or after 90 minutes TTL.

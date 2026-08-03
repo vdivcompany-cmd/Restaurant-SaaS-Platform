@@ -14,7 +14,7 @@ These apply to every file, every phase, no exceptions:
    `updateOne`, etc. must go through the tenant-scoped query helper that injects
    `{ tenantId: req.tenantId }`. If you write a raw query without it, stop and flag it — do
    not proceed silently. This is the single most important rule in the project.
-2. **Never call Redis, RabbitMQ, or the Firestore SDK directly from `modules/`.** Always go
+2. **Never call Redis, QStash, or the Firestore SDK directly from `modules/`.** Always go
    through `services/cache`, `services/queue`, `services/realtime`. If a module needs
    something the current interface doesn't expose, extend the interface — don't reach around
    it.
@@ -141,7 +141,7 @@ test -d ~/.gemini/antigravity/skills && echo "Skills installed"
 | **database-migration** | For the eventual MongoDB replica-set conversion (Phase 8) and any schema changes to tenant-scoped collections. |
 | **git-commit / conventional-commits** | Useful given the multi-phase structure — commit messages that reference phase numbers make the README's Progress Log easy to cross-check against git history. |
 | **testing / test-generation** | Speeds up writing the required cross-tenant isolation tests (Rule #9) consistently instead of ad hoc. |
-| **deployment / docker-or-vps-deploy** | Relevant for Phase 5/7 — VPS + PM2 + Nginx deployment, even though this project isn't containerized in production. |
+| **deployment / serverless-deploy** | Relevant for Vercel deployment config and environment variable management (Phase 7/10) — VPS/PM2/Nginx path is retired. |
 
 ### Writing a project-specific skill (worth doing once, early)
 Create `.agents/skills/tenant-scoping/SKILL.md` in the project root — a short, custom skill

@@ -30,10 +30,11 @@ const env = cleanEnv(process.env, {
   UPSTASH_REDIS_REST_URL: url(),
   UPSTASH_REDIS_REST_TOKEN: str(),
 
-  // ─── RabbitMQ (CloudAMQP) ─────────────────────────────────────────────────
-  // CloudAMQP provides an amqps:// URL with TLS. Copy it from your CloudAMQP
-  // dashboard → instance → AMQP URL.
-  RABBITMQ_URL: url(),
+  // ─── QStash (Upstash serverless queue) ───────────────────────────────────
+  QSTASH_TOKEN: str({ default: '' }),
+  QSTASH_CURRENT_SIGNING_KEY: str({ default: '' }),
+  QSTASH_NEXT_SIGNING_KEY: str({ default: '' }),
+  PUBLIC_API_BASE_URL: url({ default: 'http://localhost:3000' }),
 
   // ─── Firebase ─────────────────────────────────────────────────────────────
   // Provide EITHER a file path OR a base64-encoded JSON string.

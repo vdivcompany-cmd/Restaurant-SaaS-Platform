@@ -21,13 +21,12 @@ phase.
 | Multi-tenancy | `tenantId` on every document + tenant/RBAC middleware | Non-negotiable at any scale |
 | Auth | JWT + refresh tokens + RBAC | — |
 | Cache | `CacheService` interface → **Redis** implementation | Sessions, rate limiting, locks, idempotency, cached lookups |
-| Background jobs | `QueueService` interface → **RabbitMQ** implementation | Retries, Dead Letter Queues, per-queue workers |
+| Background jobs | `QueueService` interface → **Upstash QStash** implementation | Serverless push-based queue via Vercel job routes (`/api/v1/jobs/*`) |
 | Realtime | `RealtimeService` interface → **Firebase Firestore** implementation | Projection layer only — MongoDB stays source of truth |
-| Process manager | PM2 (single instance to start; cluster mode later) | — |
+| Deployment | **Vercel Serverless** | Automated git deploys, zero process management overhead |
 | Automation | **n8n / External Workers** — customer workflows & AI menu file OCR parsing | Independent processes, talks to backend API endpoints only |
 | Payments | Paymob | Webhook signature verification from day one |
 | File storage | Cloudinary | Product photos, branding logos, and PDF menu documents (only URLs stored in DB) |
-| Reverse proxy | Nginx + Certbot | — |
 | Backups | `mongodump` cron → off-server storage | Plus Redis AOF, RabbitMQ definitions export |
 | Monitoring | `/health`, `/ready`, `/live` + PM2 monit + external uptime checker | Redis, RabbitMQ queue depth, MongoDB, Firebase write failures |
 | AI Stack | Decoupled Vision LLMs + Upstash Vector / MongoDB Vector Search | Automated PDF menu bulk ingestion, multi-tenant RAG, and conversational table assistants |
@@ -234,10 +233,12 @@ employees, tables, reports, notifications, audit-logs   # tenantId ⟵ scoping k
 | `phase-2-service-interfaces.md` | CacheService/Redis, QueueService/RabbitMQ, RealtimeService/Firestore |
 | `phase-3-core-domain-modules.md` | Restaurants, menu, orders, tables, customers |
 | `phase-4-integrations-workers.md` | Paymob, Cloudinary, background workers, n8n |
-| `phase-5-pm2-nginx-deploy.md` | Process management, reverse proxy, deploy tooling, staging |
+| `phase-5-pm2-nginx-deploy.md` | **Superseded by Phase 10** — Vercel deployment replaces PM2/Nginx VPS staging |
 | `phase-6-backups-reliability.md` | Backups, health checks, failure handling, restore drills |
-| `phase-7-hostinger-golive.md` | Final production deployment |
+| `phase-7-hostinger-golive.md` | Vercel production deployment |
 | `phase-8-scale-adjustments.md` | Cluster mode, replica set, worker scaling — event-driven |
+| `phase-9-rbac-fix-reservation-qrjwt.md` | RBAC fixes, body-based tenant context, reservations, QR JWT baseline |
+| `phase-10-qstash-qr-session-pm2-removal.md` | QStash serverless queue migration, QR session fraud prevention, PM2 removal |
 
 Each phase file has: goal, prerequisites, steps, and a deliverable that should be true before
 moving to the next phase.

@@ -19,7 +19,7 @@ export class TenantController {
   public static async getTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const paramId = typeof req.params['id'] === 'string' ? req.params['id'] : undefined;
-      if (req.tenantId && paramId && paramId !== req.tenantId) {
+      if (req.user?.role !== 'super_admin' && req.tenantId && paramId && paramId !== req.tenantId) {
         res.status(403).json({ success: false, message: 'Cross-tenant access denied' });
         return;
       }
@@ -41,7 +41,7 @@ export class TenantController {
   public static async updateSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const paramId = typeof req.params['id'] === 'string' ? req.params['id'] : undefined;
-      if (req.tenantId && paramId && paramId !== req.tenantId) {
+      if (req.user?.role !== 'super_admin' && req.tenantId && paramId && paramId !== req.tenantId) {
         res.status(403).json({ success: false, message: 'Cross-tenant access denied' });
         return;
       }

@@ -5,8 +5,11 @@ import { TableRepository } from './repository.js';
 import { TableModel, type ITable } from './model.js';
 import { BranchModel } from '../branches/model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
+import { cacheService } from '../../services/cache/index.js';
 import type { CreateTableDto, UpdateTableDto } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+
+const SESSION_TTL_SECONDS = 90 * 60; // 90 minutes
 
 export class TableService {
   private repo = new TableRepository();
@@ -51,7 +54,7 @@ export class TableService {
     return tbl;
   }
 
-  public async resolveByQrToken(token: string): Promise<ITable & { tenantId: string; branchId: string }> {
+  public async resolveByQrToken(token: string): Promise<ITable & { tenantId: string; branchId: string; sessionId: string }> {
     let payload: any;
     try {
       payload = jwt.verify(token, env.QR_TOKEN_SECRET);
@@ -74,11 +77,54 @@ export class TableService {
       throw new AppError('Invalid QR code token', 404);
     }
 
+    const sessionKey = `table_session:${tenantId}:${tableId}`;
+
+    // One active session per table: if session open and table is OCCUPIED, reuse existing
+    const existingSession = await cacheService.get<{ sessionId: string }>(sessionKey);
+    if (existingSession && table.status === 'OCCUPIED') {
+      return {
+        ...table.toObject(),
+        tenantId,
+        branchId,
+        sessionId: existingSession.sessionId,
+      };
+    }
+
+    const sessionId = crypto.randomUUID();
+    await cacheService.set(
+      sessionKey,
+      { sessionId, tenantId, branchId, startedAt: Date.now() },
+      SESSION_TTL_SECONDS
+    );
+
     return {
       ...table.toObject(),
       tenantId,
       branchId,
+      sessionId,
     };
+  }
+
+  /**
+   * Validates that a table session is currently open and matches the caller's claimed session.
+   * Throws 403 if expired or invalid.
+   */
+  public async validateTableSession(tenantId: string, tableId: string, sessionId: string | undefined): Promise<void> {
+    if (!sessionId) {
+      throw new AppError('A table session is required to place this order — please scan the QR code again', 403);
+    }
+    const sessionKey = `table_session:${tenantId}:${tableId}`;
+    const session = await cacheService.get<{ sessionId: string; tenantId: string }>(sessionKey);
+    if (!session || session.sessionId !== sessionId || session.tenantId !== tenantId) {
+      throw new AppError('Table session expired or invalid — please rescan the QR code', 403);
+    }
+  }
+
+  /**
+   * Closes a table session (on payment/cancellation, or explicit checkout).
+   */
+  public async closeTableSession(tenantId: string, tableId: string): Promise<void> {
+    await cacheService.del(`table_session:${tenantId}:${tableId}`);
   }
 
   public async updateTable(tenantId: string, tableId: string, dto: UpdateTableDto): Promise<ITable> {

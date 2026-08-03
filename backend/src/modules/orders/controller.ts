@@ -8,7 +8,20 @@ export async function createOrderHandler(req: Request, res: Response, next: Next
   try {
     const tenantId = req.tenantId ?? '';
     const validated = createOrderSchema.parse(req.body);
-    const order = await service.createOrder(tenantId, validated);
+    const isStaffInitiated = Boolean(req.user);
+    const order = await service.createOrder(tenantId, validated, { skipSessionCheck: isStaffInitiated });
+    res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createQrOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const validated = createOrderSchema.parse(req.body);
+    // Unauthenticated public customer order — session check MUST run (skipSessionCheck defaults to false)
+    const order = await service.createOrder(tenantId, { ...validated, channel: validated.channel ?? 'QR' });
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);
