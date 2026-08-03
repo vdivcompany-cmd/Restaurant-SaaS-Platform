@@ -223,3 +223,25 @@ All mutating endpoints (POST, PUT, PATCH, DELETE) now require tenant context in 
 - GET /api/v1/notifications: List notification audit trail (staff only)
 
 See full Phase 9 specification at docs/phase-9-implementation-summary.md
+
+---
+
+## 10. Phase 10 - Serverless Queue Migration, QR Session Fraud Prevention & PM2 Removal
+
+### 10.1 Public Self-Service QR Ordering (POST /api/v1/orders/qr)
+- **Method & Route:** POST /api/v1/orders/qr (Public, gated by 	ableSessionId)
+- **Authentication:** Public (no staff auth required)
+- **Description:** Customer places dine-in order after scanning table QR code. Requires 	ableSessionId obtained from GET /api/v1/tables/qr/:token.
+
+### 10.2 QStash Webhook Job Endpoints (POST /api/v1/jobs/*)
+- **Route Prefix:** POST /api/v1/jobs/:jobRoute
+- **Authentication:** Protected by upstash-signature header (qstashVerifyMiddleware)
+- **Available Job Routes:**
+  - POST /api/v1/jobs/emails
+  - POST /api/v1/jobs/telegram
+  - POST /api/v1/jobs/invoices
+  - POST /api/v1/jobs/subscription-checks
+  - POST /api/v1/jobs/payment-retries
+  - POST /api/v1/jobs/backups
+  - POST /api/v1/jobs/firestore-retry
+  - POST /api/v1/jobs/table-history-cleanup

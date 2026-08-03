@@ -250,6 +250,23 @@ Multi-tenant restaurant management SaaS for the Egyptian and MENA market, engine
 
 ---
 
+### ✅ Phase 10 — Serverless Queue Migration (QStash), QR Session Fraud Prevention & PM2 Removal — Completed 2026-08-03
+**What was implemented:**
+- **Serverless Queue Migration (QStash):** Removed amqplib/RabbitMQ dependencies and installed @upstash/qstash. Replaced rabbitmq-queue.service.ts with qstash-queue.service.ts implementing IQueueService.
+- **Job Routes & Middleware:** Created backend/src/jobs/index.ts (mounted under /api/v1/jobs/*) routing QStash webhooks to pure worker handlers. Created qstashVerifyMiddleware using @upstash/qstash Receiver for signature verification.
+- **QStash Cron Schedules:** Replaced node-cron loops with QStash Scheduled triggers (0 2 * * * for backups and 0 3 1 * * for table history cleanup). Added setup:qstash-schedules script.
+- **QR Session Fraud Prevention:** Enhanced TableService.resolveByQrToken to layer a 90-minute Redis session (table_session:{tenantId}:{tableId}) over permanent signed QR JWTs. Added validateTableSession and closeTableSession.
+- **Public Self-Service QR Endpoint:** Created unauthenticated POST /api/v1/orders/qr requiring valid tableSessionId.
+- **PM2 & Legacy Tooling Removal:** Deleted ecosystem.config.js, backup.sh, deploy.sh, restore-drill.sh, and infra/rabbitmq/. Updated server.ts and health.service.ts.
+
+**Deliverable achieved:**
+- Full migration to serverless push-based QStash queueing with zero long-running background processes, robust QR table session fraud prevention, and complete removal of legacy PM2/Nginx/RabbitMQ artifacts.
+
+**Notes / deviations from the plan:**
+- None. MemoryQueueService remains unchanged for instant unit testing.
+
+---
+
 ## 🔮 Upcoming Horizons & Team Lead Scaling Strategy
 To prepare for scaling across thousands of concurrent restaurant franchises post-launch, consult our authoritative strategic architecture manual:
 📜 **[Future Enterprise SaaS Scaling & AI Strategies](file:///d:/Restaurant%20SaaS%20Platform/docs/future-saas-scaling-and-ai-strategies.md)**
