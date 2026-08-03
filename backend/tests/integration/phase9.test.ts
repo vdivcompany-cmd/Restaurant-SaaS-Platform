@@ -371,6 +371,21 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
           expect(Array.isArray(res.body.data)).toBe(true);
         }
       }
+  describe('9.10 — AI Menu Upload & Auto Vector Ingestion', () => {
+    it('should upload menu file buffer, parse items, clear Redis cache, and return vector status', async () => {
+      const dummyBuffer = Buffer.from('%PDF-1.4 Mock PDF Menu Content');
+      const res = await request(app)
+        .post('/api/v1/menu/upload-file')
+        .set('Authorization', ownerToken)
+        .field('tenantId', tenantId)
+        .attach('file', dummyBuffer, 'sample_menu.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.fileUrl).toBeDefined();
+      expect(res.body.data.importResult).toBeDefined();
+      expect(typeof res.body.data.vectorsIngested).toBe('number');
     });
   });
 });
+

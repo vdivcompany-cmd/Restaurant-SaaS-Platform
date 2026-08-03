@@ -36,6 +36,30 @@ export async function bulkImportMenuHandler(req: Request, res: Response, next: N
   }
 }
 
+export async function uploadMenuFileHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, message: 'Tenant ID is required' });
+      return;
+    }
+    if (!req.file || !req.file.buffer) {
+      res.status(400).json({ success: false, message: 'No menu file uploaded. Please select a PDF or image file.' });
+      return;
+    }
+
+    const result = await service.uploadAndParseMenuFile(tenantId, req.file.buffer, req.file.originalname);
+
+    res.status(201).json({
+      success: true,
+      message: 'Menu file uploaded, parsed, cached, and auto-embedded into Vector DB successfully',
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getRagCatalogHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const rawTenantId = req.params['tenantId'] || req.query['tenantId'] || req.tenantId || '';

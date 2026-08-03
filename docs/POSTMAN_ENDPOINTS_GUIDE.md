@@ -485,7 +485,35 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 * **URL:** `{{base_url}}/menu/rag-catalog/{{tenant_id}}`
 * **Auth:** Public / n8n Cloud
 
+### 6.7 Upload PDF/Image Menu for AI Vector Embedding
+* **Method:** `POST`
+* **URL:** `{{base_url}}/menu/upload-file`
+* **Auth:** Bearer `{{owner_token}}`, `{{manager_token}}`, or `{{super_admin_token}}`
+* **Headers:** `Content-Type: multipart/form-data`
+* **Body Form Data:**
+  - `tenantId` (text): `{{tenant_id}}`
+  - `file` (file): Select PDF document or image file (PNG, JPG, WEBP)
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Menu file uploaded, parsed, cached, and auto-embedded into Vector DB successfully",
+  "data": {
+    "fileUrl": "https://res.cloudinary.com/demo/image/upload/v1234567/SaaS_Restaurants/6a6b3e8447dedf5d12fef0c5/menus/sample_menu.pdf",
+    "importResult": {
+      "categoriesCount": 1,
+      "productsCount": 1,
+      "variantsCount": 0,
+      "vectorsIngested": 1
+    },
+    "vectorsIngested": 1
+  }
+}
+```
+
 ---
+
 
 ## 🪑 7. Dining Tables & QR Token Resolution
 
