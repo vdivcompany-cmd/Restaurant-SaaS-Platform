@@ -39,11 +39,20 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
     });
     superAdminToken = `Bearer ${superAdmin.tokens.accessToken}`;
 
-    // Create owner via auth service for valid JWT
-    const owner = await AuthService.registerOwner(tenantId, {
-      email: `phase9-owner-${Date.now()}-${Math.random().toString(36).substring(7)}@test.com`,
-      password: 'password123',
-    });
+    // Create owner via auth service for valid JWT (with retry for Atlas read latency)
+    let owner: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        owner = await AuthService.registerOwner(tenantId, {
+          email: `phase9-owner-${Date.now()}-${Math.random().toString(36).substring(7)}@test.com`,
+          password: 'password123',
+        });
+        break;
+      } catch (err) {
+        if (attempt === 2) throw err;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
     ownerToken = `Bearer ${owner.tokens.accessToken}`;
 
     // Create branch
@@ -58,24 +67,28 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
   });
 
   afterEach(async () => {
-    await UserModel.deleteMany({});
-    await TenantModel.deleteMany({});
-    await SubscriptionModel.deleteMany({});
-    await BranchModel.deleteMany({});
-    await TableModel.deleteMany({});
-    await ReservationModel.deleteMany({});
-    await NotificationLogModel.deleteMany({});
-  });
+    await Promise.all([
+      UserModel.deleteMany({}),
+      TenantModel.deleteMany({}),
+      SubscriptionModel.deleteMany({}),
+      BranchModel.deleteMany({}),
+      TableModel.deleteMany({}),
+      ReservationModel.deleteMany({}),
+      NotificationLogModel.deleteMany({}),
+    ]);
+  }, 30000);
 
   afterAll(async () => {
-    await UserModel.deleteMany({});
-    await TenantModel.deleteMany({});
-    await SubscriptionModel.deleteMany({});
-    await BranchModel.deleteMany({});
-    await TableModel.deleteMany({});
-    await ReservationModel.deleteMany({});
-    await NotificationLogModel.deleteMany({});
-  });
+    await Promise.all([
+      UserModel.deleteMany({}),
+      TenantModel.deleteMany({}),
+      SubscriptionModel.deleteMany({}),
+      BranchModel.deleteMany({}),
+      TableModel.deleteMany({}),
+      ReservationModel.deleteMany({}),
+      NotificationLogModel.deleteMany({}),
+    ]);
+  }, 30000);
 
   describe('9.1 — RBAC: Only super_admin for billing/subscriptions', () => {
     it('should reject owner PATCH /subscriptions with 403', async () => {
