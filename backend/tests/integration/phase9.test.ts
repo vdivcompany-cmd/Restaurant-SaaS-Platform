@@ -371,6 +371,9 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
           expect(Array.isArray(res.body.data)).toBe(true);
         }
       }
+    });
+  });
+
   describe('9.10 — AI Menu Upload & Auto Vector Ingestion', () => {
     it('should upload menu file buffer, parse items, clear Redis cache, and return vector status', async () => {
       const dummyBuffer = Buffer.from('%PDF-1.4 Mock PDF Menu Content');
@@ -388,4 +391,5 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
     });
   });
 });
+
 

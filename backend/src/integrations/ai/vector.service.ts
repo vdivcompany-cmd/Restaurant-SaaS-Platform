@@ -8,9 +8,9 @@ import { AppError } from '../../middleware/errorHandler.middleware.js';
 export interface MenuKnowledgeChunk {
   id: string;
   text: string;
-  dishName?: string;
-  category?: string;
-  price?: number;
+  dishName?: string | undefined;
+  category?: string | undefined;
+  price?: number | undefined;
 }
 
 export interface VectorSearchResult {
