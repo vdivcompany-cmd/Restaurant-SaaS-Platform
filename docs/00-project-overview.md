@@ -23,7 +23,7 @@ phase.
 | Cache | `CacheService` interface → **Redis** implementation | Sessions, rate limiting, locks, idempotency, cached lookups |
 | Background jobs | `QueueService` interface → **Upstash QStash** implementation | Serverless push-based queue via Vercel job routes (`/api/v1/jobs/*`) |
 | Realtime | `RealtimeService` interface → **Firebase Firestore** implementation | Projection layer only — MongoDB stays source of truth |
-| Deployment | **Vercel Serverless** | Automated git deploys, zero process management overhead |
+| Deployment | **Vercel Serverless** | Automated git deploys (Root Directory = `backend/`; `backend/vercel.json` is authoritative, root `vercel.json` must not exist) |
 | Automation | **n8n / External Workers** — customer workflows & AI menu file OCR parsing | Independent processes, talks to backend API endpoints only |
 | Payments | Paymob | Webhook signature verification from day one |
 | File storage | Cloudinary | Product photos, branding logos, and PDF menu documents (only URLs stored in DB) |

@@ -55,6 +55,9 @@ const env = cleanEnv(process.env, {
   CLOUDINARY_CLOUD_NAME: str({ default: '' }),
   CLOUDINARY_API_KEY: str({ default: '' }),
   CLOUDINARY_API_SECRET: str({ default: '' }),
+
+  // ─── CORS ─────────────────────────────────────────────────────────────────
+  CORS_ORIGIN: str({ default: '' }),
 });
 
 export default env;
