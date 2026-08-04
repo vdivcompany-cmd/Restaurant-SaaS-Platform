@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { MenuService } from './service.js';
-import { bulkImportSchema } from './validation.js';
+import { bulkImportSchema, singleProductSchema } from './validation.js';
 
 const service = new MenuService();
 
