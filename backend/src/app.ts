@@ -6,9 +6,6 @@ import cookieParser from 'cookie-parser';
 import pinoHttp from 'pino-http';
 
 import env from './config/env.js';
-import { connectDatabase } from './config/database.js';
-import { getRedisClient } from './config/redis.js';
-import { initFirebase } from './config/firebase.js';
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
