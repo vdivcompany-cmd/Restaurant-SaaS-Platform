@@ -677,6 +677,15 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 }
 ```
 
+### 8.4 List Active / Historic POS Orders
+* **Method:** `GET`
+* **URL:** `{{base_url}}/orders?tenantId={{tenant_id}}&branchId={{branch_id}}`
+* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
+
+**Query Parameters:**
+- `tenantId` (required) — Target tenant ObjectId
+- `branchId` (optional) — Filter orders by branch ObjectId (validated via `objectIdSchema`)
+
 ---
 
 ## 🏷️ 9. Promotional Coupons & Customer CRM

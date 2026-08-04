@@ -1,5 +1,6 @@
 import { TenantRepository } from './repository.js';
 import { SubscriptionRepository } from '../subscriptions/repository.js';
+import { BranchRepository } from '../branches/repository.js';
 import { eventBus } from '../../shared/events/index.js';
 import { withTransactionOrFallback } from '../../utils/withTransactionOrFallback.js';
 import type { ITenant } from './model.js';
@@ -19,7 +20,9 @@ export class TenantService {
       language: 'ar' as const,
     };
 
-    const tenant = await withTransactionOrFallback(async () => {
+    const branchRepo = new BranchRepository();
+
+    const tenant = await withTransactionOrFallback(async (session) => {
       const createdTenant = await TenantRepository.create({
         name: data.name,
         slug: data.slug.toLowerCase(),
@@ -27,13 +30,23 @@ export class TenantService {
         settings: data.settings ? { ...defaultSettings, ...data.settings } : defaultSettings,
         status: 'trial',
         subscriptionPlan: 'free',
-      });
+      }, session);
 
-      // Atomically create default subscription for the new tenant
       await SubscriptionRepository.create(createdTenant._id.toString(), {
         plan: 'free',
         status: 'trialing',
-      });
+      }, session);
+
+      // Auto-provision a default branch so a new tenant always has somewhere to attach
+      // tables/products/orders without a manual extra step.
+      await branchRepo.create(createdTenant._id.toString(), {
+        name: `${data.name} - Main Branch`,
+        slug: 'main',
+        address: 'Address not set — update in branch settings',
+        phone: data.contact.phone,
+        isActive: true,
+        tableCount: 0,
+      }, session);
 
       return createdTenant;
     });
@@ -70,15 +83,15 @@ export class TenantService {
       throw new AppError('Tenant not found', 404);
     }
 
-    if (data.name) tenant.name = data.name;
+    if (data.name !== undefined) tenant.name = data.name;
     if (data.contact) {
-      if (data.contact.phone) tenant.contact.phone = data.contact.phone;
-      if (data.contact.email) tenant.contact.email = data.contact.email;
+      if (data.contact.phone !== undefined) tenant.contact.phone = data.contact.phone;
+      if (data.contact.email !== undefined) tenant.contact.email = data.contact.email;
     }
     if (data.settings) {
-      if (data.settings.currency) tenant.settings.currency = data.settings.currency;
-      if (data.settings.timezone) tenant.settings.timezone = data.settings.timezone;
-      if (data.settings.language) tenant.settings.language = data.settings.language;
+      if (data.settings.currency !== undefined) tenant.settings.currency = data.settings.currency;
+      if (data.settings.timezone !== undefined) tenant.settings.timezone = data.settings.timezone;
+      if (data.settings.language !== undefined) tenant.settings.language = data.settings.language;
     }
 
     return TenantRepository.save(tenant);

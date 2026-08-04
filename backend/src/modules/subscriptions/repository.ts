@@ -1,3 +1,4 @@
+import type { ClientSession } from 'mongoose';
 import { SubscriptionModel, type ISubscription } from './model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 
@@ -6,8 +7,8 @@ export class SubscriptionRepository {
     return tenantQuery.findOne(SubscriptionModel, tenantId, {});
   }
 
-  public static async create(tenantId: string, data: Partial<ISubscription>): Promise<ISubscription> {
-    return tenantQuery.create(SubscriptionModel, tenantId, data);
+  public static async create(tenantId: string, data: Partial<ISubscription>, session?: ClientSession): Promise<ISubscription> {
+    return tenantQuery.create(SubscriptionModel, tenantId, data, session ? { session } : undefined);
   }
 
   public static async save(subscription: ISubscription): Promise<ISubscription> {

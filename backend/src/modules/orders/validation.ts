@@ -1,19 +1,20 @@
 import { z } from 'zod';
+import { objectIdSchema } from '../../shared/validation/index.js';
 
 export const createOrderSchema = z.object({
-  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID').optional(),
+  branchId: objectIdSchema.optional(),
   channel: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY', 'QR', 'WEB', 'TELEGRAM']).optional().default('DINE_IN'),
-  tableId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+  tableId: objectIdSchema.optional(),
   items: z.array(
     z.object({
-      productId: z.string().regex(/^[0-9a-fA-F]{24}$/),
+      productId: objectIdSchema,
       name: z.string().min(1),
       quantity: z.number().int().min(1),
       unitPrice: z.number().min(0),
       totalPrice: z.number().min(0),
       selectedVariants: z.array(
         z.object({
-          variantId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+          variantId: objectIdSchema.optional(),
           variantName: z.string().optional(),
           selectedOptionNames: z.array(z.string()).optional(),
           priceDelta: z.number().optional().default(0),
@@ -27,14 +28,17 @@ export const createOrderSchema = z.object({
   totalAmount: z.number().min(0),
   offlineGuid: z.string().optional(),
   tableSessionId: z.string().uuid().optional(),
-});
+}).refine(
+  (data) => (data.channel === 'DINE_IN' ? Boolean(data.tableId) : true),
+  { message: 'tableId is required when channel is DINE_IN', path: ['tableId'] }
+);
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(['PENDING', 'PREPARING', 'READY', 'SERVED', 'PAID', 'CANCELLED']),
 });
 
 export const offlineSyncSchema = z.object({
-  branchId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid branch ID').optional(),
+  branchId: objectIdSchema.optional(),
   orders: z.array(createOrderSchema).min(1, 'At least one offline order is required for synchronization'),
 });
 

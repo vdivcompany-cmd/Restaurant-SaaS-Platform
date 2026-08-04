@@ -130,7 +130,7 @@ All domain queries enforce strict zero-bleed data isolation via our `tenantQuery
 | **Menu Catalog (`/api/v1/menu/catalog`)**| `GET` (**Public Guest / QR Scanning**) | Returns full organized menu; automatically cached via Upstash Redis. |
 | **Bulk Import (`/api/v1/menu/bulk-import`)**| `POST` (`super_admin`, `owner`, `manager`) | Atomic transactional insertion of categories, dishes, and variants in one request; invalidates menu cache instantly. |
 | **Tables & QR (`/api/v1/tables`)** | `POST`, `GET`, `DELETE` (`owner`, `manager`); `GET /qr/:token` is Public | Dining tables paired with unforgeable SHA cryptographic QR tokens. |
-| **POS Orders (`/api/v1/orders`)** | `POST /`, `PATCH /:id`, `POST /offline-sync` | POS checkout ticket lifecycle and offline batch synchronization recovery. |
+| **POS Orders (`/api/v1/orders`)** | `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `POST /offline-sync` | POS checkout ticket lifecycle, branch-filtered order retrieval, and offline batch synchronization recovery. `branchId` query param is validated via `objectIdSchema`. |
 
 **Example POS Order Creation Request (`POST /api/v1/orders`):**
 ```json

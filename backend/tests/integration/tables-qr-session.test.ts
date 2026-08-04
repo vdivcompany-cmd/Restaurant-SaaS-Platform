@@ -78,12 +78,12 @@ describe('QR Table Session Fraud Prevention Suite', () => {
     ).rejects.toThrow('Table session expired or invalid');
   });
 
-  it('5. Order placement for QR order without valid session is rejected', async () => {
+  it('5. Order placement for DINE_IN order without valid session is rejected', async () => {
     const prodId = new mongoose.Types.ObjectId().toString();
     await expect(
       orderService.createOrder(tenantIdA, {
         branchId,
-        channel: 'QR',
+        channel: 'DINE_IN',
         tableId: tableIdA,
         items: [{ productId: prodId, name: 'Item 1', quantity: 1, unitPrice: 50, totalPrice: 50 }],
         subtotal: 50,
@@ -92,13 +92,13 @@ describe('QR Table Session Fraud Prevention Suite', () => {
     ).rejects.toThrow('A table session is required');
   });
 
-  it('6. Order placement for QR order with valid session succeeds', async () => {
+  it('6. Order placement for DINE_IN order with valid session succeeds', async () => {
     const resolved = await tableService.resolveByQrToken(qrTokenA);
     const prodId = new mongoose.Types.ObjectId().toString();
 
     const order = await orderService.createOrder(tenantIdA, {
       branchId,
-      channel: 'QR',
+      channel: 'DINE_IN',
       tableId: tableIdA,
       tableSessionId: resolved.sessionId,
       items: [{ productId: prodId, name: 'Item 1', quantity: 1, unitPrice: 50, totalPrice: 50 }],
@@ -139,7 +139,7 @@ describe('QR Table Session Fraud Prevention Suite', () => {
         {
           branchId,
           offlineGuid: 'offline-qr-1',
-          channel: 'QR',
+          channel: 'DINE_IN',
           tableId: tableIdA,
           tableSessionId: resolved.sessionId,
           items: [{ productId: prodId, name: 'Sync Item', quantity: 1, unitPrice: 40, totalPrice: 40 }],
@@ -160,7 +160,7 @@ describe('QR Table Session Fraud Prevention Suite', () => {
     await expect(
       orderService.createOrder(tenantIdA, {
         branchId,
-        channel: 'QR',
+        channel: 'DINE_IN',
         tableId: tableIdA,
         tableSessionId: 'expired-session-id',
         items: [{ productId: prodId, name: 'Invalid Item', quantity: 1, unitPrice: 40, totalPrice: 40 }],

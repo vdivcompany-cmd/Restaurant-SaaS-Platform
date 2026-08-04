@@ -1,3 +1,4 @@
+import type { ClientSession } from 'mongoose';
 import { TenantModel, type ITenant } from './model.js';
 
 export class TenantRepository {
@@ -9,7 +10,11 @@ export class TenantRepository {
     return TenantModel.findById(id);
   }
 
-  public static async create(data: Partial<ITenant>): Promise<ITenant> {
+  public static async create(data: Partial<ITenant>, session?: ClientSession): Promise<ITenant> {
+    if (session) {
+      const [doc] = await TenantModel.create([data], { session });
+      return doc as ITenant;
+    }
     return TenantModel.create(data);
   }
 

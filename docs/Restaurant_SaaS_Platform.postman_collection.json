@@ -542,6 +542,15 @@
 						},
 						"url": { "raw": "{{base_url}}/orders/offline-sync", "host": ["{{base_url}}"], "path": ["orders", "offline-sync"] }
 					}
+				},
+				{
+					"name": "List Orders (branchId validated)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/orders?tenantId={{tenant_id}}&branchId={{branch_id}}", "host": ["{{base_url}}"], "path": ["orders"], "query": [{ "key": "tenantId", "value": "{{tenant_id}}" }, { "key": "branchId", "value": "{{branch_id}}" }] }
+					}
 				}
 			]
 		},

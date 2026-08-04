@@ -10,10 +10,11 @@ import type { IOrder } from './model.js';
 import type { CreateOrderDto, UpdateOrderStatusDto, OfflineSyncDto } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 
-import { BranchModel } from '../branches/model.js';
+import { BranchRepository } from '../branches/repository.js';
 
 export class OrderService {
   private repo = new OrderRepository();
+  private branchRepo = new BranchRepository();
   private tableService = new TableService();
 
   public async createOrder(
@@ -30,7 +31,7 @@ export class OrderService {
 
     let targetBranchId = dto.branchId;
     if (!targetBranchId) {
-      const branches = await tenantQuery.find(BranchModel, tenantId, {}).exec();
+      const branches = await this.branchRepo.findAll(tenantId);
       if (!branches || branches.length === 0) {
         throw new AppError('No branches found for this restaurant. Please create a branch first.', 400);
       }
@@ -44,8 +45,8 @@ export class OrderService {
     const finalBranchId = targetBranchId;
     const orderPayload = { ...dto, branchId: finalBranchId };
 
-    // Fraud prevention: customer QR/DINE_IN orders require proof of an open table session
-    if (!opts?.skipSessionCheck && (dto.channel === 'DINE_IN' || dto.channel === 'QR') && dto.tableId) {
+    // Fraud prevention: DINE_IN orders require proof of an open table session
+    if (!opts?.skipSessionCheck && dto.channel === 'DINE_IN' && dto.tableId) {
       await this.tableService.validateTableSession(tenantId, dto.tableId, dto.tableSessionId);
     }
 
@@ -54,7 +55,7 @@ export class OrderService {
     const orderDoc = await withTransactionOrFallback(async (session) => {
       const createdOrder = await this.repo.create(tenantId, { ...orderPayload, orderNumber }, session);
 
-      if (dto.tableId && (dto.channel === 'DINE_IN' || dto.channel === 'QR')) {
+      if (dto.tableId && dto.channel === 'DINE_IN') {
         const query = tenantQuery.updateOne(TableModel, tenantId, {
           _id: dto.tableId,
           branchId: finalBranchId,
