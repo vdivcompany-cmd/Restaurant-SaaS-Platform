@@ -1,4 +1,4 @@
-﻿# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform v2.2.0
+# Postman Collection & API Endpoints Guide — Restaurant SaaS Platform v2.2.0
 
 **Phase 9 Complete — BREAKING CHANGES APPLY**
 
@@ -50,7 +50,7 @@ These endpoints operate synchronously to provide instant uptime and readiness di
 | `GET` | `/` | Public | Root welcome route returning platform runtime metadata |
 | `GET` | `/health` | Public | Fast container readiness probe |
 | `GET` | `/live` | Public | Liveness probe checking Node.js event loop health |
-| `GET` | `/ready` | Public | Full readiness probe checking MongoDB, Redis, RabbitMQ & Firebase connections |
+| `GET` | `/ready` | Public | Full readiness probe checking MongoDB, Redis, Upstash QStash & Firebase connections |
 
 ### 0.1 Service Readiness Check
 * **Method:** `GET`
@@ -64,7 +64,7 @@ These endpoints operate synchronously to provide instant uptime and readiness di
   "services": {
     "mongodb": { "status": "ok" },
     "redis": { "status": "ok", "latencyMs": 8 },
-    "rabbitmq": { "status": "ok" },
+    "qstash": { "status": "ok" },
     "firebase": { "status": "ok" }
   },
   "timestamp": "2026-07-31T21:55:00.000Z"
@@ -1020,21 +1020,19 @@ curl -X POST http://localhost:3000/api/v1/tables \
 **Request Body (JSON):**
 ```json
 {
-  "tenantId": "{{tenant_id}}",
   "channel": "EMAIL",
   "recipient": "guest@example.com",
   "subject": "Order Ready for Pickup",
   "message": "Your order #12345 is ready to collect!",
   "branchId": "{{branch_id}}",
-  "tableNumber": 10,
-  "actionMakerId": "{{employee_id}}"
+  "tableNumber": 10
 }
 ```
 
 **Phase 9 Enhancements:**
 - **branchId** — Which branch sent this notification
 - **tableNumber** — Which table (if applicable)
-- **actionMakerId** — Which staff member took action
+- *(Note: `tenantId` and `actionMakerId` are automatically injected server-side from JWT context)*
 - Automatically logged to audit trail
 - Cross-tenant isolation guaranteed
 

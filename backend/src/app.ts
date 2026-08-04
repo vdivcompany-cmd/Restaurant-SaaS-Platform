@@ -48,7 +48,7 @@ export function createApp(): Express {
   app.use(
     cors({
       origin: env.NODE_ENV === 'production'
-        ? (process.env['CORS_ORIGIN'] ?? '').split(',').map((o: string) => o.trim()).filter(Boolean)
+        ? env.CORS_ORIGIN.split(',').map((o: string) => o.trim()).filter(Boolean)
         : true,
       credentials: true,
     }),
@@ -147,24 +147,3 @@ export function createApp(): Express {
   return app;
 }
 
-// ─── Vercel Serverless Default Export Handler ───────────────────────────────
-let serverlessAppInstance: Express | null = null;
-let isServerlessInitialized = false;
-
-export default async function serverlessHandler(req: express.Request, res: express.Response): Promise<void> {
-  if (!isServerlessInitialized) {
-    try {
-      await connectDatabase();
-      getRedisClient();
-      try { initFirebase(); } catch (_fbErr) { /* ignore in serverless without credentials */ }
-      isServerlessInitialized = true;
-      logger.info('Vercel serverless application runtime initialized MongoDB & Redis.');
-    } catch (error) {
-      logger.error({ error }, 'Error connecting to cloud services inside Vercel serverless handler.');
-    }
-  }
-  if (!serverlessAppInstance) {
-    serverlessAppInstance = createApp();
-  }
-  serverlessAppInstance(req, res);
-}

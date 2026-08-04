@@ -4,6 +4,9 @@ import { createProductSchema, updateProductSchema } from './validation.js';
 
 const service = new ProductService();
 
+// NOTE: Cross-reference with modules/menu/controller.ts (POST /api/v1/menu/products).
+// Both routes write to MenuModel.products; both enforce Zod payload validation.
+
 export async function createProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? '';

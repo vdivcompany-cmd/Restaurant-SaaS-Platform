@@ -2,6 +2,7 @@ import { SubscriptionRepository } from './repository.js';
 import type { ISubscription } from './model.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 import type { UpdateSubscriptionInput } from './validation.js';
+import { TenantRepository } from '../tenants/repository.js';
 
 export class SubscriptionService {
   /**
@@ -26,6 +27,11 @@ export class SubscriptionService {
     tenantId: string,
     data: UpdateSubscriptionInput
   ): Promise<ISubscription> {
+    const tenant = await TenantRepository.findById(tenantId);
+    if (!tenant) {
+      throw new AppError('Target tenant not found', 404);
+    }
+
     const subscription = await SubscriptionRepository.findByTenant(tenantId);
     if (!subscription) {
       throw new AppError('No subscription record found for tenant', 404);

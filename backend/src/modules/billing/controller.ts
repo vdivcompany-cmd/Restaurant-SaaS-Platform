@@ -37,7 +37,8 @@ export class BillingController {
   public static async createRecord(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = CreateBillingRecordSchema.parse(req.body);
-      const record = await BillingService.createRecord(validated.tenantId, validated);
+      const tenantId = req.tenantId ?? validated.tenantId;
+      const record = await BillingService.createRecord(tenantId, validated);
       res.status(201).json({ success: true, data: record });
     } catch (err) {
       next(err);

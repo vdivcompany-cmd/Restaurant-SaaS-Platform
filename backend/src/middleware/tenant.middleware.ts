@@ -31,17 +31,21 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
 
         if (targetId) {
           const tenant = await TenantRepository.findById(targetId);
-          if (tenant) {
-            req.tenantId = tenant._id.toString();
-            return next();
+          if (!tenant) {
+            res.status(404).json({ success: false, message: 'Target tenant not found' });
+            return;
           }
+          req.tenantId = tenant._id.toString();
+          return next();
         }
         if (targetSlug) {
           const tenant = await TenantRepository.findBySlug(targetSlug);
-          if (tenant) {
-            req.tenantId = tenant._id.toString();
-            return next();
+          if (!tenant) {
+            res.status(404).json({ success: false, message: 'Target tenant not found' });
+            return;
           }
+          req.tenantId = tenant._id.toString();
+          return next();
         }
       }
       // Authenticated user's own tenant (primary path)

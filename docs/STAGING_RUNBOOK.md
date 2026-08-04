@@ -1,6 +1,7 @@
 # Staging VPS Runbook & Deployment Guide
 
-This runbook outlines the step-by-step procedures for provisioning, configuring, and verifying the **Staging VPS Environment** (Phase 5) prior to production go-live (Phase 7).
+> ⚠️ **Superseded Document**  
+> The project architecture migrated to Vercel Serverless and Upstash QStash in Phase 10. VPS, PM2, and Nginx deployment guides are retained for historical reference only. See `docs/phase-10-qstash-qr-session-pm2-removal.md` for current deployment infrastructure.
 
 ---
 

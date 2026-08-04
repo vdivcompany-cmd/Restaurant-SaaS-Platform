@@ -31,4 +31,15 @@ export const bulkImportSchema = z.object({
   categories: z.array(categorySchema).min(1, 'At least one category is required for bulk import'),
 });
 
+export const singleProductSchema = z.object({
+  name: z.string().min(1, 'Product name is required'),
+  description: z.string().optional(),
+  basePrice: z.number().min(0, 'Base price must be non-negative'),
+  imageUrl: z.string().url().optional().or(z.string().length(0)),
+  variants: z.array(variantSchema).optional().default([]),
+  categoryId: z.string().optional(),
+});
+
 export type BulkImportPayload = z.infer<typeof bulkImportSchema>;
+export type SingleProductInput = z.infer<typeof singleProductSchema>;
+

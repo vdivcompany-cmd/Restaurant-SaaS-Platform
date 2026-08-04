@@ -75,10 +75,14 @@ export async function getRagCatalogHandler(req: Request, res: Response, next: Ne
   }
 }
 
+// NOTE: Cross-reference with modules/products/controller.ts (POST /api/v1/products).
+// Both routes write to MenuModel.products; both enforce Zod payload validation.
+
 export async function addProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? req.body?.tenantId ?? '';
-    const product = await service.addOrUpdateProduct(tenantId, req.body);
+    const validated = singleProductSchema.parse(req.body);
+    const product = await service.addOrUpdateProduct(tenantId, validated as any);
     res.status(201).json({ success: true, data: product });
   } catch (err) {
     next(err);
@@ -89,7 +93,8 @@ export async function updateProductHandler(req: Request, res: Response, next: Ne
   try {
     const tenantId = req.tenantId ?? req.body?.tenantId ?? '';
     const productId = String(req.params['id'] ?? '');
-    const product = await service.updateProduct(tenantId, productId, req.body);
+    const validated = singleProductSchema.partial().parse(req.body);
+    const product = await service.updateProduct(tenantId, productId, validated as any);
     res.status(200).json({ success: true, data: product });
   } catch (err) {
     next(err);

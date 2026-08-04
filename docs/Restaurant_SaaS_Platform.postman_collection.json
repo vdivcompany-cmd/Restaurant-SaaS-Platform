@@ -1,4 +1,4 @@
-﻿{
+{
 	"info": {
 		"_postman_id": "a8f79e2c-3b4a-4c12-8e9f-5b6c7d8e9f01",
 		"name": "Restaurant SaaS Platform API Collection v2.2.0",
@@ -670,14 +670,14 @@
 			"name": "18. Notifications Audit Log (PHASE 9: Enriched)",
 			"item": [
 				{
-					"name": "Dispatch Notification (PHASE 9: actionMakerId, branchId, tableNumber)",
+					"name": "Dispatch Notification (PHASE 9: branchId, tableNumber)",
 					"request": {
 						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
 						"method": "POST",
 						"header": [{ "key": "Content-Type", "value": "application/json" }],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": \"guest.vip@gmail.com\",\n  \"subject\": \"Table Reservation Confirmation\",\n  \"message\": \"Your table reservation at Gourmet Stone Oven Pizza for 8:00 PM is confirmed!\",\n  \"branchId\": \"{{branch_id}}\",\n  \"tableNumber\": 10,\n  \"actionMakerId\": \"{{employee_id}}\"\n}"
+							"raw": "{\n  \"channel\": \"EMAIL\",\n  \"recipient\": \"guest.vip@gmail.com\",\n  \"subject\": \"Table Reservation Confirmation\",\n  \"message\": \"Your table reservation at Gourmet Stone Oven Pizza for 8:00 PM is confirmed!\",\n  \"branchId\": \"{{branch_id}}\",\n  \"tableNumber\": 10\n}"
 						},
 						"url": { "raw": "{{base_url}}/notifications/dispatch", "host": ["{{base_url}}"], "path": ["notifications", "dispatch"] }
 					}

@@ -160,4 +160,28 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.name).toBe('Client Restaurant');
   });
+
+  it('should reject super_admin impersonation attempts targeting a nonexistent tenantId or tenantSlug with 404', async () => {
+    const token = await getSuperAdminToken();
+    const fakeTenantId = '507f1f77bcf86cd799439011';
+
+    const resId = await request(app)
+      .get(`/api/v1/tenants/${fakeTenantId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Target-Tenant-Id', fakeTenantId);
+
+    expect(resId.status).toBe(404);
+    expect(resId.body.success).toBe(false);
+    expect(resId.body.message).toBe('Target tenant not found');
+
+    const resSlug = await request(app)
+      .get('/api/v1/subscriptions')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ tenantSlug: 'nonexistent-tenant-slug-xyz' });
+
+    expect(resSlug.status).toBe(404);
+    expect(resSlug.body.success).toBe(false);
+    expect(resSlug.body.message).toBe('Target tenant not found');
+  });
 });
+

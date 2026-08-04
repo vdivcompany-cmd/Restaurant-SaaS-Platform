@@ -1,4 +1,4 @@
-﻿# API Routes & Integration Manual — Restaurant SaaS Platform
+# API Routes & Integration Manual — Restaurant SaaS Platform
 
 This document serves as the master API Routing manual for our Vercel Serverless cloud architecture. Every endpoint is cataloged below along with practical copy-pasteable JSON payload examples for developer integration.
 
@@ -12,7 +12,7 @@ All health probes operate synchronously with zero database locking, allowing ext
 | `GET` | `/` | Public | Welcome operational root displaying server identification and status. |
 | `GET` | `/health` | Public | Liveness probe returning process status, uptime, and timestamp. |
 | `GET` | `/live` | Public | Liveness probe alias for container/orchestration checks. |
-| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, CloudAMQP RabbitMQ, and Firebase Admin SDK. |
+| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, Upstash QStash, and Firebase Admin SDK. |
 
 **Example Response (`GET /ready` - 200 OK):**
 ```json
@@ -21,7 +21,7 @@ All health probes operate synchronously with zero database locking, allowing ext
   "services": {
     "mongodb": { "status": "ok" },
     "redis": { "status": "ok", "latencyMs": 12 },
-    "rabbitmq": { "status": "ok" },
+    "qstash": { "status": "ok" },
     "firebase": { "status": "ok" }
   },
   "timestamp": "2026-07-31T18:15:00.000Z"
