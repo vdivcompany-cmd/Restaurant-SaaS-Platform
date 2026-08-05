@@ -62,6 +62,15 @@ const env = cleanEnv(process.env, {
 
   // ─── CORS ─────────────────────────────────────────────────────────────────
   CORS_ORIGIN: str({ default: '' }),
+
+  // ─── Upstash Vector (per-tenant RAG store) ───────────────────────────────
+  UPSTASH_VECTOR_REST_URL: str({ default: '' }),
+  UPSTASH_VECTOR_REST_TOKEN: str({ default: '' }),
+
+  // ─── Nemotron Embedding (NVIDIA NIM free endpoint) ───────────────────────
+  NEMOTRON_API_KEY: str({ default: '' }),
+  NEMOTRON_BASE_URL: url({ default: 'https://integrate.api.nvidia.com/v1' }),
+  NEMOTRON_EMBED_MODEL: str({ default: 'nvidia/nemotron-3-embed-1b' }),
 });
 
 export default env;

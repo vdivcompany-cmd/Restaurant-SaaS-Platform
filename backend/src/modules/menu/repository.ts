@@ -3,6 +3,7 @@ import { CategoryModel, type ICategory } from '../categories/model.js';
 import { MenuModel, type IMenu, type IProductSubDoc, type IVariantSubDoc } from './model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import type { BulkImportPayload } from './validation.js';
+import { enqueueVectorSync } from '../vector/enqueue.js';
 
 export interface BulkImportResult {
   categoriesCount: number;
@@ -129,6 +130,9 @@ export class MenuRepository {
 
     await menu.save(session ? { session } : undefined);
 
+    // Bulk imports touch many products — cheaper to rebuild the tenant namespace once.
+    await enqueueVectorSync({ op: 'rebuild-tenant', tenantId });
+
     return { categoriesCount, productsCount, variantsCount };
   }
 
@@ -209,6 +213,13 @@ export class MenuRepository {
     }
 
     await menu.save();
+    if (existingProduct) {
+      await enqueueVectorSync({
+        op: 'upsert-product',
+        tenantId,
+        productId: existingProduct._id.toString(),
+      });
+    }
     return existingProduct as IProductSubDoc;
   }
 
@@ -248,6 +259,7 @@ export class MenuRepository {
     prod.updatedAt = new Date();
 
     await menu.save();
+    await enqueueVectorSync({ op: 'upsert-product', tenantId, productId: prod._id.toString() });
     return prod;
   }
 
@@ -261,6 +273,7 @@ export class MenuRepository {
 
     prod.deleteOne();
     await menu.save();
+    await enqueueVectorSync({ op: 'delete-product', tenantId, productId });
     return true;
   }
 

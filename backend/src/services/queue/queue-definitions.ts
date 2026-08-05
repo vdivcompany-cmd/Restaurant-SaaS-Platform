@@ -14,7 +14,9 @@ export type PlatformQueueName =
   | 'REPORTS'
   | 'BACKUPS'
   | 'FIRESTORE_RETRY'
-  | 'TABLE_HISTORY_CLEANUP';
+  | 'TABLE_HISTORY_CLEANUP'
+  | 'VECTOR_SYNC'
+  | 'MENU_INGESTION';
 
 export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
   EMAILS: {
@@ -68,6 +70,18 @@ export const PLATFORM_QUEUES: Record<PlatformQueueName, QueueDefinition> = {
   TABLE_HISTORY_CLEANUP: {
     name: 'q.table-history-cleanup',
     jobRoute: 'table-history-cleanup',
+    maxRetries: 2,
+    messageTtlSeconds: 86400,
+  },
+  VECTOR_SYNC: {
+    name: 'q.vector-sync',
+    jobRoute: 'vector-sync',
+    maxRetries: 5,
+    messageTtlSeconds: 86400,
+  },
+  MENU_INGESTION: {
+    name: 'q.menu-ingestion',
+    jobRoute: 'menu-ingestion',
     maxRetries: 2,
     messageTtlSeconds: 86400,
   },

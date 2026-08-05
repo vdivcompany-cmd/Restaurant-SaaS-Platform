@@ -2,12 +2,10 @@ import { Router } from 'express';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
-import { uploadMiddleware } from '../../integrations/cloudinary/index.js';
 import {
   getMenuCatalogHandler,
   bulkImportMenuHandler,
   getRagCatalogHandler,
-  uploadMenuFileHandler,
   addProductHandler,
   updateProductHandler,
   deleteProductHandler,
@@ -44,15 +42,8 @@ router.post(
   bulkImportMenuHandler
 );
 
-// Secured AI Menu file upload API Gateway (PDF/Image) for Super Admin / Owners / Managers
-router.post(
-  '/upload-file',
-  authMiddleware,
-  tenantMiddleware,
-  uploadMiddleware.single('file'),
-  rbacMiddleware(['super_admin', 'owner', 'manager']),
-  uploadMenuFileHandler
-);
+// NOTE: PDF/image menu uploads live at POST /api/v1/menu-ingestion/upload
+// (draft-review-approve flow with real parsers + LLM extraction).
 
 export default router;
 

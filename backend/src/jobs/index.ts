@@ -8,6 +8,8 @@ import { processPaymentRetryJob } from '../workers/payment-retry.worker.js';
 import { processBackupJob } from '../workers/backup.worker.js';
 import { processFirestoreRetryJob } from '../workers/firestore-retry.worker.js';
 import { handleTableHistoryCleanup } from '../workers/table-history-cleanup.worker.js';
+import { processVectorSyncJob } from '../workers/vector-sync.worker.js';
+import { processMenuIngestionJob } from '../workers/menu-ingestion.worker.js';
 import logger from '../utils/logger.js';
 
 const router = Router();
@@ -34,5 +36,7 @@ jobRoute('payment-retries', processPaymentRetryJob);
 jobRoute('backups', processBackupJob);
 jobRoute('firestore-retry', processFirestoreRetryJob);
 jobRoute('table-history-cleanup', (payload: { cutoffDate: string }) => handleTableHistoryCleanup(payload));
+jobRoute('vector-sync', processVectorSyncJob);
+jobRoute('menu-ingestion', processMenuIngestionJob);
 
 export default router;
