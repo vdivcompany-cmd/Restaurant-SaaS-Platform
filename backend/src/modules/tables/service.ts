@@ -10,6 +10,8 @@ import { tenantQuery } from '../../utils/tenantQuery.js';
 import { cacheService } from '../../services/cache/index.js';
 import type { CreateTableDto, UpdateTableDto } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { chatSessionService } from '../chat-sessions/service.js';
+import { resolveAdapter } from '../channels/index.js';
 
 const SESSION_TTL_SECONDS = 90 * 60; // 90 minutes
 
@@ -140,28 +142,28 @@ export class TableService {
       return { redirectUrl: null, resolvedData: resolved };
     }
 
-    let finalUrl: string;
+    // Register a channel-agnostic chat session and mint a short opaque token
+    // the target channel can carry (Telegram's `start` param is 64-char capped).
+    const { shortToken } = await chatSessionService.createFromQrResolution({
+      tenantId: resolved.tenantId,
+      branchId: resolved.branchId,
+      tableId: resolved._id.toString(),
+      tableNumber: resolved.number,
+      sessionId: resolved.sessionId,
+    });
 
-    // Check if redirectBase is a Telegram link
-    if (redirectBase.includes('t.me/') || redirectBase.includes('telegram.me/')) {
-      const startPayload = `t_${resolved.tenantId}_b_${resolved.branchId}_tbl_${resolved.number}_s_${resolved.sessionId}`;
-      const hasQuery = redirectBase.includes('?');
-      finalUrl = `${redirectBase}${hasQuery ? '&' : '?'}start=${startPayload}`;
-    } else {
-      try {
-        const urlObj = new URL(redirectBase);
-        urlObj.searchParams.set('tenantId', resolved.tenantId);
-        urlObj.searchParams.set('branchId', resolved.branchId);
-        urlObj.searchParams.set('tableNumber', String(resolved.number));
-        urlObj.searchParams.set('sessionId', resolved.sessionId);
-        urlObj.searchParams.set('token', token);
-        finalUrl = urlObj.toString();
-      } catch {
-        finalUrl = `${redirectBase}?tenantId=${resolved.tenantId}&branchId=${resolved.branchId}&tableNumber=${resolved.number}&sessionId=${resolved.sessionId}&token=${token}`;
-      }
-    }
+    const adapter = resolveAdapter(redirectBase);
+    const finalUrl = adapter.buildRedirectUrl({
+      shortToken,
+      tenantId: resolved.tenantId,
+      branchId: resolved.branchId,
+      tableId: resolved._id.toString(),
+      tableNumber: resolved.number,
+      sessionId: resolved.sessionId,
+      redirectBase,
+    });
 
-    return { redirectUrl: finalUrl, resolvedData: resolved };
+    return { redirectUrl: finalUrl, resolvedData: { ...resolved, shortToken, channel: adapter.name } };
   }
 
   public async generateQrImagePng(tenantId: string, tableId: string): Promise<Buffer> {
