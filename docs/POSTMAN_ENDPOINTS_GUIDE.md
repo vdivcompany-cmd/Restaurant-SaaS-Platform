@@ -280,13 +280,13 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 
 ### 4.1 Get Restaurant Profile
 * **Method:** `GET`
-* **URL:** `{{base_url}}/restaurants/profile`
+* **URL:** `{{base_url}}/tenants/profile`
 * **Auth:** Bearer `{{manager_token}}`
 * **Headers:** `X-Tenant-Id: {{tenant_id}}`
 
 ### 4.2 Upsert Restaurant Profile & AI Settings
 * **Method:** `PUT` (or `POST`)
-* **URL:** `{{base_url}}/restaurants/profile`
+* **URL:** `{{base_url}}/tenants/profile`
 * **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
 * **Headers:** 
   * `Content-Type: application/json`
@@ -298,6 +298,7 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
   "brandName": "Gourmet Stone Oven Pizza",
   "cuisineType": "Italian & Mediterranean",
   "description": "Authentic Neapolitan wood-fired pizza kitchen.",
+  "qrRedirectUrl": "https://t.me/resturanchatbot",
   "isOpen": true,
   "isChatbotActive": true,
   "chatbotSettings": {
@@ -309,7 +310,7 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 
 ### 4.3 n8n Cloud AI Status Probe (Public Gateway)
 * **Method:** `GET`
-* **URL:** `{{base_url}}/restaurants/{{tenant_id}}/ai-status`
+* **URL:** `{{base_url}}/tenants/{{tenant_id}}/ai-status`
 * **Auth:** Public / n8n Cloud
 
 **Response (200 OK):**
@@ -536,27 +537,24 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 
 ## 🪑 7. Dining Tables & QR Token Resolution
 
-### 7.1 Resolve QR Token to Dining Table (Public Scan)
+### 7.1 Scan QR Token & Redirect (Public Customer Scan)
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/scan/{{qr_code_token}}`
+* **Auth:** Public
+* **Behavior:** Decodes JWT token, opens 90-min Redis table session, updates table status to `OCCUPIED`, and issuing a `302 Redirect` to the restaurant's configured Telegram Bot (`https://t.me/resturanchatbot?start=t_...`) or Web Chatbot.
+
+### 7.2 Resolve QR Token (Raw Data JSON)
 * **Method:** `GET`
 * **URL:** `{{base_url}}/tables/qr/{{qr_code_token}}`
 * **Auth:** Public
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "6a6b3e8447dedf5d12fef0c0",
-    "branchId": "6a6b3e8447dedf5d12fef0c4",
-    "number": 10,
-    "capacity": 6,
-    "status": "AVAILABLE",
-    "qrCodeToken": "qr_8f9e2a1c4b7d5f6a9e2c1b"
-  }
-}
-```
+### 7.3 Download QR Code PNG Image
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/{{table_id}}/qr-image`
+* **Auth:** Bearer `{{manager_token}}` or `{{cashier_token}}`
+* **Response:** High-resolution `image/png` binary stream for table printing.
 
-### 7.2 Create Store Table & Generate QR Token
+### 7.4 Create Store Table & Generate QR Token
 * **Method:** `POST`
 * **URL:** `{{base_url}}/tables`
 * **Auth:** Bearer `{{manager_token}}`
@@ -567,12 +565,11 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 {
   "branchId": "{{branch_id}}",
   "number": 10,
-  "capacity": 6,
-  "status": "AVAILABLE"
+  "capacity": 6
 }
 ```
 
-### 7.3 Update Table Status
+### 7.5 Update Table Status
 * **Method:** `PUT`
 * **URL:** `{{base_url}}/tables/{{table_id}}`
 * **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
