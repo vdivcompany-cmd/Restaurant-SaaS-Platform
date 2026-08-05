@@ -15,6 +15,9 @@ router.post('/register/staff', authMiddleware, tenantMiddleware, rbacMiddleware(
 // Public auth endpoints
 router.post('/login', AuthController.login);
 router.post('/refresh', AuthController.refresh);
+router.post('/forgot-password', AuthController.forgotPassword);
+router.post('/verify-otp', AuthController.verifyOtp);
+router.post('/reset-password', AuthController.resetPassword);
 
 // Protected auth endpoints
 router.post('/logout', authMiddleware, AuthController.logout);

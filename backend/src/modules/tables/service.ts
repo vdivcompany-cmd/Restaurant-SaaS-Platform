@@ -1,9 +1,11 @@
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import QRCode from 'qrcode';
 import env from '../../config/env.js';
 import { TableRepository } from './repository.js';
 import { TableModel, type ITable } from './model.js';
 import { BranchModel } from '../branches/model.js';
+import { TenantModel } from '../tenants/model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import { cacheService } from '../../services/cache/index.js';
 import type { CreateTableDto, UpdateTableDto } from './validation.js';
@@ -47,8 +49,10 @@ export class TableService {
       env.QR_TOKEN_SECRET
     );
 
-    // Update with signed token
-    table = await this.repo.update(tenantId, table._id.toString(), { qrCodeToken } as any) || table;
+    const scanUrl = `${env.PUBLIC_API_BASE_URL}/api/v1/tables/scan/${qrCodeToken}`;
+
+    // Update with signed token and qrCodeUrl
+    table = await this.repo.update(tenantId, table._id.toString(), { qrCodeToken, qrCodeUrl: scanUrl } as any) || table;
 
     // Increment branch table count
     await tenantQuery.updateOne(
@@ -114,12 +118,56 @@ export class TableService {
       SESSION_TTL_SECONDS
     );
 
+    if (table.status === 'AVAILABLE') {
+      table.status = 'OCCUPIED';
+      await table.save();
+    }
+
     return {
       ...table.toObject(),
       tenantId,
       branchId,
       sessionId,
     };
+  }
+
+  public async handleScanRedirect(token: string): Promise<{ redirectUrl: string | null; resolvedData: any }> {
+    const resolved = await this.resolveByQrToken(token);
+    const tenant = await TenantModel.findById(resolved.tenantId);
+
+    const redirectBase = tenant?.qrRedirectUrl;
+    if (!redirectBase) {
+      return { redirectUrl: null, resolvedData: resolved };
+    }
+
+    let finalUrl: string;
+
+    // Check if redirectBase is a Telegram link
+    if (redirectBase.includes('t.me/') || redirectBase.includes('telegram.me/')) {
+      const startPayload = `t_${resolved.tenantId}_b_${resolved.branchId}_tbl_${resolved.number}_s_${resolved.sessionId}`;
+      const hasQuery = redirectBase.includes('?');
+      finalUrl = `${redirectBase}${hasQuery ? '&' : '?'}start=${startPayload}`;
+    } else {
+      try {
+        const urlObj = new URL(redirectBase);
+        urlObj.searchParams.set('tenantId', resolved.tenantId);
+        urlObj.searchParams.set('branchId', resolved.branchId);
+        urlObj.searchParams.set('tableNumber', String(resolved.number));
+        urlObj.searchParams.set('sessionId', resolved.sessionId);
+        urlObj.searchParams.set('token', token);
+        finalUrl = urlObj.toString();
+      } catch {
+        finalUrl = `${redirectBase}?tenantId=${resolved.tenantId}&branchId=${resolved.branchId}&tableNumber=${resolved.number}&sessionId=${resolved.sessionId}&token=${token}`;
+      }
+    }
+
+    return { redirectUrl: finalUrl, resolvedData: resolved };
+  }
+
+  public async generateQrImagePng(tenantId: string, tableId: string): Promise<Buffer> {
+    const table = await this.getTable(tenantId, tableId);
+    const scanUrl = table.qrCodeUrl || `${env.PUBLIC_API_BASE_URL}/api/v1/tables/scan/${table.qrCodeToken}`;
+    return await QRCode.toBuffer(scanUrl, { type: 'png', margin: 2, width: 400 });
   }
 
   /**

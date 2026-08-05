@@ -9,6 +9,7 @@ export interface ITable extends Document {
   capacity: number;
   status: TableStatus;
   qrCodeToken: string;
+  qrCodeUrl?: string;
   currentOrderId?: Types.ObjectId;
   totalOrdersServed: number;
   createdAt: Date;
@@ -27,6 +28,7 @@ const TableSchema = new Schema<ITable>(
       default: 'AVAILABLE',
     },
     qrCodeToken: { type: String, required: true, unique: true },
+    qrCodeUrl: { type: String },
     currentOrderId: { type: Schema.Types.ObjectId, ref: 'Order' },
     totalOrdersServed: { type: Number, default: 0 },
   },

@@ -26,10 +26,14 @@ export class TenantService {
       const createdTenant = await TenantRepository.create({
         name: data.name,
         slug: data.slug.toLowerCase(),
+        brandName: data.name,
         contact: data.contact,
         settings: data.settings ? { ...defaultSettings, ...data.settings } : defaultSettings,
         status: 'trial',
         subscriptionPlan: 'free',
+        qrRedirectUrl: 'https://t.me/resturanchatbot',
+        isOpen: true,
+        isChatbotActive: true,
       }, session);
 
       await SubscriptionRepository.create(createdTenant._id.toString(), {
@@ -95,5 +99,57 @@ export class TenantService {
     }
 
     return TenantRepository.save(tenant);
+  }
+
+  public static async upsertProfile(tenantId: string, dto: import('./validation.js').RestaurantProfileDto): Promise<ITenant> {
+    const tenant = await TenantRepository.findById(tenantId);
+    if (!tenant) {
+      throw new AppError('Tenant not found', 404);
+    }
+
+    if (dto.brandName !== undefined) tenant.brandName = dto.brandName;
+    if (dto.cuisineType !== undefined) tenant.cuisineType = dto.cuisineType;
+    if (dto.description !== undefined) tenant.description = dto.description;
+    if (dto.logoUrl !== undefined) tenant.logoUrl = dto.logoUrl;
+    if (dto.qrRedirectUrl !== undefined) tenant.qrRedirectUrl = dto.qrRedirectUrl;
+    if (dto.currency !== undefined) {
+      tenant.settings = tenant.settings || { currency: 'EGP', timezone: 'Africa/Cairo', language: 'ar' };
+      tenant.settings.currency = dto.currency;
+    }
+    if (dto.isOpen !== undefined) tenant.isOpen = dto.isOpen;
+    if (dto.isChatbotActive !== undefined) tenant.isChatbotActive = dto.isChatbotActive;
+    if (dto.chatbotSettings) {
+      tenant.chatbotSettings = {
+        ...tenant.chatbotSettings,
+        ...dto.chatbotSettings,
+      };
+    }
+
+    return TenantRepository.save(tenant);
+  }
+
+  public static async getProfile(tenantId: string): Promise<ITenant> {
+    return this.getTenantById(tenantId);
+  }
+
+  public static async getAiStatus(tenantId: string) {
+    const tenant = await TenantRepository.findById(tenantId);
+    if (!tenant) throw new AppError('Tenant profile not found for this tenant', 404);
+
+    const isOpen = tenant.isOpen !== false;
+    const isChatbotActive = tenant.isChatbotActive !== false;
+    const canAnswer = isOpen && isChatbotActive;
+    const offlineReply = tenant.chatbotSettings?.offlineMessage || 'We are currently closed for orders or our chatbot is on a break. Please check back during operating hours!';
+
+    return {
+      tenantId,
+      brandName: tenant.brandName || tenant.name,
+      currency: tenant.settings?.currency || 'EGP',
+      isOpen,
+      isChatbotActive,
+      canAnswer,
+      offlineReply: canAnswer ? null : offlineReply,
+      aiModelPreference: tenant.chatbotSettings?.aiModelPreference || 'gpt-4o',
+    };
   }
 }

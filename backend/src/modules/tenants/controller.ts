@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { TenantService } from './service.js';
-import { CreateTenantSchema, UpdateTenantSettingsSchema } from './validation.js';
+import { CreateTenantSchema, UpdateTenantSettingsSchema, RestaurantProfileSchema } from './validation.js';
 
 export class TenantController {
   public static async createTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -56,6 +56,46 @@ export class TenantController {
         success: true,
         data: updated,
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async upsertProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const tenantId = req.tenantId ?? '';
+      const validated = RestaurantProfileSchema.parse(req.body);
+      const profile = await TenantService.upsertProfile(tenantId, validated);
+      const data = {
+        ...profile.toObject(),
+        currency: profile.settings?.currency || 'EGP',
+      };
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const tenantId = req.tenantId ?? '';
+      const profile = await TenantService.getProfile(tenantId);
+      const data = {
+        ...profile.toObject(),
+        currency: profile.settings?.currency || 'EGP',
+      };
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async getAiStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const rawTenantId = req.params['tenantId'] || req.tenantId || '';
+      const tenantId = Array.isArray(rawTenantId) ? String(rawTenantId[0]) : String(rawTenantId);
+      const status = await TenantService.getAiStatus(tenantId);
+      res.status(200).json({ success: true, data: status });
     } catch (err) {
       next(err);
     }

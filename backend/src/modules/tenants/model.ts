@@ -14,6 +14,11 @@ export interface ITenantSettings {
   language: TenantLanguage;
 }
 
+export interface IChatbotSettings {
+  offlineMessage?: string | undefined;
+  aiModelPreference?: string | undefined;
+}
+
 export interface ITenant extends Document {
   name: string;
   slug: string;
@@ -22,6 +27,15 @@ export interface ITenant extends Document {
   subscriptionExpiresAt?: Date;
   contact: ITenantContact;
   settings: ITenantSettings;
+  // ─── Restaurant Profile Fields ─────────────────────────────────────────────
+  brandName?: string;
+  cuisineType?: string;
+  description?: string;
+  logoUrl?: string;
+  qrRedirectUrl?: string;
+  isOpen: boolean;
+  isChatbotActive: boolean;
+  chatbotSettings?: IChatbotSettings;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +55,18 @@ const tenantSchema = new Schema<ITenant>(
       currency: { type: String, default: 'EGP' },
       timezone: { type: String, default: 'Africa/Cairo' },
       language: { type: String, enum: ['ar', 'en'], default: 'ar' },
+    },
+    // ─── Restaurant Profile Fields ─────────────────────────────────────────────
+    brandName: { type: String },
+    cuisineType: { type: String, default: 'General' },
+    description: { type: String },
+    logoUrl: { type: String },
+    qrRedirectUrl: { type: String, default: 'https://t.me/resturanchatbot' },
+    isOpen: { type: Boolean, default: true },
+    isChatbotActive: { type: Boolean, default: true },
+    chatbotSettings: {
+      offlineMessage: { type: String, default: 'We are currently closed for orders. Please check back during operating hours!' },
+      aiModelPreference: { type: String, default: 'gpt-4o' },
     },
   },
   {

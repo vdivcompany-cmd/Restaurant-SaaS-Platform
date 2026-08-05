@@ -18,6 +18,14 @@ export class TenantRepository {
     return TenantModel.create(data);
   }
 
+  public static async update(id: string, data: Partial<ITenant>): Promise<ITenant | null> {
+    return TenantModel.findByIdAndUpdate(id, { $set: data }, { new: true });
+  }
+
+  public static async findAll(): Promise<ITenant[]> {
+    return TenantModel.find().sort({ createdAt: -1 });
+  }
+
   public static async save(tenant: ITenant): Promise<ITenant> {
     return tenant.save();
   }

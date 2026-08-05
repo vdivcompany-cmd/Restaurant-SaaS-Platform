@@ -56,6 +56,10 @@ const env = cleanEnv(process.env, {
   CLOUDINARY_API_KEY: str({ default: '' }),
   CLOUDINARY_API_SECRET: str({ default: '' }),
 
+  // ─── Resend Email ─────────────────────────────────────────────────────────
+  RESEND_API_KEY: str({ default: '' }),
+  RESEND_FROM_EMAIL: str({ default: 'Restaurant SaaS <no-reply@saas-restaurant.com>' }),
+
   // ─── CORS ─────────────────────────────────────────────────────────────────
   CORS_ORIGIN: str({ default: '' }),
 });

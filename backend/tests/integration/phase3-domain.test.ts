@@ -51,7 +51,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     expect(branchRes.body.data.name).toBe('Downtown Main Branch');
 
     const profileRes = await request(app)
-      .put('/api/v1/restaurants/profile')
+      .put('/api/v1/tenants/profile')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         brandName: 'Gourmet Express',

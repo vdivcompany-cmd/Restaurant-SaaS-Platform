@@ -47,6 +47,38 @@ export async function resolveQrTableHandler(req: Request, res: Response, next: N
   }
 }
 
+export async function scanQrTableHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const token = String(req.params['token'] ?? '');
+    const { redirectUrl, resolvedData } = await service.handleScanRedirect(token);
+
+    if (redirectUrl) {
+      res.redirect(302, redirectUrl);
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'QR code resolved. Configure qrRedirectUrl in tenant profile to redirect customers automatically.',
+      data: resolvedData,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getQrImageHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const tableId = String(req.params['id'] ?? '');
+    const imageBuffer = await service.generateQrImagePng(tenantId, tableId);
+    res.setHeader('Content-Type', 'image/png');
+    res.send(imageBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateTableHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? '';

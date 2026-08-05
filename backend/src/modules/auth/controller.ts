@@ -7,6 +7,9 @@ import {
   LoginSchema,
   RefreshTokenSchema,
   ChangePasswordSchema,
+  ForgotPasswordSchema,
+  VerifyOtpSchema,
+  ResetPasswordSchema,
 } from './validation.js';
 
 export class AuthController {
@@ -115,6 +118,45 @@ export class AuthController {
       res.json({
         success: true,
         message: 'Password changed successfully',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = ForgotPasswordSchema.parse(req.body);
+      const result = await AuthService.forgotPassword(validated);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = VerifyOtpSchema.parse(req.body);
+      const result = await AuthService.verifyOtp(validated);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validated = ResetPasswordSchema.parse(req.body);
+      const result = await AuthService.resetPassword(validated);
+      res.json({
+        success: true,
+        data: result,
       });
     } catch (err) {
       next(err);

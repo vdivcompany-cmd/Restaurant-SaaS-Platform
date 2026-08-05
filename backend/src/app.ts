@@ -16,7 +16,6 @@ import authRoutes from './modules/auth/routes.js';
 import tenantRoutes from './modules/tenants/routes.js';
 import subscriptionRoutes from './modules/subscriptions/routes.js';
 import billingRoutes from './modules/billing/routes.js';
-import restaurantRoutes from './modules/restaurants/routes.js';
 import branchRoutes from './modules/branches/routes.js';
 import categoryRoutes from './modules/categories/routes.js';
 import variantRoutes from './modules/variants/routes.js';
@@ -116,7 +115,6 @@ export function createApp(): Express {
   app.use('/api/v1/tenants', tenantRoutes);
   app.use('/api/v1/subscriptions', subscriptionRoutes);
   app.use('/api/v1/billing', billingRoutes);
-  app.use('/api/v1/restaurants', restaurantRoutes);
   app.use('/api/v1/branches', branchRoutes);
   app.use('/api/v1/categories', categoryRoutes);
   app.use('/api/v1/variants', variantRoutes);

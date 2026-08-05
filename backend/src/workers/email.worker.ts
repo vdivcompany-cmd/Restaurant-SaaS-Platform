@@ -1,5 +1,6 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import logger from '../utils/logger.js';
+import env from '../config/env.js';
 
 export type EmailTemplateType = 'WELCOME' | 'OTP_FORGOT_PASSWORD' | 'GENERAL';
 
@@ -11,16 +12,12 @@ export interface EmailJobPayload {
   tenantId?: string;
 }
 
-// Initialize Nodemailer SMTP Transporter
-const transporter = nodemailer.createTransport({
-  host: process.env['SMTP_HOST'] || 'smtp.example.com',
-  port: Number(process.env['SMTP_PORT'] || 587),
-  secure: process.env['SMTP_SECURE'] === 'true',
-  auth: {
-    user: process.env['SMTP_USER'] || '',
-    pass: process.env['SMTP_PASS'] || '',
-  },
-});
+function getResendClient(): Resend | null {
+  if (!env.RESEND_API_KEY) {
+    return null;
+  }
+  return new Resend(env.RESEND_API_KEY);
+}
 
 function generateHtmlContent(template: string, context: Record<string, unknown>): string {
   if (template === 'WELCOME') {
@@ -59,22 +56,30 @@ export async function processEmailJob(payload: EmailJobPayload, headers?: Record
 
   logger.info({ tenantId, to: payload.to, subject: payload.subject, template: payload.template }, 'Processing async email delivery job');
 
-  // If SMTP is not fully configured in local dev/test environment, log simulation cleanly instead of failing
-  if (!process.env['SMTP_USER'] || process.env['NODE_ENV'] === 'test') {
-    logger.info({ to: payload.to, subject: payload.subject }, 'SMTP credentials unconfigured or test mode — email delivery simulated successfully');
+  const resend = getResendClient();
+
+  // If Resend API key is unconfigured or in test mode, log simulation cleanly
+  if (!resend || env.NODE_ENV === 'test') {
+    logger.info({ to: payload.to, subject: payload.subject }, 'Resend API key unconfigured or test mode — email delivery simulated successfully');
     return;
   }
 
   try {
-    await transporter.sendMail({
-      from: process.env['SMTP_FROM'] || '"Restaurant SaaS Platform" <no-reply@saas-restaurant.com>',
+    const response = await resend.emails.send({
+      from: env.RESEND_FROM_EMAIL,
       to: payload.to,
       subject: payload.subject,
       html,
     });
-    logger.info({ to: payload.to, tenantId }, 'Email successfully transmitted via Nodemailer SMTP');
+
+    if (response.error) {
+      logger.error({ tenantId, to: payload.to, error: response.error }, 'Resend API returned an error');
+      throw new Error(`Resend email delivery failed: ${response.error.message}`);
+    }
+
+    logger.info({ to: payload.to, tenantId, emailId: response.data?.id }, 'Email successfully transmitted via Resend API');
   } catch (error) {
-    logger.error({ tenantId, to: payload.to, error }, 'Nodemailer SMTP transmission encountered an error');
-    throw error; // Rethrow so QStash queue consumer can evaluate retry limits
+    logger.error({ tenantId, to: payload.to, error }, 'Resend transmission encountered an error');
+    throw error;
   }
 }
