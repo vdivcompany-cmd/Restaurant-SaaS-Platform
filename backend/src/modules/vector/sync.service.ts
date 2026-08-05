@@ -78,7 +78,7 @@ export class VectorSyncService {
     query: string,
     opts?: { topK?: number }
   ): Promise<Array<{ id: string; score: number; metadata: Record<string, unknown> }>> {
-    const vector = await nemotronClient.embedOne(query);
+    const vector = await nemotronClient.embedOne(query, 'query');
     const results = await getVectorIndex().query(
       {
         vector,
