@@ -10,17 +10,17 @@ export class VectorSyncService {
    * Upsert a single product into the tenant's namespace.
    * Called from the vector-sync worker after a product create/update.
    */
-  public async upsertProduct(tenantId: string, product: IProductSubDoc): Promise<void> {
+  public async upsertProduct(tenantId: string, product: IProductSubDoc, menuId?: string): Promise<void> {
     const vector = await nemotronClient.embedOne(buildProductEmbeddingText(product));
     await getVectorIndex().upsert(
       {
         id: productVectorId(product._id.toString()),
         vector,
-        metadata: buildProductMetadata(tenantId, product),
+        metadata: buildProductMetadata(tenantId, product, menuId),
       },
       { namespace: tenantNamespace(tenantId) }
     );
-    logger.info({ tenantId, productId: product._id.toString() }, 'Vector upserted');
+    logger.info({ tenantId, productId: product._id.toString(), menuId }, 'Vector upserted');
   }
 
   public async deleteProduct(tenantId: string, productId: string): Promise<void> {
@@ -47,6 +47,7 @@ export class VectorSyncService {
     }
 
     const products = menu.products;
+    const menuId = menu._id.toString();
     const texts = products.map((p) => buildProductEmbeddingText(p));
     const vectors = await nemotronClient.embed(texts);
 
@@ -56,7 +57,7 @@ export class VectorSyncService {
       return {
         id: productVectorId(p._id.toString()),
         vector: vec,
-        metadata: buildProductMetadata(tenantId, p),
+        metadata: buildProductMetadata(tenantId, p, menuId),
       };
     });
 
@@ -76,7 +77,7 @@ export class VectorSyncService {
   public async searchProducts(
     tenantId: string,
     query: string,
-    opts?: { topK?: number }
+    opts?: { topK?: number; menuId?: string }
   ): Promise<Array<{ id: string; score: number; metadata: Record<string, unknown> }>> {
     const vector = await nemotronClient.embedOne(query, 'query');
     const results = await getVectorIndex().query(
@@ -84,6 +85,7 @@ export class VectorSyncService {
         vector,
         topK: opts?.topK ?? 5,
         includeMetadata: true,
+        ...(opts?.menuId ? { filter: `menuId = '${opts.menuId}'` } : {}),
       },
       { namespace: tenantNamespace(tenantId) }
     );

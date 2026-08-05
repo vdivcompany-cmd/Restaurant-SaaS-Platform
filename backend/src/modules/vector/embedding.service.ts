@@ -31,8 +31,8 @@ export function buildProductEmbeddingText(product: IProductSubDoc): string {
  * Metadata attached to each vector so the retriever can filter/return
  * enough for the chatbot without hitting Mongo again.
  */
-export function buildProductMetadata(tenantId: string, product: IProductSubDoc): Record<string, unknown> {
-  return {
+export function buildProductMetadata(tenantId: string, product: IProductSubDoc, menuId?: string): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {
     tenantId,
     productId: product._id.toString(),
     name: product.name,
@@ -42,4 +42,8 @@ export function buildProductMetadata(tenantId: string, product: IProductSubDoc):
     isAvailable: product.isAvailable,
     updatedAt: product.updatedAt?.toISOString?.() ?? new Date().toISOString(),
   };
+  if (menuId) {
+    metadata.menuId = menuId;
+  }
+  return metadata;
 }

@@ -24,7 +24,7 @@ export async function processVectorSyncJob(payload: VectorSyncJobPayload): Promi
         await vectorSyncService.deleteProduct(tenantId, productId);
         return;
       }
-      await vectorSyncService.upsertProduct(tenantId, product);
+      await vectorSyncService.upsertProduct(tenantId, product, menu?._id.toString());
       return;
     }
 
