@@ -12,6 +12,7 @@
  *   - Firebase     (Firestore write/delete — FIREBASE_SERVICE_ACCOUNT_PATH or BASE64)
  */
 
+import '../src/config/loadEnv.js';
 import mongoose from 'mongoose';
 import dns from 'dns';
 if (process.env['FORCE_PUBLIC_DNS'] === 'true') {

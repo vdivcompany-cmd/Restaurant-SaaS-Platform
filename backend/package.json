@@ -12,10 +12,10 @@
     "build:clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build:prod": "npm run build:clean && tsc --project tsconfig.json",
     "start": "node dist/server.js",
-    "verify": "cross-env DOTENV_CONFIG_PATH=.env tsx -r dotenv/config scripts/verify-connections.ts",
-    "seed:admin": "cross-env DOTENV_CONFIG_PATH=.env tsx -r dotenv/config scripts/seed-superadmin.ts",
-    "setup:qstash-schedules": "cross-env DOTENV_CONFIG_PATH=.env tsx -r dotenv/config scripts/setup-qstash-schedules.ts",
-    "test": "cross-env NODE_ENV=test FORCE_PUBLIC_DNS=true tsx -r dotenv/config node_modules/vitest/vitest.mjs run"
+    "verify": "tsx scripts/verify-connections.ts",
+    "seed:admin": "tsx scripts/seed-superadmin.ts",
+    "setup:qstash-schedules": "tsx scripts/setup-qstash-schedules.ts",
+    "test": "cross-env NODE_ENV=test FORCE_PUBLIC_DNS=true tsx node_modules/vitest/vitest.mjs run"
   },
   "keywords": [],
   "author": "",

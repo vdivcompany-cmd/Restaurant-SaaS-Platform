@@ -24,6 +24,7 @@ import menuRoutes from './modules/menu/routes.js';
 import tableRoutes from './modules/tables/routes.js';
 import chatSessionRoutes from './modules/chat-sessions/routes.js';
 import menuIngestionRoutes from './modules/menu-ingestion/routes.js';
+import vectorRoutes from './modules/vector/routes.js';
 import orderRoutes from './modules/orders/routes.js';
 import couponRoutes from './modules/coupons/routes.js';
 import customerRoutes from './modules/customers/routes.js';
@@ -125,6 +126,7 @@ export function createApp(): Express {
   app.use('/api/v1/tables', tableRoutes);
   app.use('/api/v1/chat-sessions', chatSessionRoutes);
   app.use('/api/v1/menu-ingestion', menuIngestionRoutes);
+  app.use('/api/v1/vector', vectorRoutes);
   app.use('/api/v1/orders', orderRoutes);
   app.use('/api/v1/coupons', couponRoutes);
   app.use('/api/v1/customers', customerRoutes);

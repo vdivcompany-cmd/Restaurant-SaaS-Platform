@@ -1,3 +1,4 @@
+import '../src/config/loadEnv.js';
 import { Client } from '@upstash/qstash';
 import env from '../src/config/env.js';
 
