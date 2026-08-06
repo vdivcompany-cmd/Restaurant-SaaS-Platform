@@ -1148,6 +1148,75 @@ Body: { "tenantId": "...", "amount": 2499 }
 
 ---
 
+## 🤖 16. Chat Sessions — Table Binding (n8n Telegram Integration)
+
+Long-lived Telegram `chatId` ↔ table/tenant association. Distinct from the short-lived
+QR-scan bootstrap endpoints (`/resolve`, `/by-channel`, `/close`) — this binding survives
+the whole dining visit (30-day TTL in Upstash Redis) and is keyed directly by `chatId`,
+since that's all the n8n workflow has on every incoming Telegram update.
+
+### 16.1 Bind Telegram chatId to Table (Public, Bot-Trusted)
+
+* **Method:** `POST`
+* **URL:** `{{base_url}}/chat-sessions/save-table`
+* **Auth:** Public (no authentication required)
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "chatId": "987654321",
+  "tableId": "{{table_id}}",
+  "tenantId": "{{tenant_id}}"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "{{tenant_id}}",
+    "branchId": "{{branch_id}}",
+    "tableId": "{{table_id}}",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+> `tenantId` is optional — if omitted, it's resolved by looking up the table directly.
+
+### 16.2 Get Table Context for chatId (Public, Bot-Trusted)
+
+* **Method:** `GET`
+* **URL:** `{{base_url}}/chat-sessions/context/987654321`
+* **Auth:** Public (no authentication required)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "{{tenant_id}}",
+    "branchId": "{{branch_id}}",
+    "tableId": "{{table_id}}",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+**Response (404 — no binding for this chatId):**
+```json
+{
+  "success": false,
+  "message": "No table context bound for this chat"
+}
+```
+
+---
+
 ## 📊 Phase 9 Summary
 
 ### New Features

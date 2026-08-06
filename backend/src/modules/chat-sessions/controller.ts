@@ -4,6 +4,7 @@ import {
   resolveSessionSchema,
   byChannelQuerySchema,
   closeSessionSchema,
+  saveTableBindingSchema,
 } from './validation.js';
 
 export async function resolveSessionHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -35,6 +36,30 @@ export async function closeSessionHandler(req: Request, res: Response, next: Nex
     const dto = closeSessionSchema.parse(req.body);
     await chatSessionService.closeSession(dto.sessionId);
     res.status(200).json({ success: true, message: 'Session closed' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function saveTableBindingHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const dto = saveTableBindingSchema.parse(req.body);
+    const binding = await chatSessionService.saveTableBinding(dto.chatId, dto.tableId, dto.tenantId);
+    res.status(200).json({ success: true, data: binding });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getTableContextHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const chatId = String(req.params['chatId'] ?? '');
+    const binding = await chatSessionService.getTableBinding(chatId);
+    if (!binding) {
+      res.status(404).json({ success: false, message: 'No table context bound for this chat' });
+      return;
+    }
+    res.status(200).json({ success: true, data: binding });
   } catch (err) {
     next(err);
   }

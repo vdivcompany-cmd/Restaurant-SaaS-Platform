@@ -228,3 +228,60 @@ See full Phase 9 specification at docs/phase-9-implementation-summary.md
   - POST /api/v1/jobs/backups
   - POST /api/v1/jobs/firestore-retry
   - POST /api/v1/jobs/table-history-cleanup
+
+---
+
+## 11. Chat Sessions — Table Binding (n8n Telegram integration)
+
+Long-lived Telegram `chatId` ↔ table/tenant association, separate from the short-lived
+QR-scan bootstrap flow (`/resolve`, `/by-channel`, `/close`). This lets the n8n Telegram
+workflow recover tenant/table context on every incoming message without managing
+`sessionId` UUIDs itself. Stored in Upstash Redis via `cacheService` under
+`table_binding:telegram:{chatId}`, TTL 30 days.
+
+| Method | Endpoint | Auth Required | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/chat-sessions/save-table` | Public (n8n/bot-trusted) | Bind a Telegram `chatId` to a `tableId` once, after a QR scan. `tenantId` optional — resolved from the table if omitted. |
+| `GET` | `/api/v1/chat-sessions/context/:chatId` | Public (n8n/bot-trusted) | Look up the table bound to a `chatId`. Returns 404 if no binding exists. |
+
+**Example Request (`POST /api/v1/chat-sessions/save-table`):**
+```json
+{
+  "chatId": "987654321",
+  "tableId": "6a6b3e8447dedf5d12fef0c0",
+  "tenantId": "6a6caa2fc2f7b5caa316ba3b"
+}
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "branchId": "6a6b3e8447dedf5d12fef0c4",
+    "tableId": "6a6b3e8447dedf5d12fef0c0",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+**Example Response (`GET /api/v1/chat-sessions/context/987654321` - 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "branchId": "6a6b3e8447dedf5d12fef0c4",
+    "tableId": "6a6b3e8447dedf5d12fef0c0",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+**Example Response (404 — no binding):**
+```json
+{ "success": false, "message": "No table context bound for this chat" }
+```

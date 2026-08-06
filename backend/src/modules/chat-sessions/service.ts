@@ -1,17 +1,20 @@
 import crypto from 'node:crypto';
 import { cacheService } from '../../services/cache/index.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { TableModel } from '../tables/model.js';
 import type { ChannelName } from '../channels/index.js';
-import type { ChatSession, ChannelBinding } from './model.js';
+import type { ChatSession, ChannelBinding, TableBinding } from './model.js';
 
 const SESSION_TTL_SECONDS = 90 * 60;    // 90 min — matches TableService
 const SHORT_TOKEN_TTL_SECONDS = 15 * 60; // 15 min — one-shot bootstrap
 const BINDING_TTL_SECONDS = 90 * 60;
+export const TABLE_BINDING_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days — survives the whole dining visit (or longer)
 
 const sessionKey = (sessionId: string) => `chat_session:${sessionId}`;
 const shortTokenKey = (token: string) => `scan_token:${token}`;
 const bindingKey = (channel: ChannelName, channelUserId: string) =>
   `chat_binding:${channel}:${channelUserId}`;
+const tableBindingKey = (chatId: string) => `table_binding:telegram:${chatId}`;
 
 export class ChatSessionService {
   /**
@@ -93,6 +96,42 @@ export class ChatSessionService {
   public async closeSession(sessionId: string): Promise<void> {
     await cacheService.del(sessionKey(sessionId));
     // Bindings will expire on their own TTL; no reverse index needed for MVP.
+  }
+
+  /**
+   * Permanently associates a Telegram chatId with a table/tenant, once, when a
+   * customer scans the table QR code. n8n calls this so it never has to manage
+   * sessionId UUIDs itself — every subsequent message just looks up by chatId.
+   */
+  public async saveTableBinding(
+    chatId: string,
+    tableId: string,
+    tenantIdHint?: string
+  ): Promise<TableBinding> {
+    const table = tenantIdHint
+      ? await TableModel.findOne({ _id: tableId, tenantId: tenantIdHint })
+      : await TableModel.findById(tableId);
+
+    if (!table) throw new AppError('Table not found', 404);
+
+    const binding: TableBinding = {
+      tenantId: table.tenantId.toString(),
+      branchId: table.branchId.toString(),
+      tableId: table._id.toString(),
+      tableNumber: table.number,
+      boundAt: Date.now(),
+    };
+
+    await cacheService.set(tableBindingKey(chatId), binding, TABLE_BINDING_TTL_SECONDS);
+    return binding;
+  }
+
+  /**
+   * Looks up the table bound to a Telegram chatId. Used by n8n on every
+   * incoming message to recover tenant/table context without a sessionId.
+   */
+  public async getTableBinding(chatId: string): Promise<TableBinding | null> {
+    return await cacheService.get<TableBinding>(tableBindingKey(chatId));
   }
 }
 
