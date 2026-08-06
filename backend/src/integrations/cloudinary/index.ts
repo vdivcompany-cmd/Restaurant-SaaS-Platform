@@ -28,7 +28,7 @@ export const uploadMiddleware = multer({
   },
 });
 
-export type EntityFolderType = 'menus' | 'products' | 'employees';
+export type EntityFolderType = 'menus' | 'products' | 'employees' | 'menu-docs';
 
 export interface CloudinaryUploadResult {
   url: string;
@@ -89,3 +89,27 @@ export async function uploadTenantMedia(
     uploadStream.end(fileBuffer);
   });
 }
+
+/**
+ * Deletes a media asset from Cloudinary by its public_id.
+ * Silently succeeds if the asset is already gone (idempotent).
+ */
+export async function deleteTenantMedia(publicId: string): Promise<void> {
+  if (process.env['NODE_ENV'] === 'test' || process.env['CLOUDINARY_CLOUD_NAME'] === 'CHANGE_ME' || !process.env['CLOUDINARY_CLOUD_NAME']) {
+    logger.info({ publicId }, '[SIMULATED CLOUDINARY DELETE] Asset deleted (Mock)');
+    return;
+  }
+
+  try {
+    // Try image first, then raw (for PDFs)
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    if (result.result === 'not found') {
+      await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    }
+    logger.info({ publicId }, 'Successfully deleted media asset from Cloudinary');
+  } catch (error) {
+    logger.error({ publicId, error }, 'Failed to delete media asset from Cloudinary');
+    // Don't throw — deletion failures shouldn't block DB cleanup
+  }
+}
+

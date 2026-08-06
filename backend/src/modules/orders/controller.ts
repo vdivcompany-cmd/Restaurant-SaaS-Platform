@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { OrderService } from './service.js';
-import { createOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
+import { createOrderSchema, createCustomerOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
 import { objectIdSchema } from '../../shared/validation/index.js';
 
 const service = new OrderService();
@@ -25,6 +25,22 @@ export async function createQrOrderHandler(req: Request, res: Response, next: Ne
     const validated = createOrderSchema.parse({ ...req.body, channel: 'DINE_IN' });
     // Unauthenticated public customer order — session check MUST run (skipSessionCheck defaults to false)
     const order = await service.createOrder(tenantId, validated);
+    res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Public self-service order handler for takeaway / delivery customers.
+ * Customer is identified by name + phone (no JWT required).
+ * Channel is restricted to TAKEAWAY or DELIVERY.
+ */
+export async function createCustomerOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const validated = createCustomerOrderSchema.parse(req.body);
+    const order = await service.createCustomerOrder(tenantId, validated);
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);

@@ -27,6 +27,9 @@ export interface IOrder extends Document {
   channel: OrderChannel;
   status: OrderStatus;
   tableId?: Types.ObjectId;
+  customerId?: Types.ObjectId;
+  customerName?: string;
+  customerPhone?: string;
   items: IOrderItem[];
   subtotal: number;
   taxAmount: number;
@@ -52,6 +55,9 @@ const OrderSchema = new Schema<IOrder>(
       default: 'PENDING',
     },
     tableId: { type: Schema.Types.ObjectId, ref: 'Table' },
+    customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
+    customerName: { type: String },
+    customerPhone: { type: String },
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },

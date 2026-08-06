@@ -7,15 +7,17 @@ import { queueService, PLATFORM_QUEUES } from '../../services/queue/index.js';
 import { eventBus } from '../../shared/events/index.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import type { IOrder } from './model.js';
-import type { CreateOrderDto, UpdateOrderStatusDto, OfflineSyncDto } from './validation.js';
+import type { CreateOrderDto, CreateCustomerOrderDto, UpdateOrderStatusDto, OfflineSyncDto } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 
 import { BranchRepository } from '../branches/repository.js';
+import { CustomerRepository } from '../customers/repository.js';
 
 export class OrderService {
   private repo = new OrderRepository();
   private branchRepo = new BranchRepository();
   private tableService = new TableService();
+  private customerRepo = new CustomerRepository();
 
   public async createOrder(
     tenantId: string,
@@ -85,6 +87,25 @@ export class OrderService {
     await queueService.enqueue(queueName, { orderId: orderDoc._id }, { tenantId });
 
     return orderDoc;
+  }
+
+  /**
+   * Public self-service order for takeaway / delivery customers.
+   * Authenticates the customer by name + phone (upsert) instead of JWT.
+   */
+  public async createCustomerOrder(tenantId: string, dto: CreateCustomerOrderDto): Promise<IOrder> {
+    // Upsert customer record by phone
+    const customer = await this.customerRepo.upsertByPhone(tenantId, dto.customerName, dto.customerPhone);
+
+    // Delegate to the standard createOrder flow with customer identity attached
+    const orderDto: CreateOrderDto = {
+      ...dto,
+      customerId: customer._id.toString(),
+      customerName: dto.customerName,
+      customerPhone: dto.customerPhone,
+    };
+
+    return await this.createOrder(tenantId, orderDto, { skipSessionCheck: true });
   }
 
   public async syncOfflineOrders(tenantId: string, dto: OfflineSyncDto): Promise<{ synced: number; skipped: number }> {

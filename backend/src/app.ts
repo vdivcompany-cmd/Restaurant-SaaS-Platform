@@ -33,6 +33,7 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import reservationRoutes from './modules/reservations/routes.js';
+import menuDocsRoutes from './modules/menu-docs/routes.js';
 import jobsRoutes from './jobs/index.js';
 
 export function createApp(): Express {
@@ -135,6 +136,7 @@ export function createApp(): Express {
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/reservations', reservationRoutes);
+  app.use('/api/v1/menu-docs', menuDocsRoutes);
   app.use('/api/v1/jobs', jobsRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────

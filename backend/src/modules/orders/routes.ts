@@ -5,6 +5,7 @@ import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
 import {
   createOrderHandler,
   createQrOrderHandler,
+  createCustomerOrderHandler,
   syncOfflineOrdersHandler,
   listOrdersHandler,
   getOrderHandler,
@@ -15,6 +16,9 @@ const router = Router();
 
 // Public customer self-service QR ordering — no staff auth, gated by table session validation
 router.post('/qr', tenantMiddleware, createQrOrderHandler);
+
+// Public self-service ordering for takeaway / delivery — identified by name + phone, no staff auth
+router.post('/customer', tenantMiddleware, createCustomerOrderHandler);
 
 router.use(authMiddleware, tenantMiddleware);
 
@@ -29,3 +33,4 @@ router.route('/:id')
   .patch(rbacMiddleware(['owner', 'manager', 'cashier', 'kitchen']), updateOrderStatusHandler);
 
 export default router;
+
