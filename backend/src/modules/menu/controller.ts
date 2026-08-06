@@ -96,6 +96,20 @@ export async function getProductHandler(req: Request, res: Response, next: NextF
   }
 }
 
+export async function listSourceDocumentsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = String(req.params['tenantId'] ?? req.tenantId ?? '');
+    if (!tenantId) {
+      res.status(400).json({ success: false, message: 'Tenant ID is required in URL params' });
+      return;
+    }
+    const docs = await service.listSourceDocuments(tenantId);
+    res.status(200).json({ success: true, count: docs.length, data: docs });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function listProductsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? String(req.query['tenantId'] ?? '');

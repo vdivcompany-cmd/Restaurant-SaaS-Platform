@@ -147,6 +147,17 @@ export class MenuService {
   }
 
   /**
+   * Returns the tenant's uploaded menu source files (PDFs/images/CSVs on Cloudinary).
+   * Newest first.
+   */
+  public async listSourceDocuments(tenantId: string): Promise<ISourceDocument[]> {
+    const menu = await this.repository.findOrCreateMenu(tenantId);
+    const docs = [...(menu.sourceDocuments ?? [])];
+    docs.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    return docs;
+  }
+
+  /**
    * Generates a clean text catalog optimized for cloud n8n RAG workflows and Upstash Vector embeddings.
    */
   public async getRagCatalog(tenantId: string): Promise<{ tenantId: string; count: number; ragItems: Array<{ id: string; text: string; metadata: Record<string, unknown> }> }> {

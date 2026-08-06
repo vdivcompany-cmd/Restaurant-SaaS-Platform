@@ -12,6 +12,7 @@ import {
   deleteProductHandler,
   getProductHandler,
   listProductsHandler,
+  listSourceDocumentsHandler,
 } from './controller.js';
 import { uploadMenuHandler, getUploadStatusHandler } from './upload.controller.js';
 
@@ -65,6 +66,10 @@ router.get(
   rbacMiddleware(['super_admin', 'owner', 'manager']),
   getUploadStatusHandler
 );
+
+// List all uploaded menu source files (PDFs/images/CSVs on Cloudinary) for a tenant.
+// tenantId is passed as a URL path parameter — mirrors the /rag-catalog/:tenantId pattern.
+router.get('/source-documents/:tenantId', listSourceDocumentsHandler);
 
 // Product sub-document array management — the only single-product CRUD surface
 router.route('/products')
