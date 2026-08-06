@@ -20,17 +20,17 @@ router.post('/qr', tenantMiddleware, createQrOrderHandler);
 // Public self-service ordering for takeaway / delivery — identified by name + phone, no staff auth
 router.post('/customer', tenantMiddleware, createCustomerOrderHandler);
 
+// Public order history — no auth required
+router.get('/', tenantMiddleware, listOrdersHandler);
+router.get('/:id', tenantMiddleware, getOrderHandler);
+
 router.use(authMiddleware, tenantMiddleware);
 
 router.post('/offline-sync', rbacMiddleware(['owner', 'manager', 'cashier']), syncOfflineOrdersHandler);
 
-router.route('/')
-  .post(createOrderHandler)
-  .get(listOrdersHandler);
+router.post('/', createOrderHandler);
 
-router.route('/:id')
-  .get(getOrderHandler)
-  .patch(rbacMiddleware(['owner', 'manager', 'cashier', 'kitchen']), updateOrderStatusHandler);
+router.patch('/:id', rbacMiddleware(['owner', 'manager', 'cashier', 'kitchen']), updateOrderStatusHandler);
 
 export default router;
 
