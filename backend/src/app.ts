@@ -66,7 +66,7 @@ export function createApp(): Express {
   app.use(compression());
   app.use(
     '/api/v1/jobs',
-    express.raw({ type: 'application/json' }),
+    express.raw({ type: 'application/json', limit: '2mb' }),
     (req, _res, next) => {
       (req as any).rawBody = req.body;
       next();

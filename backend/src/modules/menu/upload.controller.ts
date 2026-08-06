@@ -75,7 +75,12 @@ export async function uploadMenuHandler(req: Request, res: Response, next: NextF
       sourceDocumentPublicId: cloudResult.publicId,
     });
 
-    // 3. Enqueue the parse + import job
+    // 3. Enqueue the parse + import job.
+    // We send ONLY the Cloudinary URL — the worker downloads the buffer itself.
+    // Base64-embedding the file blows past QStash's ~1MB body limit and Express's
+    // raw-body cap. The base64 fallback is reserved for test mode where Cloudinary
+    // is simulated (detected by an unset CLOUDINARY_CLOUD_NAME).
+    const isSimulatedCloudinary = !process.env['CLOUDINARY_CLOUD_NAME'];
     await queueService.enqueue(
       PLATFORM_QUEUES.MENU_INGESTION.name,
       {
@@ -86,9 +91,8 @@ export async function uploadMenuHandler(req: Request, res: Response, next: NextF
         publicId: cloudResult.publicId,
         fileType: sourceType,
         originalFilename: file.originalname,
-        // base64 included for test-mode where the Cloudinary URL is simulated
-        base64: file.buffer.toString('base64'),
         mimetype: file.mimetype,
+        ...(isSimulatedCloudinary ? { base64: file.buffer.toString('base64') } : {}),
       },
       { tenantId }
     );
