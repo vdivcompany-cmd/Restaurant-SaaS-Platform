@@ -51,9 +51,6 @@ export async function getRagCatalogHandler(req: Request, res: Response, next: Ne
   }
 }
 
-// NOTE: Cross-reference with modules/products/controller.ts (POST /api/v1/products).
-// Both routes write to MenuModel.products; both enforce Zod payload validation.
-
 export async function addProductHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? req.body?.tenantId ?? '';

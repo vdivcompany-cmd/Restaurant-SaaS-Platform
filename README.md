@@ -267,6 +267,27 @@ Multi-tenant restaurant management SaaS for the Egyptian and MENA market, engine
 
 ---
 
+### 🔶 Phase 11 — Menu Ingestion Consolidation — Completed 2026-08-06
+**What was implemented:**
+- **Single `modules/menu/` source of truth:** Deleted `modules/products/`, `modules/menu-docs/`, and `modules/menu-ingestion/`. All product/category/file-import operations now route through one module.
+- **Unified `POST /api/v1/menu/upload` endpoint:** Accepts a JSON body (synchronous transactional import via `MenuService.bulkImportMenu`) or a multipart file (CSV/PDF/DOCX/image → Cloudinary upload → async QStash job → 202 with `statusId`).
+- **`GET /api/v1/menu/uploads/:id`:** Poll endpoint for async file-upload job status (`queued`, `processing`, `completed`, `failed`).
+- **Real parsers:** `CsvParser` (promoted), `PdfParser` (pdf-parse + NIM chat fallback for scanned PDFs), `DocxParser` (mammoth + NIM chat), `ImageParser` (NIM vision). Fails loudly with 501 if `NEMOTRON_API_KEY` is unset, no silent stubs.
+- **`MenuModel.sourceDocuments`:** Append-only audit trail of all file-based imports (Cloudinary URL, publicId, fileType, originalFilename, uploadedAt).
+- **`MenuUploadStatusModel`:** Repurposed `MenuDraftModel` as a lean status record; draft-review-approve endpoints removed.
+- **Cache consistency fixed:** `MenuIngestionService.approveDraft` previously bypassed `cacheService.del`; new worker calls `MenuService.bulkImportMenu` which already handles it.
+- **`/api/v1/products` removed (404):** `/api/v1/menu/products` is the only single-product CRUD surface. `products/` module shim deleted.
+
+**Deliverable achieved:**
+- One consolidated menu module as the single source of truth; one upload endpoint for JSON/CSV/PDF/DOCX/image; MongoDB, Redis cache, Upstash Vector, and Cloudinary kept in sync on every mutation path; 8 new integration tests including cross-tenant isolation and old-surface regression proofs.
+
+**Notes / deviations from plan:**
+- JSON uploads are synchronous (no queue), file uploads are async (QStash). Decided in planning.
+- NVIDIA NIM used for both vision (images/scanned PDFs) and chat (text PDFs/DOCX). Same API key as embeddings.
+- `MenuUploadStatusModel` kept (not deleted) as the poll target for async file uploads.
+
+---
+
 ## 🔮 Upcoming Horizons & Team Lead Scaling Strategy
 To prepare for scaling across thousands of concurrent restaurant franchises post-launch, consult our authoritative strategic architecture manual:
 📜 **[Future Enterprise SaaS Scaling & AI Strategies](file:///d:/Restaurant%20SaaS%20Platform/docs/future-saas-scaling-and-ai-strategies.md)**

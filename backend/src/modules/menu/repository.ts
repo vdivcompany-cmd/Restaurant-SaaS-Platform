@@ -1,6 +1,6 @@
 import { Types, type ClientSession } from 'mongoose';
 import { CategoryModel, type ICategory } from '../categories/model.js';
-import { MenuModel, type IMenu, type IProductSubDoc, type IVariantSubDoc } from './model.js';
+import { MenuModel, type IMenu, type IProductSubDoc, type IVariantSubDoc, type ISourceDocument } from './model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import type { BulkImportPayload } from './validation.js';
 import { enqueueVectorSync } from '../vector/enqueue.js';
@@ -292,6 +292,24 @@ export class MenuRepository {
   public async findAllProducts(tenantId: string): Promise<IProductSubDoc[]> {
     const menu = await this.findOrCreateMenu(tenantId);
     return menu.products;
+  }
+
+  /**
+   * Appends a source document entry to the tenant's menu (audit trail of file-based imports).
+   * Never overwrites history — only pushes.
+   */
+  public async pushSourceDocument(
+    tenantId: string,
+    entry: ISourceDocument,
+    session?: ClientSession
+  ): Promise<void> {
+    await tenantQuery.findOneAndUpdate(
+      MenuModel,
+      tenantId,
+      {},
+      { $push: { sourceDocuments: entry } },
+      session ? { session, returnDocument: 'after' } : { returnDocument: 'after' }
+    );
   }
 }
 

@@ -71,6 +71,7 @@ const env = cleanEnv(process.env, {
   NEMOTRON_API_KEY: str({ default: '' }),
   NEMOTRON_BASE_URL: url({ default: 'https://integrate.api.nvidia.com/v1' }),
   NEMOTRON_EMBED_MODEL: str({ default: 'nvidia/nv-embedqa-e5-v5' }),
+  NEMOTRON_VISION_MODEL: str({ default: 'nvidia/llama-3.2-11b-vision-instruct' }),
 });
 
 export default env;

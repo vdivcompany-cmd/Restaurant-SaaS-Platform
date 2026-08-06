@@ -388,19 +388,18 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
   });
 
   describe('9.10 — AI Menu Upload & Auto Vector Ingestion', () => {
-    it('should upload menu file buffer, parse items, clear Redis cache, and return vector status', async () => {
-      const dummyBuffer = Buffer.from('%PDF-1.4 Mock PDF Menu Content');
+    it('should upload menu file buffer and return 202 with a statusId for polling', async () => {
+      const csvContent = 'category,name,price\nMains,Grilled Chicken,120\n';
+      const csvBuffer = Buffer.from(csvContent, 'utf8');
       const res = await request(app)
-        .post('/api/v1/menu/upload-file')
+        .post('/api/v1/menu/upload')
         .set('Authorization', ownerToken)
-        .field('tenantId', tenantId)
-        .attach('file', dummyBuffer, 'sample_menu.pdf');
+        .set('X-Tenant-ID', tenantId)
+        .attach('file', csvBuffer, { filename: 'sample_menu.csv', contentType: 'text/csv' });
 
-      expect(res.status).toBe(201);
+      expect(res.status).toBe(202);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.fileUrl).toBeDefined();
-      expect(res.body.data.importResult).toBeDefined();
-      expect(typeof res.body.data.vectorsIngested).toBe('number');
+      expect(res.body.data.statusId).toBeDefined();
     });
   });
 });

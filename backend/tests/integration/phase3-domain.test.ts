@@ -75,30 +75,25 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     expect(catRes.status).toBe(201);
     const categoryId = catRes.body.data._id;
 
-    const varRes = await request(app)
-      .post('/api/v1/variants')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        name: 'Crust Selection',
-        minSelect: 1,
-        maxSelect: 1,
-        options: [
-          { name: 'Classic Neapolitan', priceDelta: 0 },
-          { name: 'Cheese Stuffed Crust', priceDelta: 35 },
-        ],
-      });
-    expect(varRes.status).toBe(201);
-    const variantId = varRes.body.data._id;
-
     const prodRes = await request(app)
-      .post('/api/v1/products')
+      .post('/api/v1/menu/products')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         categoryId,
         name: 'Truffle Mushroom Pizza',
         description: 'Wild mushrooms, mozzarella, truffle oil spray',
         basePrice: 280,
-        variantIds: [variantId],
+        variants: [
+          {
+            name: 'Crust Selection',
+            minSelect: 1,
+            maxSelect: 1,
+            options: [
+              { name: 'Classic Neapolitan', priceDelta: 0 },
+              { name: 'Cheese Stuffed Crust', priceDelta: 35 },
+            ],
+          },
+        ],
       });
     expect(prodRes.status).toBe(201);
     const productId = prodRes.body.data._id;

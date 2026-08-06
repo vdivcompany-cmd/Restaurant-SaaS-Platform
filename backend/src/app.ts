@@ -19,11 +19,9 @@ import billingRoutes from './modules/billing/routes.js';
 import branchRoutes from './modules/branches/routes.js';
 import categoryRoutes from './modules/categories/routes.js';
 import variantRoutes from './modules/variants/routes.js';
-import productRoutes from './modules/products/routes.js';
 import menuRoutes from './modules/menu/routes.js';
 import tableRoutes from './modules/tables/routes.js';
 import chatSessionRoutes from './modules/chat-sessions/routes.js';
-import menuIngestionRoutes from './modules/menu-ingestion/routes.js';
 import vectorRoutes from './modules/vector/routes.js';
 import orderRoutes from './modules/orders/routes.js';
 import couponRoutes from './modules/coupons/routes.js';
@@ -33,7 +31,6 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import reservationRoutes from './modules/reservations/routes.js';
-import menuDocsRoutes from './modules/menu-docs/routes.js';
 import jobsRoutes from './jobs/index.js';
 
 export function createApp(): Express {
@@ -122,11 +119,9 @@ export function createApp(): Express {
   app.use('/api/v1/branches', branchRoutes);
   app.use('/api/v1/categories', categoryRoutes);
   app.use('/api/v1/variants', variantRoutes);
-  app.use('/api/v1/products', productRoutes);
   app.use('/api/v1/menu', menuRoutes);
   app.use('/api/v1/tables', tableRoutes);
   app.use('/api/v1/chat-sessions', chatSessionRoutes);
-  app.use('/api/v1/menu-ingestion', menuIngestionRoutes);
   app.use('/api/v1/vector', vectorRoutes);
   app.use('/api/v1/orders', orderRoutes);
   app.use('/api/v1/coupons', couponRoutes);
@@ -136,7 +131,6 @@ export function createApp(): Express {
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/reservations', reservationRoutes);
-  app.use('/api/v1/menu-docs', menuDocsRoutes);
   app.use('/api/v1/jobs', jobsRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────

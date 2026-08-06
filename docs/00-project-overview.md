@@ -70,9 +70,13 @@ restaurant-saas/
 │   │   │   ├── billing/
 │   │   │   ├── restaurants/
 │   │   │   ├── branches/
-│   │   │   ├── menu/
+│   │   │   ├── menu/                 ← single source of truth for all menu data
+│   │   │   │   ├── parsers/          ← csv, pdf, docx, image parsers
+│   │   │   │   ├── model.ts          ← MenuModel + sourceDocuments audit trail
+│   │   │   │   ├── upload-status.model.ts
+│   │   │   │   ├── vision.client.ts  ← NIM vision/chat for OCR extraction
+│   │   │   │   └── (controller, upload.controller, service, repository, routes, validation)
 │   │   │   ├── categories/
-│   │   │   ├── products/
 │   │   │   ├── variants/
 │   │   │   ├── coupons/
 │   │   │   ├── orders/

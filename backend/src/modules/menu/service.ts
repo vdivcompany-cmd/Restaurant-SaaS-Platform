@@ -6,7 +6,7 @@ import { MenuRepository, type BulkImportResult } from './repository.js';
 import type { BulkImportPayload } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 import logger from '../../utils/logger.js';
-import type { IProductSubDoc } from './model.js';
+import type { IProductSubDoc, ISourceDocument } from './model.js';
 
 export interface MenuCatalog {
   tenantId: string;
@@ -135,6 +135,15 @@ export class MenuService {
     logger.info({ tenantId, result }, 'Bulk menu import completed and cache invalidated');
 
     return result;
+  }
+
+  /**
+   * Records a source document entry on the menu and invalidates the cache.
+   * Called after a successful file-based import to preserve the audit trail.
+   */
+  public async recordSourceDocument(tenantId: string, entry: ISourceDocument): Promise<void> {
+    await this.repository.pushSourceDocument(tenantId, entry);
+    await cacheService.del(`menu:catalog:${tenantId}`);
   }
 
   /**

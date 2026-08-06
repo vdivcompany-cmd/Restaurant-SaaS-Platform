@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { TenantModel } from '../../src/modules/tenants/model.js';
 import { CategoryModel } from '../../src/modules/categories/model.js';
-import { ProductModel } from '../../src/modules/products/model.js';
+import { MenuModel } from '../../src/modules/menu/model.js';
 import { VariantModel } from '../../src/modules/variants/model.js';
 import { queueService, PLATFORM_QUEUES } from '../../src/services/queue/index.js';
 import { processEmailJob } from '../../src/workers/email.worker.js';
@@ -94,7 +94,8 @@ describe('Phase 4 — Integrations & Background Workers Test Suite', () => {
     const catDoc = await CategoryModel.findOne({ tenantId, name: 'Gourmet Burgers' });
     expect(catDoc).toBeDefined();
 
-    const prodDoc = await ProductModel.findOne({ tenantId, name: 'Smokey Bacon Burger' });
+    const menuDoc = await MenuModel.findOne({ tenantId });
+    const prodDoc = menuDoc?.products.find((p) => p.name === 'Smokey Bacon Burger');
     expect(prodDoc).toBeDefined();
     expect(prodDoc?.basePrice).toBe(220);
 

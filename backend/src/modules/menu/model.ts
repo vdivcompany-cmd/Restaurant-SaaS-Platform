@@ -28,12 +28,21 @@ export interface IProductSubDoc {
   updatedAt: Date;
 }
 
+export interface ISourceDocument {
+  url: string;
+  publicId: string;
+  fileType: 'csv' | 'pdf' | 'docx' | 'image' | 'json';
+  originalFilename?: string;
+  uploadedAt: Date;
+}
+
 export interface IMenu extends Document {
   tenantId: Types.ObjectId;
   branchId?: Types.ObjectId;
   name: string;
   isActive: boolean;
   products: Types.DocumentArray<IProductSubDoc>;
+  sourceDocuments: ISourceDocument[];
   theme: {
     primaryColor: string;
     backgroundColor: string;
@@ -86,6 +95,17 @@ const productSubSchema = new Schema<IProductSubDoc>(
   { timestamps: true }
 );
 
+const sourceDocumentSubSchema = new Schema<ISourceDocument>(
+  {
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+    fileType: { type: String, enum: ['csv', 'pdf', 'docx', 'image', 'json'], required: true },
+    originalFilename: { type: String },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const menuSchema = new Schema<IMenu>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
@@ -93,6 +113,7 @@ const menuSchema = new Schema<IMenu>(
     name: { type: String, default: 'Main Menu', required: true },
     isActive: { type: Boolean, default: true },
     products: [productSubSchema],
+    sourceDocuments: { type: [sourceDocumentSubSchema], default: [] },
     theme: {
       primaryColor: { type: String, default: '#FF6B00' },
       backgroundColor: { type: String, default: '#121212' },

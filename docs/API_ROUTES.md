@@ -106,9 +106,11 @@ All domain queries enforce strict zero-bleed data isolation via our `tenantQuery
 |---|---|---|
 | **Branches (`/api/v1/branches`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Storefront management with compound index (`tenantId` + `branchId`). |
 | **Categories (`/api/v1/categories`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Menu organization sorted by `displayOrder`. |
-| **Products (`/api/v1/products`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Dish items linked with pricing and customization variants. |
 | **Menu Catalog (`/api/v1/menu/catalog`)**| `GET` (**Public Guest / QR Scanning**) | Returns full organized menu; automatically cached via Upstash Redis. |
+| **Menu Products (`/api/v1/menu/products`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Single-product CRUD — the only surface for creating/editing individual dishes. |
 | **Bulk Import (`/api/v1/menu/bulk-import`)**| `POST` (`super_admin`, `owner`, `manager`) | Atomic transactional insertion of categories, dishes, and variants in one request. |
+| **Unified Menu Upload (`/api/v1/menu/upload`)**| `POST` (`super_admin`, `owner`, `manager`) | Upload a JSON catalog (sync) or file (CSV/PDF/DOCX/image, async QStash job → 202). `branchId` optional. |
+| **Upload Status Poll (`/api/v1/menu/uploads/:id`)**| `GET` (`super_admin`, `owner`, `manager`) | Poll the status of a file-based upload job (`queued`, `processing`, `completed`, `failed`). |
 | **Tables & QR (`/api/v1/tables`)** | `POST`, `GET`, `DELETE` (`owner`, `manager`); `GET /qr/:token`, `GET /scan/:token` are Public | Dining tables paired with SHA JWT QR tokens, session creation, and 302 auto-redirects to Telegram bot / Web chatbot. |
 | **QR PNG Image (`/api/v1/tables/:id/qr-image`)** | `GET` (`owner`, `manager`, `cashier`) | Generates downloadable high-resolution PNG QR image on-the-fly. |
 | **POS Orders (`/api/v1/orders`)** | `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `POST /offline-sync` | POS checkout ticket lifecycle, branch-filtered order retrieval, and offline batch synchronization recovery. `branchId` query param is validated via `objectIdSchema`. |
