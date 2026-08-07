@@ -12,6 +12,10 @@ router.post('/', authMiddleware, requireSuperAdmin, TenantController.createTenan
 // Public AI Gateway Endpoint for n8n Cloud / AI Bot
 router.get('/:tenantId/ai-status', TenantController.getAiStatus);
 
+// Public Public Tenant & Branch Summary Endpoint (Unprotected)
+router.get('/:tenantId/branches/:branchId/info', TenantController.getTenantBranchInfo);
+router.get('/:tenantId/branches/:branchId', TenantController.getTenantBranchInfo);
+
 // Profile management
 router.route('/profile')
   .get(authMiddleware, tenantMiddleware, TenantController.getProfile)

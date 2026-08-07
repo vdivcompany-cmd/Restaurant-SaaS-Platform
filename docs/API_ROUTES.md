@@ -83,6 +83,7 @@ All domain queries enforce strict zero-bleed data isolation via our `tenantQuery
 | `GET` | `/api/v1/tenants/me` | Auth (`owner`, `manager`) | Retrieve current tenant workspace configurations. |
 | `GET` | `/api/v1/tenants/profile` | Auth (`owner`, `manager`) | Retrieve dining restaurant profile, `qrRedirectUrl`, and operational flags. |
 | `PUT` / `POST` | `/api/v1/tenants/profile` | Auth (`owner`, `manager`) | Update profile, kitchen status (`isOpen`), `qrRedirectUrl`, and AI toggles (`isChatbotActive`). |
+| `GET` | `/api/v1/tenants/:tenantId/branches/:branchId/info` | **Public (Unprotected)** | Retrieve concise summary info (brand, location, contact, operating state) for a tenant & branch. |
 
 **Example Profile Update Request (`PUT /api/v1/tenants/profile`):**
 ```json

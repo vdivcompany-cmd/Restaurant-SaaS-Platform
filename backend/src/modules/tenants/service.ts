@@ -152,4 +152,44 @@ export class TenantService {
       aiModelPreference: tenant.chatbotSettings?.aiModelPreference || 'gpt-4o',
     };
   }
+
+  public static async getTenantBranchInfo(tenantId: string, branchId: string) {
+    const tenant = await TenantRepository.findById(tenantId);
+    if (!tenant) {
+      throw new AppError('Tenant not found', 404);
+    }
+
+    const branchRepo = new BranchRepository();
+    const branch = await branchRepo.findById(tenantId, branchId);
+    if (!branch) {
+      throw new AppError('Branch not found or out of scope', 404);
+    }
+
+    return {
+      tenant: {
+        id: tenant._id.toString(),
+        name: tenant.name,
+        brandName: tenant.brandName || tenant.name,
+        slug: tenant.slug,
+        logoUrl: tenant.logoUrl,
+        cuisineType: tenant.cuisineType,
+        description: tenant.description,
+        currency: tenant.settings?.currency || 'EGP',
+        timezone: tenant.settings?.timezone || 'Africa/Cairo',
+        language: tenant.settings?.language || 'ar',
+        isOpen: tenant.isOpen !== false,
+        isChatbotActive: tenant.isChatbotActive !== false,
+        contact: tenant.contact,
+      },
+      branch: {
+        id: branch._id.toString(),
+        name: branch.name,
+        slug: branch.slug,
+        address: branch.address,
+        phone: branch.phone,
+        isActive: branch.isActive,
+        tableCount: branch.tableCount,
+      },
+    };
+  }
 }

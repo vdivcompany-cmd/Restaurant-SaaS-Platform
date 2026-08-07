@@ -100,4 +100,23 @@ export class TenantController {
       next(err);
     }
   }
+
+  public static async getTenantBranchInfo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const rawTenantId = req.params['tenantId'] || req.tenantId || '';
+      const tenantId = Array.isArray(rawTenantId) ? String(rawTenantId[0]) : String(rawTenantId);
+      const rawBranchId = req.params['branchId'] || '';
+      const branchId = Array.isArray(rawBranchId) ? String(rawBranchId[0]) : String(rawBranchId);
+
+      if (!tenantId || !branchId) {
+        res.status(400).json({ success: false, message: 'Tenant ID and Branch ID are required' });
+        return;
+      }
+
+      const data = await TenantService.getTenantBranchInfo(tenantId, branchId);
+      res.status(200).json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

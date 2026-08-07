@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { TenantModel } from '../../src/modules/tenants/model.js';
+import { BranchModel } from '../../src/modules/branches/model.js';
 import { AuthService } from '../../src/modules/auth/service.js';
 
 const app = createApp();
@@ -182,6 +183,38 @@ describe('Tenants API, Super Admin RBAC & Cross-Tenant Isolation', () => {
     expect(resSlug.status).toBe(404);
     expect(resSlug.body.success).toBe(false);
     expect(resSlug.body.message).toBe('Target tenant not found');
+  });
+
+  it('PUBLIC ROUTE: allows unauthenticated retrieval of tenant & branch small info by tenantId and branchId', async () => {
+    const ts = Date.now();
+    const tenant = await TenantModel.create({
+      name: 'Public Info Cafe',
+      slug: `public-cafe-${ts}`,
+      contact: { phone: '12345678', email: `info-${ts}@publiccafe.com` },
+      brandName: 'Public Cafe',
+      cuisineType: 'Beverages',
+      description: 'Cozy coffee shop',
+    });
+
+    const branch = await BranchModel.create({
+      tenantId: tenant._id,
+      name: 'Downtown Branch',
+      slug: `downtown-${ts}`,
+      address: '123 Main Street',
+      phone: '12345678',
+      isActive: true,
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/tenants/${tenant._id.toString()}/branches/${branch._id.toString()}/info`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.tenant.name).toBe('Public Info Cafe');
+    expect(res.body.data.tenant.brandName).toBe('Public Cafe');
+    expect(res.body.data.tenant.cuisineType).toBe('Beverages');
+    expect(res.body.data.branch.name).toBe('Downtown Branch');
+    expect(res.body.data.branch.address).toBe('123 Main Street');
   });
 });
 
