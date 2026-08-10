@@ -17,11 +17,8 @@ import {
 const router = Router();
 
 router.get('/qr/:token', resolveQrTableHandler);
-<<<<<<< HEAD
-router.get('/:id/history', optionalAuthMiddleware, tenantMiddleware, getTableOrderHistoryHandler);
-=======
 router.get('/scan/:token', scanQrTableHandler);
->>>>>>> 611dad0087a7a9ac172414630c8bdbee57b4eb1b
+router.get('/:id/history', optionalAuthMiddleware, tenantMiddleware, getTableOrderHistoryHandler);
 
 router.use(authMiddleware, tenantMiddleware);
 
