@@ -24,8 +24,18 @@ export async function createQrOrderHandler(req: Request, res: Response, next: Ne
     const tenantId = req.tenantId || (req.body?.tenantId as string) || '';
     const validated = createPublicQrOrderSchema.parse(req.body);
 
+    // Map Zod output to PricedOrderItemInput, omitting undefined optional fields
+    // to satisfy exactOptionalPropertyTypes: true in tsconfig.json
+    const rawItems: import('../menu/pricing.service.js').PricedOrderItemInput[] = validated.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      ...(item.variantId !== undefined ? { variantId: item.variantId } : {}),
+      ...(item.selectedOptionNames?.length ? { selectedOptionNames: item.selectedOptionNames } : {}),
+      ...(item.notes !== undefined ? { notes: item.notes } : {}),
+    }));
+
     // Server computes every price — client only supplied productId/quantity/variant
-    const priced = await priceOrderItems(tenantId, validated.items);
+    const priced = await priceOrderItems(tenantId, rawItems);
 
     const order = await service.createOrder(tenantId, {
       branchId: validated.branchId,
