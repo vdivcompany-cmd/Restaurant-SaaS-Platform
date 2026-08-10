@@ -75,9 +75,28 @@ export async function getTableOrderHistoryHandler(req: Request, res: Response, n
     const tenantId = req.tenantId ?? '';
     const tableId = String(req.params['id'] ?? '');
     const limit = typeof req.query['limit'] === 'string' ? parseInt(req.query['limit'], 10) : 50;
-    const orders = await service.getOrderHistory(tenantId, tableId, { limit });
+    const channel = typeof req.query['channel'] === 'string' ? req.query['channel'] : undefined;
+
+    if (!req.user) {
+      if (channel !== 'DINE_IN') {
+        res.status(401).json({ success: false, message: 'Authentication token required for non-dine-in order history' });
+        return;
+      }
+    } else {
+      const allowedRoles = ['owner', 'manager', 'cashier'];
+      if (!allowedRoles.includes(req.user.role)) {
+        res.status(403).json({ success: false, message: 'Forbidden: Insufficient role permissions' });
+        return;
+      }
+    }
+
+    const orders = await service.getOrderHistory(tenantId, tableId, {
+      limit,
+      ...(channel ? { channel } : {}),
+    });
     res.status(200).json({ success: true, data: orders });
   } catch (err) {
     next(err);
   }
 }
+

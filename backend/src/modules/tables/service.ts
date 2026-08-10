@@ -106,7 +106,7 @@ export class TableService {
   public async getOrderHistory(
     tenantId: string,
     tableId: string,
-    opts?: { limit?: number; sinceDate?: Date }
+    opts?: { limit?: number; sinceDate?: Date; channel?: string | undefined }
   ): Promise<any[]> {
     // Verify table exists and belongs to tenant
     const table = await this.repo.findById(tenantId, tableId);
@@ -119,6 +119,9 @@ export class TableService {
     if (opts?.sinceDate) {
       query.createdAt = { $gte: opts.sinceDate };
     }
+    if (opts?.channel) {
+      query.channel = opts.channel;
+    }
 
     return await tenantQuery
       .find(OrderModel, tenantId, query)
@@ -127,3 +130,4 @@ export class TableService {
       .exec();
   }
 }
+

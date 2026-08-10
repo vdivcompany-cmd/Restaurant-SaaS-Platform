@@ -475,12 +475,13 @@
 					}
 				},
 				{
-					"name": "Get Table Order History (PHASE 9 NEW: 30-day retention)",
+					"name": "Get Table Order History (Public DINE_IN or Authenticated)",
 					"request": {
-						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
 						"method": "GET",
-						"header": [],
-						"url": { "raw": "{{base_url}}/tables/{{table_id}}/history?tenantId={{tenant_id}}&limit=50", "host": ["{{base_url}}"], "path": ["tables", "{{table_id}}", "history"], "query": [{ "key": "tenantId", "value": "{{tenant_id}}" }, { "key": "limit", "value": "50" }] }
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": { "raw": "{{base_url}}/tables/{{table_id}}/history?tenantId={{tenant_id}}&limit=50&channel=DINE_IN", "host": ["{{base_url}}"], "path": ["tables", "{{table_id}}", "history"], "query": [{ "key": "tenantId", "value": "{{tenant_id}}" }, { "key": "limit", "value": "50" }, { "key": "channel", "value": "DINE_IN" }] }
 					}
 				}
 			]

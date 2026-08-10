@@ -922,16 +922,15 @@ curl -X POST http://localhost:3000/api/v1/tables \
 }
 ```
 
-### 13.2 Get Table Order History (NEW)
+### 13.2 Get Table Order History
 
 * **Method:** `GET`
-* **URL:** `{{base_url}}/tables/{{table_id}}/history?tenantId={{tenant_id}}&limit=50`
-* **Auth:** Bearer `{{manager_token}}`
-* **Headers:** `Content-Type: application/json`
-
-**Query Parameters:**
-- `tenantId` (required) — Target tenant
-- `limit` (optional, default 50) — Max records to return
+* **URL:** `{{base_url}}/tables/{{table_id}}/history?tenantId={{tenant_id}}&limit=50&channel=DINE_IN`
+* **Auth Required:** Public if `channel=DINE_IN` (requires `tenantId` in query). Authentication (`Bearer` token or `access_token` cookie for `owner`, `manager`, `cashier`) required for all other channels.
+* **Query Parameters:**
+  * `tenantId` (Required for public DINE_IN access or super_admin impersonation)
+  * `channel` (Optional: e.g. `DINE_IN`. Required for unauthenticated access)
+  * `limit` (Optional, default `50`) — Max records to return
 - `sinceDate` (optional) — Only orders after this date (ISO 8601)
 
 **Features:**

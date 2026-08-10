@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, optionalAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
 import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
 import {
@@ -15,6 +15,7 @@ import {
 const router = Router();
 
 router.get('/qr/:token', resolveQrTableHandler);
+router.get('/:id/history', optionalAuthMiddleware, tenantMiddleware, getTableOrderHistoryHandler);
 
 router.use(authMiddleware, tenantMiddleware);
 
@@ -27,6 +28,5 @@ router.route('/:id')
   .put(rbacMiddleware(['owner', 'manager', 'cashier']), updateTableHandler)
   .delete(rbacMiddleware(['owner', 'manager']), deleteTableHandler);
 
-router.get('/:id/history', rbacMiddleware(['owner', 'manager', 'cashier']), getTableOrderHistoryHandler);
-
 export default router;
+
