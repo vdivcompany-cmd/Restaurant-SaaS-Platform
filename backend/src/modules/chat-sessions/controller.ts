@@ -44,7 +44,7 @@ export async function closeSessionHandler(req: Request, res: Response, next: Nex
 export async function saveTableBindingHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = saveTableBindingSchema.parse(req.body);
-    const binding = await chatSessionService.saveTableBinding(dto.chatId, dto.tableId, dto.tenantId);
+    const binding = await chatSessionService.saveTableBinding(dto.chatId, dto.tableId, dto.tenantId, dto.tableSessionId);
     res.status(200).json({ success: true, data: binding });
   } catch (err) {
     next(err);

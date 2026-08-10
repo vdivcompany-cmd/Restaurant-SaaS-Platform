@@ -28,5 +28,6 @@ export interface TableBinding {
   branchId: string;
   tableId: string;
   tableNumber: number;
+  tableSessionId?: string; 
   boundAt: number;
 }

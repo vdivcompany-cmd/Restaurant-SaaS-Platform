@@ -20,6 +20,7 @@ export const saveTableBindingSchema = z.object({
   chatId: z.union([z.string(), z.number()]).transform(String),
   tableId: objectIdSchema,
   tenantId: objectIdSchema.optional(),
+  tableSessionId: z.string().uuid().optional(),
 });
 
 export type ResolveSessionDto = z.infer<typeof resolveSessionSchema>;

@@ -106,7 +106,8 @@ export class ChatSessionService {
   public async saveTableBinding(
     chatId: string,
     tableId: string,
-    tenantIdHint?: string
+    tenantIdHint?: string,
+    tableSessionId?: string, 
   ): Promise<TableBinding> {
     const table = tenantIdHint
       ? await TableModel.findOne({ _id: tableId, tenantId: tenantIdHint })
@@ -119,6 +120,7 @@ export class ChatSessionService {
       branchId: table.branchId.toString(),
       tableId: table._id.toString(),
       tableNumber: table.number,
+      ...(tableSessionId ? { tableSessionId } : {}),
       boundAt: Date.now(),
     };
 
