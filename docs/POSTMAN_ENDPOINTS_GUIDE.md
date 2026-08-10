@@ -1216,30 +1216,77 @@ since that's all the n8n workflow has on every incoming Telegram update.
 
 ---
 
-## 📊 Phase 9 Summary
+## 12. Public Self-Service QR & AI Ordering
+
+### 12a. Create Public QR / AI Order (`POST /api/v1/orders/qr`)
+* **Method:** `POST`
+* **URL:** `{{base_url}}/orders/qr`
+* **Auth:** Public (gated by table session)
+* **Headers:** `Content-Type: application/json`
+
+**Description:** Unauthenticated public endpoint for customer QR dine-in ordering or n8n AI agent order placement. Server calculates all item pricing and totals; client-supplied price fields (`unitPrice`, `totalPrice`, etc.) are rejected with 400 (`.strict()` validation). `channel` is hardcoded to `DINE_IN`.
+
+**Request Body Example:**
+```json
+{
+  "tenantId": "{{tenant_id}}",
+  "branchId": "{{branch_id}}",
+  "tableId": "{{table_id}}",
+  "tableSessionId": "b6b6a1e2-0000-0000-0000-000000000000",
+  "items": [
+    {
+      "productId": "{{product_id}}",
+      "quantity": 2
+    },
+    {
+      "productId": "{{product_id}}",
+      "quantity": 1,
+      "variantId": "{{variant_id}}",
+      "selectedOptionNames": ["Cheese Stuffed Crust"],
+      "notes": "Extra crispy"
+    }
+  ]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "665f...",
+    "orderNumber": "ORD-123456-789",
+    "channel": "DINE_IN",
+    "status": "PENDING",
+    "tableId": "{{table_id}}",
+    "items": [
+      {
+        "productId": "{{product_id}}",
+        "name": "Classic Burger",
+        "quantity": 2,
+        "unitPrice": 50,
+        "totalPrice": 100
+      }
+    ],
+    "subtotal": 100,
+    "taxAmount": 0,
+    "totalAmount": 100
+  }
+}
+```
+
+---
+
+## 📊 Phase 11 Summary
 
 ### New Features
-✅ Cryptographic QR JWT signing  
-✅ Reservations module (booking system)  
-✅ Order history with 30-day retention  
-✅ Notification audit trail  
-✅ Atomic tenant provisioning  
-
-### Security Improvements
-✅ RBAC enforcement on billing/subscriptions  
-✅ Cross-tenant isolation verified  
-✅ JWT-signed QR tokens  
-✅ Operational accountability (actionMakerId)  
-
-### Breaking Changes
-⚠️ Tenant context: header → body  
-⚠️ Subscriptions/billing: owner → super_admin  
-⚠️ All mutations: explicit tenantId required  
+✅ Server-side price calculation for public QR / AI ordering  
+✅ Enriched vector metadata with product variants and option price deltas  
+✅ Strict Zod schema enforcement (`.strict()`) rejecting client-supplied prices  
 
 ---
 
-**Updated:** 2026-08-01  
-**Version:** 2.2.0 (Phase 9 Complete)  
+**Updated:** 2026-08-10  
+**Version:** 2.3.0 (Phase 11 Complete)  
 **Status:** ✅ Production Ready
 
----

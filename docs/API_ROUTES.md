@@ -213,9 +213,60 @@ See full Phase 9 specification at docs/phase-9-implementation-summary.md
 ## 10. Phase 10 - Serverless Queue Migration, QR Session Fraud Prevention & PM2 Removal
 
 ### 10.1 Public Self-Service QR Ordering (POST /api/v1/orders/qr)
-- **Method & Route:** POST /api/v1/orders/qr (Public, gated by 	ableSessionId)
+- **Method & Route:** POST /api/v1/orders/qr (Public, gated by `tableSessionId`)
 - **Authentication:** Public (no staff auth required)
-- **Description:** Customer places dine-in order after scanning table QR code. Requires 	ableSessionId obtained from GET /api/v1/tables/qr/:token.
+- **Description:** Customer or AI agent places dine-in order after scanning table QR code. Requires `tableSessionId` obtained from `GET /api/v1/tables/qr/:token`.
+- **Hardening Rules:** Server calculates all pricing from `MenuModel.products`; client-sent price fields (`unitPrice`, `totalPrice`, `subtotal`, `totalAmount`) are rejected (400 via `.strict()`). Channel is strictly `DINE_IN` and cannot be overridden.
+
+---
+
+## 12. Phase 11 — Secure, Server-Priced, AI-Orderable QR Ordering
+
+### 12.1 Secure Public Order Endpoint (`POST /api/v1/orders/qr`)
+
+**Request Payload Example:**
+```json
+{
+  "tenantId": "665f...",
+  "branchId": "665f...",
+  "tableId": "665f...",
+  "tableSessionId": "b6b6a1e2-0000-0000-0000-000000000000",
+  "items": [
+    { "productId": "665f...", "quantity": 2 },
+    { "productId": "665f...", "quantity": 1, "variantId": "665f...", "selectedOptionNames": ["Cheese Stuffed Crust"] }
+  ]
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "665f...",
+    "orderNumber": "ORD-123456-789",
+    "channel": "DINE_IN",
+    "status": "PENDING",
+    "tableId": "665f...",
+    "items": [
+      {
+        "productId": "665f...",
+        "name": "Classic Burger",
+        "quantity": 2,
+        "unitPrice": 50,
+        "totalPrice": 100
+      }
+    ],
+    "subtotal": 100,
+    "taxAmount": 0,
+    "totalAmount": 100
+  }
+}
+```
+
+### 12.2 Session-Scoped Vector Search for AI Ordering (`POST /api/v1/chat-sessions/search`)
+- **Description:** Returns product vector matches enriched with metadata including `productId`, `basePrice`, and `variants` array (containing `variantId`, `minSelect`, `maxSelect`, and option `priceDelta` amounts).
+
 
 ### 10.2 QStash Webhook Job Endpoints (POST /api/v1/jobs/*)
 - **Route Prefix:** POST /api/v1/jobs/:jobRoute

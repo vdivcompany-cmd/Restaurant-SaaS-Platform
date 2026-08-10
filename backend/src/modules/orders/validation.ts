@@ -78,8 +78,26 @@ export const offlineSyncSchema = z.object({
   orders: z.array(createOrderSchema).min(1, 'At least one offline order is required for synchronization'),
 });
 
+export const publicOrderItemSchema = z.object({
+  productId: objectIdSchema,
+  quantity: z.number().int().min(1).max(50),
+  variantId: objectIdSchema.optional(),
+  selectedOptionNames: z.array(z.string()).optional().default([]),
+  notes: z.string().max(300).optional(),
+}).strict();
+
+export const createPublicQrOrderSchema = z.object({
+  tenantId: objectIdSchema,
+  branchId: objectIdSchema,
+  tableId: objectIdSchema,
+  tableSessionId: z.string().uuid(),
+  items: z.array(publicOrderItemSchema).min(1, 'Order must contain at least one item'),
+}).strict();
+
 export type CreateOrderDto = z.infer<typeof createOrderSchema>;
 export type CreateCustomerOrderDto = z.infer<typeof createCustomerOrderSchema>;
+export type CreatePublicQrOrderDto = z.infer<typeof createPublicQrOrderSchema>;
 export type UpdateOrderStatusDto = z.infer<typeof updateOrderStatusSchema>;
 export type OfflineSyncDto = z.infer<typeof offlineSyncSchema>;
+
 

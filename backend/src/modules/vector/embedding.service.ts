@@ -41,6 +41,16 @@ export function buildProductMetadata(tenantId: string, product: IProductSubDoc, 
     basePrice: product.basePrice,
     isAvailable: product.isAvailable,
     updatedAt: product.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+    variants: (product.variants || []).map((v: any) => ({
+      variantId: v._id?.toString(),
+      name: v.name,
+      minSelect: v.minSelect,
+      maxSelect: v.maxSelect,
+      options: (v.options || []).map((o: any) => ({
+        name: o.name,
+        priceDelta: o.price ?? o.additionalPrice ?? 0,
+      })),
+    })),
   };
   if (menuId) {
     metadata.menuId = menuId;

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { OrderService } from './service.js';
-import { createOrderSchema, createCustomerOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
+import { createOrderSchema, createCustomerOrderSchema, createPublicQrOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
+import { priceOrderItems } from '../menu/pricing.service.js';
 import { objectIdSchema } from '../../shared/validation/index.js';
 
 const service = new OrderService();
@@ -20,11 +21,23 @@ export async function createOrderHandler(req: Request, res: Response, next: Next
 
 export async function createQrOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const tenantId = req.tenantId ?? '';
-    // Force DINE_IN before parse so refine validates tableId against the final channel value
-    const validated = createOrderSchema.parse({ ...req.body, channel: 'DINE_IN' });
-    // Unauthenticated public customer order — session check MUST run (skipSessionCheck defaults to false)
-    const order = await service.createOrder(tenantId, validated);
+    const tenantId = req.tenantId || (req.body?.tenantId as string) || '';
+    const validated = createPublicQrOrderSchema.parse(req.body);
+
+    // Server computes every price — client only supplied productId/quantity/variant
+    const priced = await priceOrderItems(tenantId, validated.items);
+
+    const order = await service.createOrder(tenantId, {
+      branchId: validated.branchId,
+      channel: 'DINE_IN',
+      tableId: validated.tableId,
+      tableSessionId: validated.tableSessionId,
+      items: priced.items,
+      subtotal: priced.subtotal,
+      taxAmount: 0,
+      totalAmount: priced.totalAmount,
+    } as any);
+
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);

@@ -288,6 +288,23 @@ Multi-tenant restaurant management SaaS for the Egyptian and MENA market, engine
 
 ---
 
+### ✅ Phase 11 — Secure, Server-Priced, AI-Orderable QR Ordering — Completed 2026-08-10
+**What was implemented:**
+- **Server-Side Pricing Engine (`src/modules/menu/pricing.service.ts`):** Authoritative `priceOrderItems()` function that resolves product and variant option base prices and price deltas from `MenuModel.products` using `MenuRepository.findProductById()`. Calculates unit price and total price server-side; throws `404` for non-existent items and `400` for unavailable items or variant selection constraint (`minSelect`/`maxSelect`) violations.
+- **Strict Public Order Schema (`src/modules/orders/validation.ts`):** `publicOrderItemSchema` and `createPublicQrOrderSchema` with `.strict()` Zod enforcement. Accepts only `{productId, quantity, variantId?, selectedOptionNames?, notes?}` and rejects any client-supplied pricing fields (`unitPrice`, `totalPrice`, `subtotal`, `totalAmount`) or unexpected properties with `400 Validation failed`.
+- **Public Controller Hardening (`src/modules/orders/controller.ts`):** `createQrOrderHandler` rewritten to process public QR orders through `createPublicQrOrderSchema` and `priceOrderItems()`. Hardcodes `channel: 'DINE_IN'` to prevent channel spoofing.
+- **Enriched Vector Metadata (`src/modules/vector/embedding.service.ts`):** Expanded `buildProductMetadata()` to include structured `variants` metadata array with option `priceDelta` values, enabling n8n AI agents and chatbots to retrieve accurate pricing for order placement.
+- **Integration Test Suite (`tests/integration/public-qr-order-pricing.test.ts`):** 8 comprehensive Vitest integration tests covering server-side price calculation, strict schema enforcement, variant price deltas, invalid products, channel override prevention, cross-tenant table session isolation (403), and vector metadata enrichment.
+
+**Deliverable achieved:**
+- A public, unauthenticated `POST /api/v1/orders/qr` endpoint immune to client-supplied pricing, strictly constrained to `DINE_IN`, and supported by enriched vector search metadata for AI ordering.
+
+**Notes / deviations from the plan:**
+- **Breaking Change:** `POST /api/v1/orders/qr` payload shape changed — client-supplied price fields and names are rejected (`400`). Clients must send `{productId, quantity}` items.
+- `.strict()` added to schemas to give clear, loud errors to misconfigured AI agents or callers trying to send price fields.
+
+---
+
 ## 🔮 Upcoming Horizons & Team Lead Scaling Strategy
 To prepare for scaling across thousands of concurrent restaurant franchises post-launch, consult our authoritative strategic architecture manual:
 📜 **[Future Enterprise SaaS Scaling & AI Strategies](file:///d:/Restaurant%20SaaS%20Platform/docs/future-saas-scaling-and-ai-strategies.md)**
@@ -297,4 +314,5 @@ To prepare for scaling across thousands of concurrent restaurant franchises post
 2. **Action-Oriented AI Dining Assistant (Backend Foundation Done in Phase 8):** Autonomous RAG conversational agent performing live function tool-calls against Table Reservation and POS Kitchen Ordering queues via our newly completed n8n Cloud AI Gateways (`/ai-status` & `/rag-catalog`).
 3. **"Zero-to-Value in 60 Seconds" (Recommended Next Milestone):** Automated onboarding menu and floor layout seeding for instant trial POS gratification.
 4. **Hot vs. Cold Historical Order Archival (Scheduled for Massive Big Data):** Scheduled database partitioning engine maintaining daily cashier operations under 20ms latency forever.
+
 
