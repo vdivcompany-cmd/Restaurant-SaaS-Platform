@@ -15,7 +15,8 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
     // 1. Dashboard / Authenticated user path (JWT already carries tenantId — always wins)
     if (req.user) {
       if (req.user.role === 'super_admin') {
-        // Allow Super Admin to impersonate via body (for mutating) or query (for GET)
+        // Allow Super Admin to impersonate via header (X-Target-Tenant-Id), body (for mutating), or query (for GET)
+        const headerTenantId = (req.headers['x-target-tenant-id'] || req.headers['X-Target-Tenant-Id']) as string | undefined;
         const bodyTenantId = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
           ? (req.body?.tenantId as string | undefined)
           : undefined;
@@ -25,22 +26,26 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
         const queryTenantId = req.query['tenantId'] as string | undefined;
         const queryTenantSlug = req.query['tenantSlug'] as string | undefined;
 
-        const targetId = bodyTenantId ?? queryTenantId;
+        const targetId = headerTenantId ?? bodyTenantId ?? queryTenantId;
         const targetSlug = bodyTenantSlug ?? queryTenantSlug;
 
         if (targetId) {
           const tenant = await TenantRepository.findById(targetId);
-          if (tenant) {
-            req.tenantId = tenant._id.toString();
-            return next();
+          if (!tenant) {
+            res.status(404).json({ success: false, message: 'Target tenant not found' });
+            return;
           }
+          req.tenantId = tenant._id.toString();
+          return next();
         }
         if (targetSlug) {
           const tenant = await TenantRepository.findBySlug(targetSlug);
-          if (tenant) {
-            req.tenantId = tenant._id.toString();
-            return next();
+          if (!tenant) {
+            res.status(404).json({ success: false, message: 'Target tenant not found' });
+            return;
           }
+          req.tenantId = tenant._id.toString();
+          return next();
         }
       }
       // Authenticated user's own tenant (primary path)
@@ -51,6 +56,9 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
     }
 
     // 2. Public / Bot / Webhook / QR Scan context path (no authenticated user)
+    const headerTenantId = (req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'] || req.headers['x-target-tenant-id'] || req.headers['X-Target-Tenant-Id']) as string | undefined;
+    const headerTenantSlug = (req.headers['x-tenant-slug'] || req.headers['X-Tenant-Slug']) as string | undefined;
+
     // For POST/PUT/PATCH/DELETE: read from body
     const bodyTenantId = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
       ? (req.body?.tenantId as string | undefined)
@@ -63,8 +71,8 @@ export async function tenantMiddleware(req: Request, res: Response, next: NextFu
     const queryTenantId = req.query['tenantId'] as string | undefined;
     const queryTenantSlug = req.query['tenantSlug'] as string | undefined;
 
-    const targetId = bodyTenantId ?? queryTenantId;
-    const targetSlug = bodyTenantSlug ?? queryTenantSlug;
+    const targetId = headerTenantId ?? bodyTenantId ?? queryTenantId;
+    const targetSlug = headerTenantSlug ?? bodyTenantSlug ?? queryTenantSlug;
 
     if (targetId) {
       const tenant = await TenantRepository.findById(targetId);

@@ -50,7 +50,7 @@ These endpoints operate synchronously to provide instant uptime and readiness di
 | `GET` | `/` | Public | Root welcome route returning platform runtime metadata |
 | `GET` | `/health` | Public | Fast container readiness probe |
 | `GET` | `/live` | Public | Liveness probe checking Node.js event loop health |
-| `GET` | `/ready` | Public | Full readiness probe checking MongoDB, Redis, RabbitMQ & Firebase connections |
+| `GET` | `/ready` | Public | Full readiness probe checking MongoDB, Redis, Upstash QStash & Firebase connections |
 
 ### 0.1 Service Readiness Check
 * **Method:** `GET`
@@ -64,7 +64,7 @@ These endpoints operate synchronously to provide instant uptime and readiness di
   "services": {
     "mongodb": { "status": "ok" },
     "redis": { "status": "ok", "latencyMs": 8 },
-    "rabbitmq": { "status": "ok" },
+    "qstash": { "status": "ok" },
     "firebase": { "status": "ok" }
   },
   "timestamp": "2026-07-31T21:55:00.000Z"
@@ -280,13 +280,13 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 
 ### 4.1 Get Restaurant Profile
 * **Method:** `GET`
-* **URL:** `{{base_url}}/restaurants/profile`
+* **URL:** `{{base_url}}/tenants/profile`
 * **Auth:** Bearer `{{manager_token}}`
 * **Headers:** `X-Tenant-Id: {{tenant_id}}`
 
 ### 4.2 Upsert Restaurant Profile & AI Settings
 * **Method:** `PUT` (or `POST`)
-* **URL:** `{{base_url}}/restaurants/profile`
+* **URL:** `{{base_url}}/tenants/profile`
 * **Auth:** Bearer `{{owner_token}}` or `{{manager_token}}`
 * **Headers:** 
   * `Content-Type: application/json`
@@ -298,6 +298,7 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
   "brandName": "Gourmet Stone Oven Pizza",
   "cuisineType": "Italian & Mediterranean",
   "description": "Authentic Neapolitan wood-fired pizza kitchen.",
+  "qrRedirectUrl": "https://t.me/resturanchatbot",
   "isOpen": true,
   "isChatbotActive": true,
   "chatbotSettings": {
@@ -309,7 +310,7 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 
 ### 4.3 n8n Cloud AI Status Probe (Public Gateway)
 * **Method:** `GET`
-* **URL:** `{{base_url}}/restaurants/{{tenant_id}}/ai-status`
+* **URL:** `{{base_url}}/tenants/{{tenant_id}}/ai-status`
 * **Auth:** Public / n8n Cloud
 
 **Response (200 OK):**
@@ -419,7 +420,26 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 }
 ```
 
-### 6.3 Create Product SKU (Food Item)
+### 6.3 Add / Update Product in Menu (Deduplicated Array)
+* **Method:** POST`r
+* **URL:** {{base_url}}/menu/products`r
+* **Auth:** Bearer {{owner_token}} or {{manager_token}}`r
+* **Headers:** Content-Type: application/json`r
+
+**Request Body (JSON):**
+`json
+{
+  "tenantId": "{{tenant_id}}",
+  "categoryId": "{{category_id}}",
+  "name": "Truffle & Wild Mushroom Pizza",
+  "description": "Porcini mushrooms, fontina cheese, black truffle oil",
+  "basePrice": 320,
+  "isAvailable": true,
+  "variantIds": ["{{variant_id}}"]
+}
+``r
+
+### 6.3b Legacy Product Endpoint (Alias)
 * **Method:** `POST`
 * **URL:** `{{base_url}}/products`
 * **Auth:** Bearer `{{manager_token}}`
@@ -485,31 +505,56 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 * **URL:** `{{base_url}}/menu/rag-catalog/{{tenant_id}}`
 * **Auth:** Public / n8n Cloud
 
----
+### 6.7 Upload PDF/Image Menu for AI Vector Embedding
+* **Method:** `POST`
+* **URL:** `{{base_url}}/menu/upload-file`
+* **Auth:** Bearer `{{owner_token}}`, `{{manager_token}}`, or `{{super_admin_token}}`
+* **Headers:** `Content-Type: multipart/form-data`
+* **Body Form Data:**
+  - `tenantId` (text): `{{tenant_id}}`
+  - `file` (file): Select PDF document or image file (PNG, JPG, WEBP)
 
-## 🪑 7. Dining Tables & QR Token Resolution
-
-### 7.1 Resolve QR Token to Dining Table (Public Scan)
-* **Method:** `GET`
-* **URL:** `{{base_url}}/tables/qr/{{qr_code_token}}`
-* **Auth:** Public
-
-**Response (200 OK):**
+**Response (201 Created):**
 ```json
 {
   "success": true,
+  "message": "Menu file uploaded, parsed, cached, and auto-embedded into Vector DB successfully",
   "data": {
-    "id": "6a6b3e8447dedf5d12fef0c0",
-    "branchId": "6a6b3e8447dedf5d12fef0c4",
-    "number": 10,
-    "capacity": 6,
-    "status": "AVAILABLE",
-    "qrCodeToken": "qr_8f9e2a1c4b7d5f6a9e2c1b"
+    "fileUrl": "https://res.cloudinary.com/demo/image/upload/v1234567/SaaS_Restaurants/6a6b3e8447dedf5d12fef0c5/menus/sample_menu.pdf",
+    "importResult": {
+      "categoriesCount": 1,
+      "productsCount": 1,
+      "variantsCount": 0,
+      "vectorsIngested": 1
+    },
+    "vectorsIngested": 1
   }
 }
 ```
 
-### 7.2 Create Store Table & Generate QR Token
+---
+
+
+## 🪑 7. Dining Tables & QR Token Resolution
+
+### 7.1 Scan QR Token & Redirect (Public Customer Scan)
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/scan/{{qr_code_token}}`
+* **Auth:** Public
+* **Behavior:** Decodes JWT token, opens 90-min Redis table session, updates table status to `OCCUPIED`, and issuing a `302 Redirect` to the restaurant's configured Telegram Bot (`https://t.me/resturanchatbot?start=t_...`) or Web Chatbot.
+
+### 7.2 Resolve QR Token (Raw Data JSON)
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/qr/{{qr_code_token}}`
+* **Auth:** Public
+
+### 7.3 Download QR Code PNG Image
+* **Method:** `GET`
+* **URL:** `{{base_url}}/tables/{{table_id}}/qr-image`
+* **Auth:** Bearer `{{manager_token}}` or `{{cashier_token}}`
+* **Response:** High-resolution `image/png` binary stream for table printing.
+
+### 7.4 Create Store Table & Generate QR Token
 * **Method:** `POST`
 * **URL:** `{{base_url}}/tables`
 * **Auth:** Bearer `{{manager_token}}`
@@ -520,12 +565,11 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
 {
   "branchId": "{{branch_id}}",
   "number": 10,
-  "capacity": 6,
-  "status": "AVAILABLE"
+  "capacity": 6
 }
 ```
 
-### 7.3 Update Table Status
+### 7.5 Update Table Status
 * **Method:** `PUT`
 * **URL:** `{{base_url}}/tables/{{table_id}}`
 * **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
@@ -629,6 +673,15 @@ Super Admin accounts exist at the global ecosystem scope and manage tenant onboa
   }
 }
 ```
+
+### 8.4 List Active / Historic POS Orders
+* **Method:** `GET`
+* **URL:** `{{base_url}}/orders?tenantId={{tenant_id}}&branchId={{branch_id}}`
+* **Auth:** Bearer `{{cashier_token}}` or `{{manager_token}}`
+
+**Query Parameters:**
+- `tenantId` (required) — Target tenant ObjectId
+- `branchId` (optional) — Filter orders by branch ObjectId (validated via `objectIdSchema`)
 
 ---
 
@@ -972,21 +1025,19 @@ curl -X POST http://localhost:3000/api/v1/tables \
 **Request Body (JSON):**
 ```json
 {
-  "tenantId": "{{tenant_id}}",
   "channel": "EMAIL",
   "recipient": "guest@example.com",
   "subject": "Order Ready for Pickup",
   "message": "Your order #12345 is ready to collect!",
   "branchId": "{{branch_id}}",
-  "tableNumber": 10,
-  "actionMakerId": "{{employee_id}}"
+  "tableNumber": 10
 }
 ```
 
 **Phase 9 Enhancements:**
 - **branchId** — Which branch sent this notification
 - **tableNumber** — Which table (if applicable)
-- **actionMakerId** — Which staff member took action
+- *(Note: `tenantId` and `actionMakerId` are automatically injected server-side from JWT context)*
 - Automatically logged to audit trail
 - Cross-tenant isolation guaranteed
 
@@ -1093,6 +1144,75 @@ Body: { "tenantId": "...", "amount": 2499 }
 | `/employees` | POST/PUT | Body tenantId required |
 | `/reservations` | POST/PATCH/DELETE | Body tenantId required (NEW) |
 | `/notifications/dispatch` | POST | Body tenantId required |
+
+---
+
+## 🤖 16. Chat Sessions — Table Binding (n8n Telegram Integration)
+
+Long-lived Telegram `chatId` ↔ table/tenant association. Distinct from the short-lived
+QR-scan bootstrap endpoints (`/resolve`, `/by-channel`, `/close`) — this binding survives
+the whole dining visit (30-day TTL in Upstash Redis) and is keyed directly by `chatId`,
+since that's all the n8n workflow has on every incoming Telegram update.
+
+### 16.1 Bind Telegram chatId to Table (Public, Bot-Trusted)
+
+* **Method:** `POST`
+* **URL:** `{{base_url}}/chat-sessions/save-table`
+* **Auth:** Public (no authentication required)
+* **Headers:** `Content-Type: application/json`
+
+**Request Body (JSON):**
+```json
+{
+  "chatId": "987654321",
+  "tableId": "{{table_id}}",
+  "tenantId": "{{tenant_id}}"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "{{tenant_id}}",
+    "branchId": "{{branch_id}}",
+    "tableId": "{{table_id}}",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+> `tenantId` is optional — if omitted, it's resolved by looking up the table directly.
+
+### 16.2 Get Table Context for chatId (Public, Bot-Trusted)
+
+* **Method:** `GET`
+* **URL:** `{{base_url}}/chat-sessions/context/987654321`
+* **Auth:** Public (no authentication required)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "{{tenant_id}}",
+    "branchId": "{{branch_id}}",
+    "tableId": "{{table_id}}",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+**Response (404 — no binding for this chatId):**
+```json
+{
+  "success": false,
+  "message": "No table context bound for this chat"
+}
+```
 
 ---
 

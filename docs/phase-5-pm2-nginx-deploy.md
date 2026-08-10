@@ -1,5 +1,10 @@
 # Phase 5 — PM2, Nginx & Deploy Tooling (Staging)
 
+> ⚠️ **Superseded Document**  
+> PM2 and Nginx deployment were replaced in Phase 10 with Vercel Serverless and Upstash QStash push queues. Retained for historical reference only. See `docs/phase-10-qstash-qr-session-pm2-removal.md`.
+
+---
+
 **Prerequisite:** Phase 4 complete (all workers and n8n running locally).
 **Reference:** see `00-project-overview.md` Section 2 for the full PM2 process layout.
 

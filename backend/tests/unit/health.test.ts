@@ -22,7 +22,7 @@ describe('HealthService Unit Tests', () => {
     expect(typeof result.uptimeSeconds).toBe('number');
 
     // Each service must have a 'status' field of 'ok' or 'degraded'
-    const requiredServices = ['mongodb', 'redis', 'rabbitmq', 'firebase'];
+    const requiredServices = ['mongodb', 'redis', 'qstash', 'firebase'];
     for (const svc of requiredServices) {
       const entry = result.services[svc];
       expect(entry, `services.${svc} must be defined`).toBeDefined();

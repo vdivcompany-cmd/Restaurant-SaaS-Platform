@@ -1,3 +1,5 @@
+> **⚠️ Superseded:** This document describes the original PM2/Nginx/Hostinger VPS architecture. The project migrated to Vercel Serverless in Phase 7, and PM2 was fully removed in Phase 10. See `docs/00-project-overview.md` and `docs/phase-10-qstash-qr-session-pm2-removal.md` for the current architecture.
+
 # Restaurant SaaS Platform — Full Architecture (Redis, RabbitMQ, Firebase Included From Day One)
 
 Multi-tenant restaurant management SaaS for the Egyptian market. Built by a small team,

@@ -21,6 +21,14 @@ export class UserRepository {
     return tenantQuery.create(UserModel, tenantId as string, data);
   }
 
+  public static async findByEmailAcrossTenants(email: string): Promise<IUser | null> {
+    return UserModel.findOne({ email: email.toLowerCase() });
+  }
+
+  public static async findByIdGlobal(id: string): Promise<IUser | null> {
+    return UserModel.findById(id);
+  }
+
   public static async save(user: IUser): Promise<IUser> {
     return user.save();
   }

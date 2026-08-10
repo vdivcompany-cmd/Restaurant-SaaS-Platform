@@ -12,7 +12,7 @@ All health probes operate synchronously with zero database locking, allowing ext
 | `GET` | `/` | Public | Welcome operational root displaying server identification and status. |
 | `GET` | `/health` | Public | Liveness probe returning process status, uptime, and timestamp. |
 | `GET` | `/live` | Public | Liveness probe alias for container/orchestration checks. |
-| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, CloudAMQP RabbitMQ, and Firebase Admin SDK. |
+| `GET` | `/ready` | Public | Readiness probe checking live connectivity to MongoDB Atlas, Upstash Redis, Upstash QStash, and Firebase Admin SDK. |
 
 **Example Response (`GET /ready` - 200 OK):**
 ```json
@@ -21,7 +21,7 @@ All health probes operate synchronously with zero database locking, allowing ext
   "services": {
     "mongodb": { "status": "ok" },
     "redis": { "status": "ok", "latencyMs": 12 },
-    "rabbitmq": { "status": "ok" },
+    "qstash": { "status": "ok" },
     "firebase": { "status": "ok" }
   },
   "timestamp": "2026-07-31T18:15:00.000Z"
@@ -35,10 +35,10 @@ These endpoints are engineered explicitly for seamless integration with external
 
 | Method | Endpoint | Auth Required | Purpose & n8n Node Behavior |
 |---|---|---|---|
-| `GET` | `/api/v1/restaurants/:tenantId/ai-status` | Public / n8n Cloud | **Node #1 in n8n Chatbot Workflow:** Verifies if kitchen is `isOpen` and `isChatbotActive`. If false, n8n aborts LLM inference immediately and emits `offlineReply`. |
+| `GET` | `/api/v1/tenants/:tenantId/ai-status` | Public / n8n Cloud | **Node #1 in n8n Chatbot Workflow:** Verifies if kitchen is `isOpen` and `isChatbotActive`. If false, n8n aborts LLM inference immediately and emits `offlineReply`. |
 | `GET` | `/api/v1/menu/rag-catalog/:tenantId` | Public / n8n Cloud | **Upstash Vector Ingestion Feed:** Exports active menu items in clean textual string summaries (`ragItems[*].text`) alongside precise pricing metadata. |
 
-**Example Response (`GET /api/v1/restaurants/6a6caa2fc2f7b5caa316ba3b/ai-status`):**
+**Example Response (`GET /api/v1/tenants/6a6caa2fc2f7b5caa316ba3b/ai-status`):**
 ```json
 {
   "success": true,
@@ -58,7 +58,7 @@ These endpoints are engineered explicitly for seamless integration with external
 ---
 
 ## 🔑 Authentication Module (`/api/v1/auth`)
-Handles user onboarding, JWT access token issuance, and secure refresh token rotation (single-session per user per Rule #2).
+Handles user onboarding, JWT access token issuance, secure refresh token rotation, and OTP password recovery.
 
 | Method | Endpoint | Auth & RBAC | Description |
 |---|---|---|---|
@@ -67,52 +67,33 @@ Handles user onboarding, JWT access token issuance, and secure refresh token rot
 | `POST` | `/api/v1/auth/register/staff` | Auth (`owner`, `manager`) | Invite staff members (manager, cashier, kitchen) to tenant. |
 | `POST` | `/api/v1/auth/login` | Public | Authenticate user via email/password and return token pair. |
 | `POST` | `/api/v1/auth/refresh` | Public | Rotate refresh token and invalidate previous session token. |
+| `POST` | `/api/v1/auth/forgot-password` | Public | Send 6-digit verification code OTP via Resend email worker (10-min TTL). |
+| `POST` | `/api/v1/auth/verify-otp` | Public | Validate 6-digit OTP code and receive a short-lived reset token (15-min TTL). |
+| `POST` | `/api/v1/auth/reset-password` | Public | Reset password using valid reset token and revoke active sessions. |
 | `POST` | `/api/v1/auth/logout` | Auth | Invalidate current refresh and access tokens immediately. |
-
-**Example Login Request (`POST /api/v1/auth/login`):**
-```json
-{
-  "email": "owner@burgerhouse.com",
-  "password": "SecurePassword123!"
-}
-```
-**Example Login Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": "6a6b48a90192837465012345",
-      "email": "owner@burgerhouse.com",
-      "role": "owner",
-      "tenantId": "6a6b3e8447dedf5d12fef0c5"
-    },
-    "accessToken": "eyJhbGciOi...",
-    "refreshToken": "eyJhbGciOi..."
-  }
-}
-```
 
 ---
 
-## 🏬 Tenant & Restaurant Management (`/api/v1/*`)
-All domain queries enforce strict zero-bleed data isolation via our `tenantQuery` Mongoose wrapping engine.
+## 🏬 Tenant & Restaurant Profile Management (`/api/v1/tenants`)
+All domain queries enforce strict zero-bleed data isolation via our `tenantQuery` Mongoose wrapping engine. The `Tenant` model holds both SaaS metadata and restaurant profile fields.
 
 | Method | Endpoint | Auth & RBAC | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/tenants` | Public | Create a new tenant trial account (slug, brand name, currency). |
+| `POST` | `/api/v1/tenants` | Auth (`super_admin`) | Create a new tenant trial account (slug, brand name, currency). |
 | `GET` | `/api/v1/tenants/me` | Auth (`owner`, `manager`) | Retrieve current tenant workspace configurations. |
-| `GET` | `/api/v1/restaurants/profile` | Auth (`owner`, `manager`) | Retrieve dining restaurant profile and operational flags. |
-| `PUT` | `/api/v1/restaurants/profile` | Auth (`owner`, `manager`) | Update profile, kitchen status (`isOpen`), and AI toggles (`isChatbotActive`). |
+| `GET` | `/api/v1/tenants/profile` | Auth (`owner`, `manager`) | Retrieve dining restaurant profile, `qrRedirectUrl`, and operational flags. |
+| `PUT` / `POST` | `/api/v1/tenants/profile` | Auth (`owner`, `manager`) | Update profile, kitchen status (`isOpen`), `qrRedirectUrl`, and AI toggles (`isChatbotActive`). |
+| `GET` | `/api/v1/tenants/:tenantId/branches/:branchId/info` | **Public (Unprotected)** | Retrieve concise summary info (brand, location, contact, operating state) for a tenant & branch. |
 
-**Example Manager Override Request (`PUT /api/v1/restaurants/profile`):**
+**Example Profile Update Request (`PUT /api/v1/tenants/profile`):**
 ```json
 {
   "brandName": "Gourmet Burger House",
+  "qrRedirectUrl": "https://t.me/resturanchatbot",
   "isOpen": true,
-  "isChatbotActive": false,
+  "isChatbotActive": true,
   "chatbotSettings": {
-    "offlineMessage": "Kitchen is in peak rush hour! Our AI assistant is taking a 30-minute break. Please order from our cashier directly.",
+    "offlineMessage": "Kitchen is in peak rush hour! Our AI assistant is taking a 30-minute break.",
     "aiModelPreference": "gpt-4o"
   }
 }
@@ -120,17 +101,20 @@ All domain queries enforce strict zero-bleed data isolation via our `tenantQuery
 
 ---
 
-## 🍽️ POS Menu & Kitchen Operations (`/api/v1/*`)
+## 🍽️ POS Menu, Tables & Kitchen Operations (`/api/v1/*`)
 
 | Module & Route | Allowed Operations & RBAC | Description & Caching Mechanics |
 |---|---|---|
 | **Branches (`/api/v1/branches`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Storefront management with compound index (`tenantId` + `branchId`). |
 | **Categories (`/api/v1/categories`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Menu organization sorted by `displayOrder`. |
-| **Products (`/api/v1/products`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Dish items linked with pricing and customization variants. |
 | **Menu Catalog (`/api/v1/menu/catalog`)**| `GET` (**Public Guest / QR Scanning**) | Returns full organized menu; automatically cached via Upstash Redis. |
-| **Bulk Import (`/api/v1/menu/bulk-import`)**| `POST` (`super_admin`, `owner`, `manager`) | Atomic transactional insertion of categories, dishes, and variants in one request; invalidates menu cache instantly. |
-| **Tables & QR (`/api/v1/tables`)** | `POST`, `GET`, `DELETE` (`owner`, `manager`); `GET /qr/:token` is Public | Dining tables paired with unforgeable SHA cryptographic QR tokens. |
-| **POS Orders (`/api/v1/orders`)** | `POST /`, `PATCH /:id`, `POST /offline-sync` | POS checkout ticket lifecycle and offline batch synchronization recovery. |
+| **Menu Products (`/api/v1/menu/products`)** | `POST`, `GET`, `PUT`, `DELETE` (`owner`, `manager`) | Single-product CRUD — the only surface for creating/editing individual dishes. |
+| **Bulk Import (`/api/v1/menu/bulk-import`)**| `POST` (`super_admin`, `owner`, `manager`) | Atomic transactional insertion of categories, dishes, and variants in one request. |
+| **Unified Menu Upload (`/api/v1/menu/upload`)**| `POST` (`super_admin`, `owner`, `manager`) | Upload a JSON catalog (sync) or file (CSV/PDF/DOCX/image, async QStash job → 202). `branchId` optional. |
+| **Upload Status Poll (`/api/v1/menu/uploads/:id`)**| `GET` (`super_admin`, `owner`, `manager`) | Poll the status of a file-based upload job (`queued`, `processing`, `completed`, `failed`). |
+| **Tables & QR (`/api/v1/tables`)** | `POST`, `GET`, `DELETE` (`owner`, `manager`); `GET /qr/:token`, `GET /scan/:token` are Public | Dining tables paired with SHA JWT QR tokens, session creation, and 302 auto-redirects to Telegram bot / Web chatbot. |
+| **QR PNG Image (`/api/v1/tables/:id/qr-image`)** | `GET` (`owner`, `manager`, `cashier`) | Generates downloadable high-resolution PNG QR image on-the-fly. |
+| **POS Orders (`/api/v1/orders`)** | `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `POST /offline-sync` | POS checkout ticket lifecycle, branch-filtered order retrieval, and offline batch synchronization recovery. `branchId` query param is validated via `objectIdSchema`. |
 
 **Example POS Order Creation Request (`POST /api/v1/orders`):**
 ```json
@@ -197,29 +181,108 @@ Mitigates database CPU contention (noisy-neighbor bottlenecks) caused by heavy o
 
 ---
 
-## ?? Phase 9 � Correctness Fixes & Tenant-Context Rework
+## ?? Phase 9 � Correctness Fixes & Tenant-Context Rework
 
 ### BREAKING CHANGE: Tenant Context Now in Request Body
 All mutating endpoints (POST, PUT, PATCH, DELETE) now require tenant context in JSON body as \	enantId\ or \	enantSlug\, not X-Tenant-Id headers. GET requests continue to use query params (?tenantId=).
 
-### 9.1 � Subscriptions & Billing (super_admin Only)
+### 9.1 � Subscriptions & Billing (super_admin Only)
 - PATCH /api/v1/subscriptions: Changed to require super_admin role; target tenantId in body
 - POST /api/v1/billing: Changed to require super_admin role; target tenantId in body
 
-### 9.5 � Reservations Module (/api/v1/reservations)
+### 9.5 � Reservations Module (/api/v1/reservations)
 - POST /api/v1/reservations: Public endpoint for chatbot table booking
 - GET /api/v1/reservations: List reservations (staff only)
 - PATCH /api/v1/reservations/:id: Update status (staff only)
 - DELETE /api/v1/reservations/:id: Cancel reservation (staff only)
 
-### 9.6 � QR Code Tokens (JWT Signed)
+### 9.6 � QR Code Tokens (JWT Signed)
 - GET /api/v1/tables/qr/:token: Resolve JWT token; verify signature + tenant scope
 
-### 9.7 � Table Order History
+### 9.7 � Table Order History
 - GET /api/v1/tables/:id/history: Per-table order history (last 30 days, staff only)
 
-### 9.9 � Notification Audit Logs
+### 9.9 � Notification Audit Logs
 - POST /api/v1/notifications/dispatch: Send notification; logs branchId, tableNumber, actionMakerId
 - GET /api/v1/notifications: List notification audit trail (staff only)
 
 See full Phase 9 specification at docs/phase-9-implementation-summary.md
+
+---
+
+## 10. Phase 10 - Serverless Queue Migration, QR Session Fraud Prevention & PM2 Removal
+
+### 10.1 Public Self-Service QR Ordering (POST /api/v1/orders/qr)
+- **Method & Route:** POST /api/v1/orders/qr (Public, gated by 	ableSessionId)
+- **Authentication:** Public (no staff auth required)
+- **Description:** Customer places dine-in order after scanning table QR code. Requires 	ableSessionId obtained from GET /api/v1/tables/qr/:token.
+
+### 10.2 QStash Webhook Job Endpoints (POST /api/v1/jobs/*)
+- **Route Prefix:** POST /api/v1/jobs/:jobRoute
+- **Authentication:** Protected by upstash-signature header (qstashVerifyMiddleware)
+- **Available Job Routes:**
+  - POST /api/v1/jobs/emails
+  - POST /api/v1/jobs/telegram
+  - POST /api/v1/jobs/invoices
+  - POST /api/v1/jobs/subscription-checks
+  - POST /api/v1/jobs/payment-retries
+  - POST /api/v1/jobs/backups
+  - POST /api/v1/jobs/firestore-retry
+  - POST /api/v1/jobs/table-history-cleanup
+
+---
+
+## 11. Chat Sessions — Table Binding (n8n Telegram integration)
+
+Long-lived Telegram `chatId` ↔ table/tenant association, separate from the short-lived
+QR-scan bootstrap flow (`/resolve`, `/by-channel`, `/close`). This lets the n8n Telegram
+workflow recover tenant/table context on every incoming message without managing
+`sessionId` UUIDs itself. Stored in Upstash Redis via `cacheService` under
+`table_binding:telegram:{chatId}`, TTL 30 days.
+
+| Method | Endpoint | Auth Required | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/chat-sessions/save-table` | Public (n8n/bot-trusted) | Bind a Telegram `chatId` to a `tableId` once, after a QR scan. `tenantId` optional — resolved from the table if omitted. |
+| `GET` | `/api/v1/chat-sessions/context/:chatId` | Public (n8n/bot-trusted) | Look up the table bound to a `chatId`. Returns 404 if no binding exists. |
+
+**Example Request (`POST /api/v1/chat-sessions/save-table`):**
+```json
+{
+  "chatId": "987654321",
+  "tableId": "6a6b3e8447dedf5d12fef0c0",
+  "tenantId": "6a6caa2fc2f7b5caa316ba3b"
+}
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "branchId": "6a6b3e8447dedf5d12fef0c4",
+    "tableId": "6a6b3e8447dedf5d12fef0c0",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+**Example Response (`GET /api/v1/chat-sessions/context/987654321` - 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": "6a6caa2fc2f7b5caa316ba3b",
+    "branchId": "6a6b3e8447dedf5d12fef0c4",
+    "tableId": "6a6b3e8447dedf5d12fef0c0",
+    "tableNumber": 12,
+    "boundAt": 1735689600000
+  }
+}
+```
+
+**Example Response (404 — no binding):**
+```json
+{ "success": false, "message": "No table context bound for this chat" }
+```

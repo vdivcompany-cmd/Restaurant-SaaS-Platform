@@ -6,12 +6,16 @@ import { TenantRepository } from '../tenants/repository.js';
 import { cacheService } from '../../services/cache/index.js';
 import env from '../../config/env.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { queueService } from '../../services/queue/index.js';
 import type {
   RegisterSuperAdminInput,
   RegisterOwnerInput,
   RegisterStaffInput,
   LoginInput,
   ChangePasswordInput,
+  ForgotPasswordInput,
+  VerifyOtpInput,
+  ResetPasswordInput,
 } from './validation.js';
 import type { AuthUser } from '../../shared/types/express.js';
 
@@ -416,5 +420,123 @@ export class AuthService {
     await UserRepository.save(user);
 
     await this.logout(userId, accessToken);
+  }
+
+  public static async forgotPassword(data: ForgotPasswordInput): Promise<{ message: string }> {
+    const email = data.email.toLowerCase().trim();
+    let tenantId = data.tenantId;
+
+    if (!tenantId && data.tenantSlug) {
+      const tenant = await TenantRepository.findBySlug(data.tenantSlug);
+      if (tenant) tenantId = tenant._id.toString();
+    }
+
+    const user = tenantId
+      ? await UserRepository.findByEmail(tenantId, email)
+      : await UserRepository.findByEmailAcrossTenants(email);
+
+    // Generic success message to prevent user enumeration
+    if (!user || !user.isActive) {
+      return { message: 'If an account exists with this email, a verification code has been sent.' };
+    }
+
+    const resolvedTenantId = user.tenantId ? user.tenantId.toString() : tenantId || 'global';
+
+    // Rate limiting: max 3 OTP requests per hour
+    const rateLimitKey = `otp_rate:${email}`;
+    const attempts = (await cacheService.get<number>(rateLimitKey)) || 0;
+    if (attempts >= 3) {
+      throw new AppError('Too many password reset requests. Please try again in an hour.', 429);
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpKey = `otp:forgot:${email}`;
+
+    // Store OTP in Redis (10 minutes = 600s)
+    await cacheService.set(otpKey, { otp, tenantId: resolvedTenantId, userId: user._id.toString() }, 600);
+
+    // Increment rate limit (3600s)
+    await cacheService.set(rateLimitKey, attempts + 1, 3600);
+
+    // Dispatch email via queue
+    await queueService.enqueue(
+      'q.emails',
+      {
+        to: email,
+        subject: 'Password Reset Verification Code',
+        template: 'OTP_FORGOT_PASSWORD',
+        context: { otp },
+        tenantId: resolvedTenantId,
+      },
+      { tenantId: resolvedTenantId }
+    );
+
+    return { message: 'If an account exists with this email, a verification code has been sent.' };
+  }
+
+  public static async verifyOtp(data: VerifyOtpInput): Promise<{ resetToken: string }> {
+    const email = data.email.toLowerCase().trim();
+    const otpKey = `otp:forgot:${email}`;
+
+    const storedData = await cacheService.get<{ otp: string; tenantId: string; userId: string }>(otpKey);
+    if (!storedData || storedData.otp !== data.otp.trim()) {
+      throw new AppError('Invalid or expired verification code', 400);
+    }
+
+    // Clear used OTP
+    await cacheService.del(otpKey);
+
+    // Generate reset token (15 minutes)
+    const resetToken = jwt.sign(
+      { userId: storedData.userId, tenantId: storedData.tenantId, email, type: 'password_reset' },
+      env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    await cacheService.set(`reset_token:${resetToken}`, { userId: storedData.userId }, 900);
+
+    return { resetToken };
+  }
+
+  public static async resetPassword(data: ResetPasswordInput): Promise<{ message: string }> {
+    try {
+      const decoded = jwt.verify(data.resetToken, env.JWT_SECRET) as {
+        userId: string;
+        tenantId?: string;
+        email: string;
+        type: string;
+      };
+
+      if (decoded.type !== 'password_reset') {
+        throw new AppError('Invalid reset token', 400);
+      }
+
+      const storedToken = await cacheService.get<{ userId: string }>(`reset_token:${data.resetToken}`);
+      if (!storedToken) {
+        throw new AppError('Reset token has expired or already been used', 400);
+      }
+
+      const user = decoded.tenantId
+        ? await UserRepository.findById(decoded.tenantId, decoded.userId)
+        : await UserRepository.findByIdGlobal(decoded.userId);
+
+      if (!user || !user.isActive) {
+        throw new AppError('User account not found or deactivated', 404);
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      user.passwordHash = await bcrypt.hash(data.newPassword, salt);
+      await UserRepository.save(user);
+
+      // Invalidate reset token and sessions
+      await cacheService.del(`reset_token:${data.resetToken}`);
+      await cacheService.del(this.getRefreshCacheKey(user._id.toString()));
+
+      return { message: 'Password reset successfully. You can now log in with your new password.' };
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      throw new AppError('Invalid or expired reset token', 400);
+    }
   }
 }

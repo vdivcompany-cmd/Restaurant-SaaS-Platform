@@ -2,16 +2,18 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { TenantModel } from '../../src/modules/tenants/model.js';
+import { TenantService } from '../../src/modules/tenants/service.js';
 
 const app = createApp();
 
 describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
   it('should register super admin, owner, and staff using secured endpoints', async () => {
+    const ts = Date.now();
     // 1. Register a Super Admin (public)
     const saRes = await request(app)
       .post('/api/v1/auth/register/super-admin')
       .send({
-        email: 'admin@auth-test.com',
+        email: `admin-${ts}@auth-test.com`,
         password: 'password123',
       });
 
@@ -20,10 +22,10 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
     const superAdminToken = saRes.body.data.tokens.accessToken;
 
     // Create a tenant
-    const tenant = await TenantModel.create({
+    const tenant = await TenantService.createTenant({
       name: 'Auth Test Restaurant',
-      slug: 'auth-test',
-      contact: { phone: '123456', email: 'test@auth.com' },
+      slug: `auth-test-${ts}`,
+      contact: { phone: '123456', email: `test-${ts}@auth.com` },
     });
 
     // 2. Register Owner (Super Admin token required)
@@ -32,7 +34,7 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
       .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         tenantId: tenant._id.toString(),
-        email: 'owner@auth.com',
+        email: `owner-${ts}@auth.com`,
         password: 'password123',
       });
 
@@ -45,7 +47,7 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
       .post('/api/v1/auth/register/staff')
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({
-        email: 'manager@auth.com',
+        email: `manager-${ts}@auth.com`,
         password: 'password123',
         role: 'manager',
       });
@@ -90,18 +92,19 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
   });
 
   it('should login user and return new tokens', async () => {
+    const ts = Date.now();
     const saRes = await request(app)
       .post('/api/v1/auth/register/super-admin')
       .send({
-        email: 'sa-login@test.com',
+        email: `sa-login-${ts}@test.com`,
         password: 'password123',
       });
     const superAdminToken = saRes.body.data.tokens.accessToken;
 
-    const tenant = await TenantModel.create({
+    const tenant = await TenantService.createTenant({
       name: 'Login Test Restaurant',
-      slug: 'login-test',
-      contact: { phone: '123456', email: 'test@login.com' },
+      slug: `login-test-${ts}`,
+      contact: { phone: '123456', email: `test-${ts}@login.com` },
     });
 
     await request(app)
@@ -109,15 +112,15 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
       .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         tenantId: tenant._id.toString(),
-        email: 'owner@login.com',
+        email: `owner-${ts}@login.com`,
         password: 'securepassword123',
       });
 
     const loginRes = await request(app)
       .post('/api/v1/auth/login')
       .send({
-        tenantSlug: 'login-test',
-        email: 'owner@login.com',
+        tenantSlug: `login-test-${ts}`,
+        email: `owner-${ts}@login.com`,
         password: 'securepassword123',
       });
 
@@ -127,18 +130,19 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
   });
 
   it('should handle token refresh rotation, logout, and IMMEDIATELY revoke access token', async () => {
+    const ts = Date.now();
     const saRes = await request(app)
       .post('/api/v1/auth/register/super-admin')
       .send({
-        email: 'sa-refresh@test.com',
+        email: `sa-refresh-${ts}@test.com`,
         password: 'password123',
       });
     const superAdminToken = saRes.body.data.tokens.accessToken;
 
-    const tenant = await TenantModel.create({
+    const tenant = await TenantService.createTenant({
       name: 'Refresh Test Restaurant',
-      slug: 'refresh-test',
-      contact: { phone: '123456', email: 'test@refresh.com' },
+      slug: `refresh-test-${ts}`,
+      contact: { phone: '123456', email: `test-${ts}@refresh.com` },
     });
 
     const regRes = await request(app)
@@ -146,7 +150,7 @@ describe('Auth API (Register, Login, Refresh, Logout, Revocation)', () => {
       .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         tenantId: tenant._id.toString(),
-        email: 'user@refresh.com',
+        email: `user-${ts}@refresh.com`,
         password: 'password123',
       });
 

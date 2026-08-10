@@ -19,7 +19,8 @@ function scopeFilter(tenantId: string | undefined, filter: any = {}): any {
   if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
     throw new TenantScopeError('TenantId scope missing or invalid. Query blocked for security.');
   }
-  return { ...(filter || {}), tenantId };
+  const tenantIdVal = Types.ObjectId.isValid(tenantId) ? new Types.ObjectId(tenantId) : tenantId;
+  return { ...(filter || {}), tenantId: tenantIdVal };
 }
 
 export const tenantQuery = {
@@ -127,9 +128,7 @@ export const tenantQuery = {
     if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
       throw new TenantScopeError('TenantId scope missing for aggregation.');
     }
-    const matchVal = Types.ObjectId.isValid(tenantId)
-      ? { $in: [tenantId, new Types.ObjectId(tenantId)] }
-      : tenantId;
+    const matchVal = Types.ObjectId.isValid(tenantId) ? new Types.ObjectId(tenantId) : tenantId;
     const tenantMatch: PipelineStage = { $match: { tenantId: matchVal } };
     return model.aggregate<T>([tenantMatch, ...pipeline]);
   },
@@ -137,10 +136,16 @@ export const tenantQuery = {
   create<T>(
     model: Model<T>,
     tenantId: string | undefined,
-    docData: any
+    docData: any,
+    options?: { session?: import('mongoose').ClientSession }
   ) {
     if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '') {
       throw new TenantScopeError('TenantId scope missing for document creation.');
+    }
+    if (options?.session) {
+      return model
+        .create([{ ...docData, tenantId }], { session: options.session })
+        .then(([doc]) => doc as any);
     }
     return model.create({ ...docData, tenantId });
   }

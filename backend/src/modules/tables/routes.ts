@@ -7,6 +7,8 @@ import {
   listTablesHandler,
   getTableHandler,
   resolveQrTableHandler,
+  scanQrTableHandler,
+  getQrImageHandler,
   updateTableHandler,
   deleteTableHandler,
   getTableOrderHistoryHandler,
@@ -15,9 +17,15 @@ import {
 const router = Router();
 
 router.get('/qr/:token', resolveQrTableHandler);
+<<<<<<< HEAD
 router.get('/:id/history', optionalAuthMiddleware, tenantMiddleware, getTableOrderHistoryHandler);
+=======
+router.get('/scan/:token', scanQrTableHandler);
+>>>>>>> 611dad0087a7a9ac172414630c8bdbee57b4eb1b
 
 router.use(authMiddleware, tenantMiddleware);
+
+router.get('/:id/qr-image', rbacMiddleware(['owner', 'manager', 'cashier']), getQrImageHandler);
 
 router.route('/')
   .post(rbacMiddleware(['owner', 'manager']), createTableHandler)

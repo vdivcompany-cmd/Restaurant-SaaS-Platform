@@ -6,9 +6,6 @@ import cookieParser from 'cookie-parser';
 import pinoHttp from 'pino-http';
 
 import env from './config/env.js';
-import { connectDatabase } from './config/database.js';
-import { getRedisClient } from './config/redis.js';
-import { initFirebase } from './config/firebase.js';
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimit.middleware.js';
@@ -19,13 +16,13 @@ import authRoutes from './modules/auth/routes.js';
 import tenantRoutes from './modules/tenants/routes.js';
 import subscriptionRoutes from './modules/subscriptions/routes.js';
 import billingRoutes from './modules/billing/routes.js';
-import restaurantRoutes from './modules/restaurants/routes.js';
 import branchRoutes from './modules/branches/routes.js';
 import categoryRoutes from './modules/categories/routes.js';
 import variantRoutes from './modules/variants/routes.js';
-import productRoutes from './modules/products/routes.js';
 import menuRoutes from './modules/menu/routes.js';
 import tableRoutes from './modules/tables/routes.js';
+import chatSessionRoutes from './modules/chat-sessions/routes.js';
+import vectorRoutes from './modules/vector/routes.js';
 import orderRoutes from './modules/orders/routes.js';
 import couponRoutes from './modules/coupons/routes.js';
 import customerRoutes from './modules/customers/routes.js';
@@ -34,6 +31,7 @@ import feedbackRoutes from './modules/feedback/routes.js';
 import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import reservationRoutes from './modules/reservations/routes.js';
+import jobsRoutes from './jobs/index.js';
 
 export function createApp(): Express {
   const app = express();
@@ -47,7 +45,7 @@ export function createApp(): Express {
   app.use(
     cors({
       origin: env.NODE_ENV === 'production'
-        ? (process.env['CORS_ORIGIN'] ?? '').split(',').map((o: string) => o.trim()).filter(Boolean)
+        ? env.CORS_ORIGIN.split(',').map((o: string) => o.trim()).filter(Boolean)
         : true,
       credentials: true,
     }),
@@ -66,6 +64,14 @@ export function createApp(): Express {
 
   // ─── Parsing ──────────────────────────────────────────────────────────────
   app.use(compression());
+  app.use(
+    '/api/v1/jobs',
+    express.raw({ type: 'application/json', limit: '2mb' }),
+    (req, _res, next) => {
+      (req as any).rawBody = req.body;
+      next();
+    }
+  );
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
@@ -110,13 +116,13 @@ export function createApp(): Express {
   app.use('/api/v1/tenants', tenantRoutes);
   app.use('/api/v1/subscriptions', subscriptionRoutes);
   app.use('/api/v1/billing', billingRoutes);
-  app.use('/api/v1/restaurants', restaurantRoutes);
   app.use('/api/v1/branches', branchRoutes);
   app.use('/api/v1/categories', categoryRoutes);
   app.use('/api/v1/variants', variantRoutes);
-  app.use('/api/v1/products', productRoutes);
   app.use('/api/v1/menu', menuRoutes);
   app.use('/api/v1/tables', tableRoutes);
+  app.use('/api/v1/chat-sessions', chatSessionRoutes);
+  app.use('/api/v1/vector', vectorRoutes);
   app.use('/api/v1/orders', orderRoutes);
   app.use('/api/v1/coupons', couponRoutes);
   app.use('/api/v1/customers', customerRoutes);
@@ -125,6 +131,7 @@ export function createApp(): Express {
   app.use('/api/v1/reports', reportRoutes);
   app.use('/api/v1/notifications', notificationRoutes);
   app.use('/api/v1/reservations', reservationRoutes);
+  app.use('/api/v1/jobs', jobsRoutes);
 
   // ─── 404 Handler ──────────────────────────────────────────────────────────
   app.use((_req, res) => {
@@ -137,24 +144,3 @@ export function createApp(): Express {
   return app;
 }
 
-// ─── Vercel Serverless Default Export Handler ───────────────────────────────
-let serverlessAppInstance: Express | null = null;
-let isServerlessInitialized = false;
-
-export default async function serverlessHandler(req: express.Request, res: express.Response): Promise<void> {
-  if (!isServerlessInitialized) {
-    try {
-      await connectDatabase();
-      getRedisClient();
-      try { initFirebase(); } catch (_fbErr) { /* ignore in serverless without credentials */ }
-      isServerlessInitialized = true;
-      logger.info('Vercel serverless application runtime initialized MongoDB & Redis.');
-    } catch (error) {
-      logger.error({ error }, 'Error connecting to cloud services inside Vercel serverless handler.');
-    }
-  }
-  if (!serverlessAppInstance) {
-    serverlessAppInstance = createApp();
-  }
-  serverlessAppInstance(req, res);
-}

@@ -1,14 +1,46 @@
 import type { Request, Response, NextFunction } from 'express';
 import { OrderService } from './service.js';
-import { createOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
+import { createOrderSchema, createCustomerOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
+import { objectIdSchema } from '../../shared/validation/index.js';
 
 const service = new OrderService();
 
 export async function createOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? '';
-    const validated = createOrderSchema.parse(req.body);
+    const normalizedBody = req.body?.channel === 'QR' ? { ...req.body, channel: 'DINE_IN' } : req.body;
+    const validated = createOrderSchema.parse(normalizedBody);
+    const isStaffInitiated = Boolean(req.user);
+    const order = await service.createOrder(tenantId, validated, { skipSessionCheck: isStaffInitiated });
+    res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createQrOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    // Force DINE_IN before parse so refine validates tableId against the final channel value
+    const validated = createOrderSchema.parse({ ...req.body, channel: 'DINE_IN' });
+    // Unauthenticated public customer order — session check MUST run (skipSessionCheck defaults to false)
     const order = await service.createOrder(tenantId, validated);
+    res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Public self-service order handler for takeaway / delivery customers.
+ * Customer is identified by name + phone (no JWT required).
+ * Channel is restricted to TAKEAWAY or DELIVERY.
+ */
+export async function createCustomerOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const validated = createCustomerOrderSchema.parse(req.body);
+    const order = await service.createCustomerOrder(tenantId, validated);
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);
@@ -29,7 +61,8 @@ export async function syncOfflineOrdersHandler(req: Request, res: Response, next
 export async function listOrdersHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tenantId = req.tenantId ?? '';
-    const branchId = typeof req.query['branchId'] === 'string' ? req.query['branchId'] : undefined;
+    const rawBranchId = req.query['branchId'];
+    const branchId = typeof rawBranchId === 'string' && rawBranchId ? objectIdSchema.parse(rawBranchId) : undefined;
     const orders = await service.listOrders(tenantId, branchId);
     res.status(200).json({ success: true, data: orders });
   } catch (err) {

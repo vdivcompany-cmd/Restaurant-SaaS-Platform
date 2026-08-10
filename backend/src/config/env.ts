@@ -30,10 +30,11 @@ const env = cleanEnv(process.env, {
   UPSTASH_REDIS_REST_URL: url(),
   UPSTASH_REDIS_REST_TOKEN: str(),
 
-  // ─── RabbitMQ (CloudAMQP) ─────────────────────────────────────────────────
-  // CloudAMQP provides an amqps:// URL with TLS. Copy it from your CloudAMQP
-  // dashboard → instance → AMQP URL.
-  RABBITMQ_URL: url(),
+  // ─── QStash (Upstash serverless queue) ───────────────────────────────────
+  QSTASH_TOKEN: str({ default: '' }),
+  QSTASH_CURRENT_SIGNING_KEY: str({ default: '' }),
+  QSTASH_NEXT_SIGNING_KEY: str({ default: '' }),
+  PUBLIC_API_BASE_URL: url({ default: 'http://localhost:3000' }),
 
   // ─── Firebase ─────────────────────────────────────────────────────────────
   // Provide EITHER a file path OR a base64-encoded JSON string.
@@ -54,6 +55,23 @@ const env = cleanEnv(process.env, {
   CLOUDINARY_CLOUD_NAME: str({ default: '' }),
   CLOUDINARY_API_KEY: str({ default: '' }),
   CLOUDINARY_API_SECRET: str({ default: '' }),
+
+  // ─── Resend Email ─────────────────────────────────────────────────────────
+  RESEND_API_KEY: str({ default: '' }),
+  RESEND_FROM_EMAIL: str({ default: 'Restaurant SaaS <no-reply@saas-restaurant.com>' }),
+
+  // ─── CORS ─────────────────────────────────────────────────────────────────
+  CORS_ORIGIN: str({ default: '' }),
+
+  // ─── Upstash Vector (per-tenant RAG store) ───────────────────────────────
+  UPSTASH_VECTOR_REST_URL: str({ default: '' }),
+  UPSTASH_VECTOR_REST_TOKEN: str({ default: '' }),
+
+  // ─── Nemotron Embedding (NVIDIA NIM free endpoint - 1024 dimensions) ─────
+  NEMOTRON_API_KEY: str({ default: '' }),
+  NEMOTRON_BASE_URL: url({ default: 'https://integrate.api.nvidia.com/v1' }),
+  NEMOTRON_EMBED_MODEL: str({ default: 'nvidia/nv-embedqa-e5-v5' }),
+  NEMOTRON_VISION_MODEL: str({ default: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning' }),
 });
 
 export default env;

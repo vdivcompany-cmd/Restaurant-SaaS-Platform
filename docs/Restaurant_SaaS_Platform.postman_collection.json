@@ -141,6 +141,42 @@
 						},
 						"url": { "raw": "{{base_url}}/auth/change-password", "host": ["{{base_url}}"], "path": ["auth", "change-password"] }
 					}
+				},
+				{
+					"name": "Forgot Password (Send OTP)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"owner@gourmetpizza.eg\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/forgot-password", "host": ["{{base_url}}"], "path": ["auth", "forgot-password"] }
+					}
+				},
+				{
+					"name": "Verify OTP Code",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"owner@gourmetpizza.eg\",\n  \"otp\": \"123456\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/verify-otp", "host": ["{{base_url}}"], "path": ["auth", "verify-otp"] }
+					}
+				},
+				{
+					"name": "Reset Password with Token",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"resetToken\": \"{{reset_token}}\",\n  \"newPassword\": \"NewSecurePassword2026!\"\n}"
+						},
+						"url": { "raw": "{{base_url}}/auth/reset-password", "host": ["{{base_url}}"], "path": ["auth", "reset-password"] }
+					}
 				}
 			]
 		},
@@ -239,7 +275,7 @@
 			]
 		},
 		{
-			"name": "5. Restaurants & AI Gateway",
+			"name": "5. Tenant Profile & AI Gateway",
 			"item": [
 				{
 					"name": "Get Restaurant Profile",
@@ -247,20 +283,20 @@
 						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
 						"method": "GET",
 						"header": [],
-						"url": { "raw": "{{base_url}}/restaurants/profile?tenantId={{tenant_id}}", "host": ["{{base_url}}"], "path": ["restaurants", "profile"], "query": [{ "key": "tenantId", "value": "{{tenant_id}}" }] }
+						"url": { "raw": "{{base_url}}/tenants/profile", "host": ["{{base_url}}"], "path": ["tenants", "profile"] }
 					}
 				},
 				{
-					"name": "Upsert Profile & AI Settings (PHASE 9: tenantId in body)",
+					"name": "Upsert Profile & AI Settings",
 					"request": {
 						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
 						"method": "PUT",
 						"header": [{ "key": "Content-Type", "value": "application/json" }],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"brandName\": \"Gourmet Stone Oven Pizza\",\n  \"cuisineType\": \"Italian & Mediterranean\",\n  \"description\": \"Authentic Neapolitan wood-fired pizza kitchen.\",\n  \"isOpen\": true,\n  \"isChatbotActive\": true,\n  \"chatbotSettings\": {\n    \"offlineMessage\": \"We are currently closed for online orders.\",\n    \"aiModelPreference\": \"gpt-4o\"\n  }\n}"
+							"raw": "{\n  \"brandName\": \"Gourmet Stone Oven Pizza\",\n  \"cuisineType\": \"Italian & Mediterranean\",\n  \"description\": \"Authentic Neapolitan wood-fired pizza kitchen.\",\n  \"qrRedirectUrl\": \"https://t.me/resturanchatbot\",\n  \"isOpen\": true,\n  \"isChatbotActive\": true,\n  \"chatbotSettings\": {\n    \"offlineMessage\": \"We are currently closed for online orders.\",\n    \"aiModelPreference\": \"gpt-4o\"\n  }\n}"
 						},
-						"url": { "raw": "{{base_url}}/restaurants/profile", "host": ["{{base_url}}"], "path": ["restaurants", "profile"] }
+						"url": { "raw": "{{base_url}}/tenants/profile", "host": ["{{base_url}}"], "path": ["tenants", "profile"] }
 					}
 				},
 				{
@@ -268,7 +304,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": { "raw": "{{base_url}}/restaurants/{{tenant_id}}/ai-status", "host": ["{{base_url}}"], "path": ["restaurants", "{{tenant_id}}", "ai-status"] }
+						"url": { "raw": "{{base_url}}/tenants/{{tenant_id}}/ai-status", "host": ["{{base_url}}"], "path": ["tenants", "{{tenant_id}}", "ai-status"] }
 					}
 				}
 			]
@@ -393,7 +429,7 @@
 							"mode": "raw",
 							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"categoryId\": \"{{category_id}}\",\n  \"name\": \"Truffle & Wild Mushroom Pizza\",\n  \"description\": \"Porcini mushrooms, fontina cheese, thyme, and black truffle oil\",\n  \"basePrice\": 320,\n  \"imageUrl\": \"https://res.cloudinary.com/demo/image/upload/sample_pizza.jpg\",\n  \"isAvailable\": true,\n  \"variantIds\": [\"{{variant_id}}\"]\n}"
 						},
-						"url": { "raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"] }
+						"url": { "raw": "{{base_url}}/menu/products", "host": ["{{base_url}}"], "path": ["menu", "products"] }
 					}
 				},
 				{
@@ -438,6 +474,22 @@
 						"header": [],
 						"url": { "raw": "{{base_url}}/menu/rag-catalog/{{tenant_id}}", "host": ["{{base_url}}"], "path": ["menu", "rag-catalog", "{{tenant_id}}"] }
 					}
+				},
+				{
+					"name": "Upload Menu File (PDF/Image AI Embedding)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{owner_token}}", "type": "string" }] },
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "tenantId", "value": "{{tenant_id}}", "type": "text" },
+								{ "key": "file", "type": "file", "src": "sample_menu.pdf" }
+							]
+						},
+						"url": { "raw": "{{base_url}}/menu/upload-file", "host": ["{{base_url}}"], "path": ["menu", "upload-file"] }
+					}
 				}
 			]
 		},
@@ -445,7 +497,15 @@
 			"name": "11. Tables & QR Module (PHASE 9: JWT Signing)",
 			"item": [
 				{
-					"name": "Resolve Table QR Token (PHASE 9: JWT verified)",
+					"name": "Scan Table QR & Redirect (302 Redirect to Chatbot)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/tables/scan/{{qr_code_token}}", "host": ["{{base_url}}"], "path": ["tables", "scan", "{{qr_code_token}}"] }
+					}
+				},
+				{
+					"name": "Resolve Table QR Token (Raw JSON)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -453,14 +513,23 @@
 					}
 				},
 				{
-					"name": "Create Table (PHASE 9: tenantId in body, auto-sign JWT)",
+					"name": "Get Table QR PNG Image",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/tables/{{table_id}}/qr-image", "host": ["{{base_url}}"], "path": ["tables", "{{table_id}}", "qr-image"] }
+					}
+				},
+				{
+					"name": "Create Table",
 					"request": {
 						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
 						"method": "POST",
 						"header": [{ "key": "Content-Type", "value": "application/json" }],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"branchId\": \"{{branch_id}}\",\n  \"number\": 10,\n  \"capacity\": 6,\n  \"status\": \"AVAILABLE\"\n}"
+							"raw": "{\n  \"branchId\": \"{{branch_id}}\",\n  \"number\": 4,\n  \"capacity\": 4\n}"
 						},
 						"url": { "raw": "{{base_url}}/tables", "host": ["{{base_url}}"], "path": ["tables"] }
 					}
@@ -526,6 +595,15 @@
 							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"branchId\": \"{{branch_id}}\",\n  \"orders\": [\n    {\n      \"channel\": \"TAKEAWAY\",\n      \"items\": [\n        {\n          \"productId\": \"{{product_id}}\",\n          \"quantity\": 1,\n          \"unitPrice\": 320,\n          \"totalPrice\": 320\n        }\n      ],\n      \"subtotal\": 320,\n      \"totalAmount\": 320\n    }\n  ]\n}"
 						},
 						"url": { "raw": "{{base_url}}/orders/offline-sync", "host": ["{{base_url}}"], "path": ["orders", "offline-sync"] }
+					}
+				},
+				{
+					"name": "List Orders (branchId validated)",
+					"request": {
+						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{cashier_token}}", "type": "string" }] },
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{base_url}}/orders?tenantId={{tenant_id}}&branchId={{branch_id}}", "host": ["{{base_url}}"], "path": ["orders"], "query": [{ "key": "tenantId", "value": "{{tenant_id}}" }, { "key": "branchId", "value": "{{branch_id}}" }] }
 					}
 				}
 			]
@@ -655,14 +733,14 @@
 			"name": "18. Notifications Audit Log (PHASE 9: Enriched)",
 			"item": [
 				{
-					"name": "Dispatch Notification (PHASE 9: actionMakerId, branchId, tableNumber)",
+					"name": "Dispatch Notification (PHASE 9: branchId, tableNumber)",
 					"request": {
 						"auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{manager_token}}", "type": "string" }] },
 						"method": "POST",
 						"header": [{ "key": "Content-Type", "value": "application/json" }],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"tenantId\": \"{{tenant_id}}\",\n  \"channel\": \"EMAIL\",\n  \"recipient\": \"guest.vip@gmail.com\",\n  \"subject\": \"Table Reservation Confirmation\",\n  \"message\": \"Your table reservation at Gourmet Stone Oven Pizza for 8:00 PM is confirmed!\",\n  \"branchId\": \"{{branch_id}}\",\n  \"tableNumber\": 10,\n  \"actionMakerId\": \"{{employee_id}}\"\n}"
+							"raw": "{\n  \"channel\": \"EMAIL\",\n  \"recipient\": \"guest.vip@gmail.com\",\n  \"subject\": \"Table Reservation Confirmation\",\n  \"message\": \"Your table reservation at Gourmet Stone Oven Pizza for 8:00 PM is confirmed!\",\n  \"branchId\": \"{{branch_id}}\",\n  \"tableNumber\": 10\n}"
 						},
 						"url": { "raw": "{{base_url}}/notifications/dispatch", "host": ["{{base_url}}"], "path": ["notifications", "dispatch"] }
 					}

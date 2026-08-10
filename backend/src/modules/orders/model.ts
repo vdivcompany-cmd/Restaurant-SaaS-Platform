@@ -3,12 +3,21 @@ import { Schema, model, type Document, type Types } from 'mongoose';
 export type OrderStatus = 'PENDING' | 'PREPARING' | 'READY' | 'SERVED' | 'PAID' | 'CANCELLED';
 export type OrderChannel = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY' | 'QR' | 'WEB' | 'TELEGRAM';
 
+export interface IOrderItemVariant {
+  variantId?: Types.ObjectId;
+  variantName?: string;
+  selectedOptionNames?: string[];
+  priceDelta?: number;
+}
+
 export interface IOrderItem {
   productId: Types.ObjectId;
   name: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  selectedVariants?: IOrderItemVariant[];
+  notes?: string;
 }
 
 export interface IOrder extends Document {
@@ -18,6 +27,9 @@ export interface IOrder extends Document {
   channel: OrderChannel;
   status: OrderStatus;
   tableId?: Types.ObjectId;
+  customerId?: Types.ObjectId;
+  customerName?: string;
+  customerPhone?: string;
   items: IOrderItem[];
   subtotal: number;
   taxAmount: number;
@@ -43,6 +55,9 @@ const OrderSchema = new Schema<IOrder>(
       default: 'PENDING',
     },
     tableId: { type: Schema.Types.ObjectId, ref: 'Table' },
+    customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
+    customerName: { type: String },
+    customerPhone: { type: String },
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
@@ -50,6 +65,15 @@ const OrderSchema = new Schema<IOrder>(
         quantity: { type: Number, required: true, min: 1 },
         unitPrice: { type: Number, required: true, min: 0 },
         totalPrice: { type: Number, required: true, min: 0 },
+        selectedVariants: [
+          {
+            variantId: { type: Schema.Types.ObjectId },
+            variantName: { type: String },
+            selectedOptionNames: [{ type: String }],
+            priceDelta: { type: Number, default: 0 },
+          },
+        ],
+        notes: { type: String },
       },
     ],
     subtotal: { type: Number, required: true, min: 0 },

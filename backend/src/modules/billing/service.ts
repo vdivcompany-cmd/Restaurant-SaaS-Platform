@@ -2,6 +2,7 @@ import { BillingRepository } from './repository.js';
 import type { IBillingRecord } from './model.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 import type { CreateBillingRecordInput } from './validation.js';
+import { TenantRepository } from '../tenants/repository.js';
 
 export class BillingService {
   /**
@@ -29,6 +30,11 @@ export class BillingService {
     tenantId: string,
     data: CreateBillingRecordInput
   ): Promise<IBillingRecord> {
+    const tenant = await TenantRepository.findById(tenantId);
+    if (!tenant) {
+      throw new AppError('Target tenant not found', 404);
+    }
     return BillingRepository.create(tenantId, data);
   }
 }
+

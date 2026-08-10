@@ -1,40 +1,66 @@
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import QRCode from 'qrcode';
 import env from '../../config/env.js';
 import { TableRepository } from './repository.js';
 import { TableModel, type ITable } from './model.js';
 import { BranchModel } from '../branches/model.js';
+import { TenantModel } from '../tenants/model.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
+import { cacheService } from '../../services/cache/index.js';
 import type { CreateTableDto, UpdateTableDto } from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { chatSessionService } from '../chat-sessions/service.js';
+import { resolveAdapter } from '../channels/index.js';
+
+const SESSION_TTL_SECONDS = 90 * 60; // 90 minutes
 
 export class TableService {
   private repo = new TableRepository();
 
   public async createTable(tenantId: string, dto: CreateTableDto): Promise<ITable> {
+    let targetBranchId = dto.branchId;
+
+    if (!targetBranchId) {
+      const branches = await tenantQuery.find(BranchModel, tenantId, {}).exec();
+      if (!branches || branches.length === 0) {
+        throw new AppError('No branches found for this restaurant. Please create a branch first.', 400);
+      }
+      if (branches.length === 1 && branches[0]) {
+        targetBranchId = branches[0]._id.toString();
+      } else {
+        throw new AppError('Multiple branches found for this restaurant. branchId is required.', 400);
+      }
+    }
+
+    const finalBranchId = targetBranchId;
+    const tablePayload = { ...dto, branchId: finalBranchId };
+
     // Create table first to get its ID
     const tempToken = `temp_${crypto.randomBytes(8).toString('hex')}`;
-    let table = await this.repo.create(tenantId, { ...dto, qrCodeToken: tempToken });
+    let table = await this.repo.create(tenantId, { ...tablePayload, qrCodeToken: tempToken });
 
     // Sign JWT with table identity
     const qrCodeToken = jwt.sign(
       {
         tenantId,
-        branchId: dto.branchId,
+        branchId: finalBranchId,
         tableId: table._id.toString(),
         number: dto.number,
       },
       env.QR_TOKEN_SECRET
     );
 
-    // Update with signed token
-    table = await this.repo.update(tenantId, table._id.toString(), { qrCodeToken } as any) || table;
+    const scanUrl = `${env.PUBLIC_API_BASE_URL}/api/v1/tables/scan/${qrCodeToken}`;
+
+    // Update with signed token and qrCodeUrl
+    table = await this.repo.update(tenantId, table._id.toString(), { qrCodeToken, qrCodeUrl: scanUrl } as any) || table;
 
     // Increment branch table count
     await tenantQuery.updateOne(
       BranchModel,
       tenantId,
-      { _id: dto.branchId },
+      { _id: finalBranchId },
       { $inc: { tableCount: 1 } }
     ).exec();
 
@@ -51,7 +77,7 @@ export class TableService {
     return tbl;
   }
 
-  public async resolveByQrToken(token: string): Promise<ITable & { tenantId: string; branchId: string }> {
+  public async resolveByQrToken(token: string): Promise<ITable & { tenantId: string; branchId: string; sessionId: string }> {
     let payload: any;
     try {
       payload = jwt.verify(token, env.QR_TOKEN_SECRET);
@@ -74,11 +100,98 @@ export class TableService {
       throw new AppError('Invalid QR code token', 404);
     }
 
+    const sessionKey = `table_session:${tenantId}:${tableId}`;
+
+    // One active session per table: if session open and table is OCCUPIED, reuse existing
+    const existingSession = await cacheService.get<{ sessionId: string }>(sessionKey);
+    if (existingSession && table.status === 'OCCUPIED') {
+      return {
+        ...table.toObject(),
+        tenantId,
+        branchId,
+        sessionId: existingSession.sessionId,
+      };
+    }
+
+    const sessionId = crypto.randomUUID();
+    await cacheService.set(
+      sessionKey,
+      { sessionId, tenantId, branchId, startedAt: Date.now() },
+      SESSION_TTL_SECONDS
+    );
+
+    if (table.status === 'AVAILABLE') {
+      table.status = 'OCCUPIED';
+      await table.save();
+    }
+
     return {
       ...table.toObject(),
       tenantId,
       branchId,
+      sessionId,
     };
+  }
+
+  public async handleScanRedirect(token: string): Promise<{ redirectUrl: string | null; resolvedData: any }> {
+    const resolved = await this.resolveByQrToken(token);
+    const tenant = await TenantModel.findById(resolved.tenantId);
+
+    const redirectBase = tenant?.qrRedirectUrl;
+    if (!redirectBase) {
+      return { redirectUrl: null, resolvedData: resolved };
+    }
+
+    // Register a channel-agnostic chat session and mint a short opaque token
+    // the target channel can carry (Telegram's `start` param is 64-char capped).
+    const { shortToken } = await chatSessionService.createFromQrResolution({
+      tenantId: resolved.tenantId,
+      branchId: resolved.branchId,
+      tableId: resolved._id.toString(),
+      tableNumber: resolved.number,
+      sessionId: resolved.sessionId,
+    });
+
+    const adapter = resolveAdapter(redirectBase);
+    const finalUrl = adapter.buildRedirectUrl({
+      shortToken,
+      tenantId: resolved.tenantId,
+      branchId: resolved.branchId,
+      tableId: resolved._id.toString(),
+      tableNumber: resolved.number,
+      sessionId: resolved.sessionId,
+      redirectBase,
+    });
+
+    return { redirectUrl: finalUrl, resolvedData: { ...resolved, shortToken, channel: adapter.name } };
+  }
+
+  public async generateQrImagePng(tenantId: string, tableId: string): Promise<Buffer> {
+    const table = await this.getTable(tenantId, tableId);
+    const scanUrl = table.qrCodeUrl || `${env.PUBLIC_API_BASE_URL}/api/v1/tables/scan/${table.qrCodeToken}`;
+    return await QRCode.toBuffer(scanUrl, { type: 'png', margin: 2, width: 400 });
+  }
+
+  /**
+   * Validates that a table session is currently open and matches the caller's claimed session.
+   * Throws 403 if expired or invalid.
+   */
+  public async validateTableSession(tenantId: string, tableId: string, sessionId: string | undefined): Promise<void> {
+    if (!sessionId) {
+      throw new AppError('A table session is required to place this order — please scan the QR code again', 403);
+    }
+    const sessionKey = `table_session:${tenantId}:${tableId}`;
+    const session = await cacheService.get<{ sessionId: string; tenantId: string }>(sessionKey);
+    if (!session || session.sessionId !== sessionId || session.tenantId !== tenantId) {
+      throw new AppError('Table session expired or invalid — please rescan the QR code', 403);
+    }
+  }
+
+  /**
+   * Closes a table session (on payment/cancellation, or explicit checkout).
+   */
+  public async closeTableSession(tenantId: string, tableId: string): Promise<void> {
+    await cacheService.del(`table_session:${tenantId}:${tableId}`);
   }
 
   public async updateTable(tenantId: string, tableId: string, dto: UpdateTableDto): Promise<ITable> {

@@ -1,50 +1,40 @@
 /**
  * Phase 0 Deliverable: Connectivity Verification Script
- *
- * Run BEFORE writing any application code to confirm all four external
- * services are reachable from your local machine using env var config.
+ * Updated in Phase 10: RabbitMQ replaced with Upstash QStash
  *
  * Usage:
  *   npm run verify
  *
- * Expected output: four ✅ lines and "All connections OK".
- * If any service is unreachable, the error is printed and the process exits 1.
- *
  * Services verified:
  *   - MongoDB      (MONGODB_URI)
  *   - Redis        (Upstash REST — UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)
- *   - RabbitMQ     (CloudAMQP — RABBITMQ_URL with amqps://)
+ *   - QStash       (Upstash QStash — QSTASH_TOKEN)
  *   - Firebase     (Firestore write/delete — FIREBASE_SERVICE_ACCOUNT_PATH or BASE64)
  */
 
-// dotenv is preloaded via tsx -r dotenv/config (see package.json verify script).
-// DOTENV_CONFIG_PATH points to ../.env.local (repo root).
+import '../src/config/loadEnv.js';
 import mongoose from 'mongoose';
 import dns from 'dns';
 if (process.env['FORCE_PUBLIC_DNS'] === 'true') {
   dns.setServers(['8.8.8.8', '8.8.4.4']);
 }
 import { Redis } from '@upstash/redis';
-import amqplib from 'amqplib';
-import { initializeApp, deleteApp, cert, type App } from 'firebase-admin/app';
+import { Client as QStashClient } from '@upstash/qstash';
+import { initializeApp, cert, type App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { ServiceAccount } from 'firebase-admin/app';
 import { readFileSync } from 'fs';
 
-// Pull env directly — avoid importing compiled env.ts since this script
-// may be run before the TS build.
 const {
   MONGODB_URI,
   UPSTASH_REDIS_REST_URL,
   UPSTASH_REDIS_REST_TOKEN,
-  RABBITMQ_URL,
+  QSTASH_TOKEN,
   FIREBASE_SERVICE_ACCOUNT_PATH,
   FIREBASE_SERVICE_ACCOUNT_BASE64,
 } = process.env;
 
 const errors: string[] = [];
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
 
 function pass(service: string, detail = ''): void {
   console.log(`  ✅  ${service}${detail ? ` — ${detail}` : ''}`);
@@ -86,7 +76,6 @@ async function checkRedis(): Promise<void> {
       url: UPSTASH_REDIS_REST_URL,
       token: UPSTASH_REDIS_REST_TOKEN,
     });
-    // SET and GET a test key to verify read/write access
     await redis.set('__verify_ping__', 'pong', { ex: 10 });
     const value = await redis.get('__verify_ping__');
     await redis.del('__verify_ping__');
@@ -100,20 +89,16 @@ async function checkRedis(): Promise<void> {
   }
 }
 
-// ─── RabbitMQ (CloudAMQP) ─────────────────────────────────────────────────────
+// ─── QStash (Upstash) ─────────────────────────────────────────────────────────
 
-async function checkRabbitMQ(): Promise<void> {
-  if (!RABBITMQ_URL) { fail('RabbitMQ (CloudAMQP)', 'RABBITMQ_URL is not set'); return; }
-  let conn: Awaited<ReturnType<typeof amqplib.connect>> | undefined;
+async function checkQStash(): Promise<void> {
+  if (!QSTASH_TOKEN) { fail('QStash (Upstash)', 'QSTASH_TOKEN is not set'); return; }
   try {
-    conn = await amqplib.connect(RABBITMQ_URL);
-    const ch = await conn.createChannel();
-    await ch.close();
-    pass('RabbitMQ (CloudAMQP)', 'connection + channel OK');
+    const qstash = new QStashClient({ token: QSTASH_TOKEN });
+    await qstash.schedules.list();
+    pass('QStash (Upstash)', 'API authenticated OK');
   } catch (err) {
-    fail('RabbitMQ (CloudAMQP)', err);
-  } finally {
-    await conn?.close().catch(() => undefined);
+    fail('QStash (Upstash)', err);
   }
 }
 
@@ -148,7 +133,6 @@ async function checkFirebase(): Promise<void> {
   try {
     app = initializeApp({ credential: cert(serviceAccount) }, appName);
     const db = getFirestore(app);
-    // Write then immediately delete a sentinel document to confirm read/write access
     const ref = db.collection('_verify').doc('connectivity-check');
     await ref.set({ ts: Date.now() });
     await ref.delete();
@@ -164,18 +148,14 @@ async function checkFirebase(): Promise<void> {
 
 async function main(): Promise<void> {
   console.log('\n🔍  Verifying service connections...\n');
-
-  // Run all checks in parallel for speed
-  await Promise.all([checkMongo(), checkRedis(), checkRabbitMQ(), checkFirebase()]);
-
+  await Promise.all([checkMongo(), checkRedis(), checkQStash(), checkFirebase()]);
   console.log('');
 
   if (errors.length === 0) {
-    console.log('✨  All connections OK — Phase 0 deliverable confirmed.\n');
+    console.log('✨  All connections OK — deliverables confirmed.\n');
     process.exit(0);
   } else {
     console.error(`💥  ${errors.length} service(s) failed: ${errors.join(', ')}`);
-    console.error('    Fix the above errors before proceeding to Phase 1.\n');
     process.exit(1);
   }
 }

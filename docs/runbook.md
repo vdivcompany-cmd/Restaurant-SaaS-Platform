@@ -6,15 +6,14 @@ This document is the official operational runbook for disaster recovery, service
 
 ## 1. Architecture Overview & Storage Tiering
 
-The platform operates on a single Hostinger VPS running Node.js via PM2 and Nginx reverse proxy, coupled with cloud-managed stateful services:
+The platform operates on Vercel Serverless coupled with cloud-managed stateful services:
 
 | Infrastructure Service | Deployment Mode | Storage Purpose | Recovery Priority |
 |---|---|---|---|
 | **MongoDB** | MongoDB Atlas | Source of Truth (Tenants, Users, Orders, Menus, Billing) | P0 (Critical) |
 | **Redis** | Upstash Redis (REST) | Sessions, Rate Limits, Locks, Idempotency | P1 (High) |
-| **RabbitMQ** | CloudAMQP (amqps://) | Asynchronous Task Queues & DLQ Telemetry | P1 (High) |
+| **QStash** | Upstash QStash (HTTP) | Asynchronous Task Queues & Cron Schedules | P1 (High) |
 | **Firestore** | Firebase Admin SDK | Real-time POS & Kitchen Display Projections | P2 (Medium) |
-| **PM2 / App Config** | Local VPS | App Process Definitions & Environment File | P0 (Critical) |
 
 ---
 
@@ -67,43 +66,29 @@ The platform operates on a single Hostinger VPS running Node.js via PM2 and Ngin
 2. **Inspect Upstash Dashboard:** Check Upstash Console → Database Status & Daily Request Cap limits.
 3. **Emergency Fallback / Token Renewal:**
    - If REST Token was compromised, rotate token in Upstash console.
-   - Update `UPSTASH_REDIS_REST_TOKEN` in `.env.production`.
-   - Reload process environment: `pm2 reload ecosystem.config.js --update-env`.
+   - Update `UPSTASH_REDIS_REST_TOKEN` in `.env`.
 4. **Data Restoration Note:** Cache data (sessions, rate-limit counters) is ephemeral and auto-regenerated on cache miss. Zero permanent loss occurs.
 
 ---
 
-### C. RabbitMQ Topology Loss & Re-creation (P1)
+### C. Upstash QStash Schedule & Destination Recovery (P2)
 
-**Failure Mode:** CloudAMQP instance failure, queue deletion, or fresh VPS deployment without exchange definitions.
+**Failure Mode:** Upstash QStash schedule token invalidation or deleted recurring schedules.
 
-**Impact:** Background job enqueueing fails or consumer processes disconnect (`q.*` missing).
+**Impact:** Background job enqueueing fails or recurring cron triggers stop firing.
 
 **Mitigation & Recovery Steps:**
-1. **Verify RabbitMQ Readiness:**
+1. **Verify QStash Readiness Probe:**
    ```bash
-   curl -sf http://localhost:3000/ready | grep rabbitmq
+   curl -sf http://localhost:3000/ready | grep qstash
    ```
-2. **Import Committed Topology Definitions:**
-   Using `rabbitmqadmin` CLI tool against the new or reset RabbitMQ instance:
+2. **Re-register Recurring Schedules:**
+   Run the QStash schedule setup script to re-create recurring cron triggers (daily backups, table history cleanup):
    ```bash
-   rabbitmqadmin -H <amqp-host> -u <user> -p <password> import infra/rabbitmq/definitions.json
+   cd backend && npm run setup:qstash-schedules
    ```
-3. **Alternative Assertion via Code:**
-   The backend queue service auto-asserts all exchanges (`ex.restaurant`, `ex.restaurant.dlx`) and queues on process startup. Restarting worker processes triggers full topology recreation automatically:
-   ```bash
-   pm2 restart ecosystem.config.js
-   ```
-   Active queue consumers:
-   | Process | Queue |
-   |---|---|
-   | `worker-email` | `q.emails` |
-   | `worker-telegram` | `q.telegram` |
-   | `worker-invoice` | `q.invoices` |
-   | `worker-subscription` | `q.subscription-checks` |
-   | `worker-payment-retry` | `q.payment-retries` |
-   | `worker-backup` | `q.backups` |
-   | `worker-firestore-retry` | `q.firestore-retry` |
+3. **Verify Job Endpoints:**
+   QStash delivers jobs via HTTPS POST requests to Vercel job routes (`/api/v1/jobs/*`). Verify endpoint signature validation and secret tokens in environment variables (`QSTASH_CURRENT_SIGNING_KEY`).
 
 ---
 
@@ -111,39 +96,25 @@ The platform operates on a single Hostinger VPS running Node.js via PM2 and Ngin
 
 **Failure Mode:** Firebase service outage or network disruption during Firestore projection write.
 
-**Impact:** Primary MongoDB writes succeed uninterrupted (MongoDB-first Rule #3). `FirestoreRealtimeService.publishSafe()` catches the exception and enqueues a retry message to `q.firestore-retry`.
+**Impact:** Primary MongoDB writes succeed uninterrupted (MongoDB-first Rule #3). `FirestoreRealtimeService.publishSafe()` catches the exception and enqueues a retry job.
 
 **Mitigation & Recovery Steps:**
 1. **Check Log Output:**
-   ```bash
-   pm2 logs api | grep "Firestore publish failed"
-   ```
-2. **Automatic Recovery:** Once Firebase service returns to normal, the background consumer processes messages from `q.firestore-retry` and updates Firestore projections without manual intervention.
+   Inspect Vercel serverless logs for "Firestore publish failed".
+2. **Automatic Recovery:** Once Firebase service returns to normal, queued background jobs retry and update Firestore projections without manual intervention.
 3. **Manual Projection Resync Drill (if needed):**
-   If Firestore projections fall out of sync with MongoDB source of truth, run the resync script:
+   If Firestore projections fall out of sync with MongoDB source of truth, run test verification:
    ```bash
-   cd /var/www/restaurant-saas/backend
-   npm run verify
+   cd backend && npm run test
    ```
 
 ---
 
-## 3. Full Restore Drill Verification Procedure
+## 3. Restore & Verification Procedure
 
-To test restoring the application on a fresh VPS from a Phase 5 / Phase 6 backup archive:
+To verify health and readiness of the deployment:
 
-1. **Locate Latest Archive:**
-   ```bash
-   ls -la /var/backups/restaurant-saas/
-   ```
-2. **Run Restore Verification Drill:**
-   ```bash
-   cd /var/www/restaurant-saas/backend
-   bash scripts/restore-drill.sh
-   ```
-   Output must confirm clean extraction of `.env.backup`, `ecosystem.config.js`, `nginx/`, and `infra/` files.
-
-3. **Validate Infrastructure Health Endpoint:**
+1. **Validate Infrastructure Health Endpoint:**
    ```bash
    curl -sf http://localhost:3000/ready
    ```
@@ -152,13 +123,26 @@ Expected Response:
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-07-31T11:15:00.000Z",
-  "uptimeSeconds": 1420,
   "services": {
     "mongodb": { "status": "ok" },
     "redis": { "status": "ok" },
-    "rabbitmq": { "status": "ok" },
+    "qstash": { "status": "ok" },
     "firebase": { "status": "ok" }
-  }
+  },
+  "timestamp": "2026-08-04T09:00:00.000Z"
 }
 ```
+
+---
+
+## 4. Local QStash Development & QR Table Session Operations
+
+### Local QStash Development
+QStash publishes to a public destination URL, so local development requires either:
+1. npx @upstash/qstash-cli dev (local emulator that runs jobs synchronously, no signing needed), or
+2. A tunnel (ngrok http 3000) with PUBLIC_API_BASE_URL pointed at the tunnel URL for full signature-verified end-to-end testing against real Upstash QStash.
+
+### QR Table Session Fraud Prevention
+- Scan: GET /api/v1/tables/qr/:token validates signed QR JWT and opens a 90-minute Redis session (table_session:{tenantId}:{tableId}). Returns sessionId to client.
+- Order: POST /api/v1/orders/qr validates tableSessionId before allowing customer order creation.
+- Closure: Session automatically deleted on order payment (PAID) or cancellation (CANCELLED), or after 90 minutes TTL.

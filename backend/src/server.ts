@@ -1,10 +1,9 @@
-import 'dotenv/config';
+import './config/loadEnv.js';
 import http from 'http';
 
 import env from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { getRedisClient, disconnectRedis } from './config/redis.js';
-import { getRabbitMQChannel, disconnectRabbitMQ } from './config/rabbitmq.js';
 import { initFirebase } from './config/firebase.js';
 import { createApp } from './app.js';
 import logger from './utils/logger.js';
@@ -16,15 +15,13 @@ import logger from './utils/logger.js';
  *   1. Validate environment variables (env.ts throws on misconfiguration)
  *   2. Connect MongoDB
  *   3. Initialize Redis (Upstash REST — synchronous, no async connect)
- *   4. Connect RabbitMQ (CloudAMQP amqps://)
- *   5. Initialize Firebase Admin SDK
- *   6. Start HTTP server
+ *   4. Initialize Firebase Admin SDK
+ *   5. Start HTTP server
  *
  * Shutdown order (SIGTERM / SIGINT):
  *   1. Stop accepting new connections (server.close)
  *   2. Close MongoDB connection
  *   3. Release Redis client
- *   4. Close RabbitMQ connection
  */
 
 async function bootstrap(): Promise<void> {
@@ -33,20 +30,6 @@ async function bootstrap(): Promise<void> {
   // ── 1. Database connections ────────────────────────────────────────────────
   await connectDatabase();
   getRedisClient(); // Upstash REST client — synchronous init, no async connect needed
-  await getRabbitMQChannel();
-
-  // Initialize asynchronous message queues & workers directly within main application process
-  if (env.NODE_ENV !== 'test') {
-    try {
-      const { queueService } = await import('./services/queue/index.js');
-      await queueService.assertQueues();
-      const { startEmailWorker } = await import('./workers/email.worker.js');
-      await startEmailWorker();
-      logger.info('Internal RabbitMQ messaging topology asserted and async email workers actively listening');
-    } catch (err) {
-      logger.warn({ err }, 'RabbitMQ queue worker startup skipped — broker unreachable or running offline');
-    }
-  }
 
   // ── 2. Firebase ───────────────────────────────────────────────────────────
   // Skip Firebase init in test environment to avoid requiring credentials
@@ -79,7 +62,6 @@ async function bootstrap(): Promise<void> {
       try {
         await disconnectDatabase();
         await disconnectRedis();
-        await disconnectRabbitMQ();
         logger.info('Graceful shutdown complete');
         process.exit(0);
       } catch (err) {
@@ -98,7 +80,6 @@ async function bootstrap(): Promise<void> {
   process.once('SIGTERM', () => void shutdown('SIGTERM'));
   process.once('SIGINT', () => void shutdown('SIGINT'));
 
-  // Unhandled promise rejections — log and exit so PM2 restarts the process
   process.on('unhandledRejection', (reason) => {
     logger.error({ reason }, 'Unhandled promise rejection — exiting');
     process.exit(1);
@@ -106,7 +87,6 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((err) => {
-  // If bootstrap itself throws (e.g. DB unreachable) log and exit cleanly
   console.error('Fatal error during bootstrap:', err);
   process.exit(1);
 });

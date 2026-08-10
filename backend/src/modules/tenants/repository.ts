@@ -1,3 +1,4 @@
+import type { ClientSession } from 'mongoose';
 import { TenantModel, type ITenant } from './model.js';
 
 export class TenantRepository {
@@ -9,8 +10,20 @@ export class TenantRepository {
     return TenantModel.findById(id);
   }
 
-  public static async create(data: Partial<ITenant>): Promise<ITenant> {
+  public static async create(data: Partial<ITenant>, session?: ClientSession): Promise<ITenant> {
+    if (session) {
+      const [doc] = await TenantModel.create([data], { session });
+      return doc as ITenant;
+    }
     return TenantModel.create(data);
+  }
+
+  public static async update(id: string, data: Partial<ITenant>): Promise<ITenant | null> {
+    return TenantModel.findByIdAndUpdate(id, { $set: data }, { new: true });
+  }
+
+  public static async findAll(): Promise<ITenant[]> {
+    return TenantModel.find().sort({ createdAt: -1 });
   }
 
   public static async save(tenant: ITenant): Promise<ITenant> {

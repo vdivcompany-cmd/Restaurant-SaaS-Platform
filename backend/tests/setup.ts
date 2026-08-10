@@ -1,20 +1,15 @@
 import 'dotenv/config';
-import { beforeAll, afterAll, beforeEach } from 'vitest';
+import dns from 'dns';
+if (process.env['FORCE_PUBLIC_DNS'] === 'true') {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+}
+import { beforeAll, afterAll } from 'vitest';
 import mongoose from 'mongoose';
 import { connectDatabase, disconnectDatabase } from '../src/config/database.js';
 
 beforeAll(async () => {
   if (mongoose.connection.readyState === 0) {
     await connectDatabase();
-  }
-}, 30000);
-
-beforeEach(async () => {
-  if (mongoose.connection.readyState !== 0 && mongoose.connection.db) {
-    const collections = await mongoose.connection.db.collections();
-    for (const collection of collections) {
-      await collection.deleteMany({});
-    }
   }
 }, 30000);
 

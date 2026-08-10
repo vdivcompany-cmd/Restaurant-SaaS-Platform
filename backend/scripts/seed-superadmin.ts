@@ -1,3 +1,4 @@
+import '../src/config/loadEnv.js';
 import { connectDatabase, disconnectDatabase } from '../src/config/database.js';
 import { TenantModel } from '../src/modules/tenants/model.js';
 import { AuthService } from '../src/modules/auth/service.js';

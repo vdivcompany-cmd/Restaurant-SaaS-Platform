@@ -9,6 +9,19 @@ const router = Router();
 // Create tenant — strictly restricted to Platform Super Admins
 router.post('/', authMiddleware, requireSuperAdmin, TenantController.createTenant);
 
+// Public AI Gateway Endpoint for n8n Cloud / AI Bot
+router.get('/:tenantId/ai-status', TenantController.getAiStatus);
+
+// Public Public Tenant & Branch Summary Endpoint (Unprotected)
+router.get('/:tenantId/branches/:branchId/info', TenantController.getTenantBranchInfo);
+router.get('/:tenantId/branches/:branchId', TenantController.getTenantBranchInfo);
+
+// Profile management
+router.route('/profile')
+  .get(authMiddleware, tenantMiddleware, TenantController.getProfile)
+  .put(authMiddleware, tenantMiddleware, rbacMiddleware(['owner', 'manager']), TenantController.upsertProfile)
+  .post(authMiddleware, tenantMiddleware, rbacMiddleware(['owner', 'manager']), TenantController.upsertProfile);
+
 // Get tenant details
 router.get(
   '/me',

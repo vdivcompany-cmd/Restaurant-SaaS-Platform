@@ -1,8 +1,8 @@
-import { Schema, model, type Document } from 'mongoose';
+import { Schema, model, type Document, type Types } from 'mongoose';
 
 export interface INotificationLog extends Document {
-  tenantId: Schema.Types.ObjectId;
-  branchId?: Schema.Types.ObjectId;
+  tenantId: Types.ObjectId | string;
+  branchId?: Types.ObjectId | string;
   channel: 'EMAIL' | 'TELEGRAM' | 'SMS' | 'WHATSAPP';
   recipient: string;
   messageSubject?: string;
@@ -10,7 +10,7 @@ export interface INotificationLog extends Document {
   status: 'QUEUED' | 'SENT' | 'FAILED';
   errorMessage?: string;
   tableNumber?: number;
-  actionMakerId?: Schema.Types.ObjectId;
+  actionMakerId?: Types.ObjectId | string;
   dispatchedAt: Date;
   createdAt: Date;
 }

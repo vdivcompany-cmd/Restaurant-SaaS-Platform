@@ -2,16 +2,17 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { TenantModel } from '../../src/modules/tenants/model.js';
+import { TenantService } from '../../src/modules/tenants/service.js';
 
 const app = createApp();
 
 describe('Phase 3 Domain Modules Integration Suite', () => {
   it('should execute complete Phase 3 operational user journey across all 12 domain modules', async () => {
     // 0. Setup Tenant & Owner Account
-    const tenant = await TenantModel.create({
+    const tenant = await TenantService.createTenant({
       name: 'Phase 3 Gourmet SaaS',
-      slug: `gourmet-${Date.now()}`,
-      contact: { phone: '0123456789', email: 'owner@gourmet.com' },
+      slug: `gourmet-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      contact: { phone: '0123456789', email: `owner-${Date.now()}@gourmet.com` },
     });
     const tenantId = tenant._id.toString();
 
@@ -50,7 +51,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     expect(branchRes.body.data.name).toBe('Downtown Main Branch');
 
     const profileRes = await request(app)
-      .put('/api/v1/restaurants/profile')
+      .put('/api/v1/tenants/profile')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         brandName: 'Gourmet Express',
@@ -74,30 +75,25 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     expect(catRes.status).toBe(201);
     const categoryId = catRes.body.data._id;
 
-    const varRes = await request(app)
-      .post('/api/v1/variants')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        name: 'Crust Selection',
-        minSelect: 1,
-        maxSelect: 1,
-        options: [
-          { name: 'Classic Neapolitan', priceDelta: 0 },
-          { name: 'Cheese Stuffed Crust', priceDelta: 35 },
-        ],
-      });
-    expect(varRes.status).toBe(201);
-    const variantId = varRes.body.data._id;
-
     const prodRes = await request(app)
-      .post('/api/v1/products')
+      .post('/api/v1/menu/products')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         categoryId,
         name: 'Truffle Mushroom Pizza',
         description: 'Wild mushrooms, mozzarella, truffle oil spray',
         basePrice: 280,
-        variantIds: [variantId],
+        variants: [
+          {
+            name: 'Crust Selection',
+            minSelect: 1,
+            maxSelect: 1,
+            options: [
+              { name: 'Classic Neapolitan', priceDelta: 0 },
+              { name: 'Cheese Stuffed Crust', priceDelta: 35 },
+            ],
+          },
+        ],
       });
     expect(prodRes.status).toBe(201);
     const productId = prodRes.body.data._id;
@@ -124,7 +120,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     expect(tableRes.status).toBe(201);
     const tableId = tableRes.body.data._id;
     const qrCodeToken = tableRes.body.data.qrCodeToken;
-    expect(qrCodeToken).toMatch(/^qr_/);
+    expect(qrCodeToken).toMatch(/^eyJ/);
 
     const resolveRes = await request(app).get(`/api/v1/tables/qr/${qrCodeToken}`);
     expect(resolveRes.status).toBe(200);
@@ -277,6 +273,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
       .post('/api/v1/feedback')
       .set('X-Tenant-ID', tenantId)
       .send({
+        tenantId,
         branchId,
         customerName: 'Tariq Al-Mansour',
         rating: 5,
