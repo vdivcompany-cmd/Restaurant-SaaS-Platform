@@ -31,7 +31,7 @@ export class TenantService {
         settings: data.settings ? { ...defaultSettings, ...data.settings } : defaultSettings,
         status: 'trial',
         subscriptionPlan: 'free',
-        qrRedirectUrl: 'https://t.me/resturanchatbot',
+        qrRedirectUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
         isOpen: true,
         isChatbotActive: true,
       }, session);

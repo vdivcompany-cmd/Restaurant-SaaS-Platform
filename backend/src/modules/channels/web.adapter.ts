@@ -10,11 +10,12 @@ export class WebAdapter implements ChannelAdapter {
   public buildRedirectUrl(ctx: ChannelRedirectContext): string {
     try {
       const url = new URL(ctx.redirectBase);
+      url.searchParams.set('token', ctx.shortToken);
       url.searchParams.set('s', ctx.shortToken);
       return url.toString();
     } catch {
       const sep = ctx.redirectBase.includes('?') ? '&' : '?';
-      return `${ctx.redirectBase}${sep}s=${ctx.shortToken}`;
+      return `${ctx.redirectBase}${sep}token=${ctx.shortToken}&s=${ctx.shortToken}`;
     }
   }
 }

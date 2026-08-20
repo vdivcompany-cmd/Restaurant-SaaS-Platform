@@ -7,11 +7,12 @@ async function updateQrRedirectUrl() {
   await connectDatabase();
 
   try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const result = await TenantModel.updateMany(
-      { $or: [{ qrRedirectUrl: { $exists: false } }, { qrRedirectUrl: '' }, { qrRedirectUrl: null }] },
-      { $set: { qrRedirectUrl: 'https://t.me/resturanchatbot' } }
+      {},
+      { $set: { qrRedirectUrl: frontendUrl } }
     );
-    logger.info(`Successfully updated ${result.modifiedCount} tenant documents with default Telegram bot URL.`);
+    logger.info(`Successfully updated ${result.modifiedCount} tenant documents with Web Frontend URL: ${frontendUrl}`);
   } catch (err) {
     logger.error({ err }, 'Error during QR redirect URL update');
     process.exitCode = 1;
