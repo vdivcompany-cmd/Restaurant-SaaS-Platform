@@ -108,7 +108,7 @@ export function createApp(): Express {
     res.status(httpCode).json(status);
   });
 
-  // ─── AI Diagnostic Endpoint ──────────────────────────────────────────────
+  // ─── AI & Vector Diagnostic Endpoint ──────────────────────────────────────
   app.get('/health/ai', async (_req, res) => {
     const checks: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
@@ -116,34 +116,66 @@ export function createApp(): Express {
       GEMINI_API_KEY_length: env.GEMINI_API_KEY?.length ?? 0,
       GEMINI_MODEL: env.GEMINI_MODEL,
       GEMINI_EMBED_MODEL: env.GEMINI_EMBED_MODEL,
+      UPSTASH_VECTOR_URL_set: !!env.UPSTASH_VECTOR_REST_URL,
     };
 
+    let allOk = true;
+
     try {
-      // Test 1: Can we import the SDK?
+      // Test 1: SDK import
       const { GoogleGenAI } = await import('@google/genai');
       checks.sdkImport = 'ok';
 
       if (!env.GEMINI_API_KEY) {
         checks.apiCall = 'skipped — no API key';
+        checks.embeddingCall = 'skipped — no API key';
         res.status(200).json({ success: true, checks });
         return;
       }
 
-      // Test 2: Can we make a trivial API call?
-      const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: env.GEMINI_MODEL,
-        contents: 'Respond with exactly: OK',
-        config: { temperature: 0 },
-      });
-      checks.apiCall = 'ok';
-      checks.apiResponse = response.text?.trim()?.slice(0, 50);
-      res.status(200).json({ success: true, checks });
+      // Test 2: Gemini Generation
+      try {
+        const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+        const response = await ai.models.generateContent({
+          model: env.GEMINI_MODEL,
+          contents: 'Respond with exactly: OK',
+          config: { temperature: 0 },
+        });
+        checks.generation = 'ok';
+        checks.generationResponse = response.text?.trim()?.slice(0, 50);
+      } catch (genErr: any) {
+        allOk = false;
+        checks.generation = 'failed';
+        checks.generationError = genErr?.message ?? String(genErr);
+      }
+
+      // Test 3: Gemini Embedding
+      try {
+        const { geminiEmbeddingClient } = await import('./modules/vector/gemini.client.js');
+        const vec = await geminiEmbeddingClient.embedOne('Diagnostic test product');
+        checks.embedding = 'ok';
+        checks.embeddingDimension = vec.length;
+      } catch (embErr: any) {
+        allOk = false;
+        checks.embedding = 'failed';
+        checks.embeddingError = embErr?.message ?? String(embErr);
+      }
+
+      // Test 4: Upstash Vector status
+      try {
+        const { getVectorIndex } = await import('./modules/vector/upstash.client.js');
+        const info = await getVectorIndex().info();
+        checks.upstashVector = 'ok';
+        checks.upstashVectorInfo = info;
+      } catch (vecErr: any) {
+        allOk = false;
+        checks.upstashVector = 'failed';
+        checks.upstashVectorError = vecErr?.message ?? String(vecErr);
+      }
+
+      res.status(allOk ? 200 : 500).json({ success: allOk, checks });
     } catch (err: any) {
       checks.error = err?.message ?? String(err);
-      checks.errorName = err?.name;
-      checks.errorStatus = err?.status ?? err?.statusCode ?? err?.code;
-      checks.errorDetails = err?.errorDetails ?? err?.response?.data;
       res.status(500).json({ success: false, checks });
     }
   });

@@ -1,9 +1,20 @@
 import env from '../../config/env.js';
 import logger from '../../utils/logger.js';
 
+const TARGET_EMBEDDING_DIM = 1024;
+
+function adaptVectorDimension(vec: number[], targetDim = TARGET_EMBEDDING_DIM): number[] {
+  if (!Array.isArray(vec)) return [];
+  if (vec.length === targetDim) return vec;
+  if (vec.length < targetDim) {
+    return vec.concat(new Array(targetDim - vec.length).fill(0));
+  }
+  return vec.slice(0, targetDim);
+}
+
 /**
  * Google Gemini embedding client.
- * Model: text-embedding-004 (configured for 1024 dimensions to match Upstash index).
+ * Model: text-embedding-004 (768 dimensions native, adapted to 1024 dimensions for Upstash index compatibility).
  */
 export class GeminiEmbeddingClient {
   private aiInstance: any = null;
@@ -46,15 +57,17 @@ export class GeminiEmbeddingClient {
             model: env.GEMINI_EMBED_MODEL,
             contents: text,
             config: {
-              outputDimensionality: 1024,
+              outputDimensionality: TARGET_EMBEDDING_DIM,
               taskType,
             },
           });
-          const values = (res as any)?.embeddings?.[0]?.values ?? (res as any)?.embedding?.values;
-          if (!values || !Array.isArray(values)) {
-            throw new Error('Invalid embedding response from Gemini API');
+          const rawValues: number[] | undefined =
+            (res as any)?.embedding?.values ??
+            (res as any)?.embeddings?.[0]?.values;
+          if (!rawValues || !Array.isArray(rawValues)) {
+            throw new Error(`Invalid embedding response: ${JSON.stringify(res)}`);
           }
-          return values;
+          return adaptVectorDimension(rawValues, TARGET_EMBEDDING_DIM);
         });
 
         const chunkResults = await Promise.all(chunkPromises);
@@ -67,8 +80,9 @@ export class GeminiEmbeddingClient {
 
       return results;
     } catch (err: any) {
-      logger.error({ err: err?.message ?? err }, 'Gemini embedding failed');
-      throw new Error('Failed to compute embeddings via Gemini API');
+      const errMsg = err?.message ?? String(err);
+      logger.error({ err: errMsg, model: env.GEMINI_EMBED_MODEL }, 'Gemini embedding failed');
+      throw new Error(`Failed to compute embeddings via Gemini API: ${errMsg}`);
     }
   }
 
@@ -83,3 +97,4 @@ export class GeminiEmbeddingClient {
 }
 
 export const geminiEmbeddingClient = new GeminiEmbeddingClient();
+
