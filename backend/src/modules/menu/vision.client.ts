@@ -168,8 +168,21 @@ export class GeminiVisionClient {
       return parsed;
     } catch (err: any) {
       if (err instanceof AppError) throw err;
-      logger.error({ err: err?.message ?? err }, 'Gemini vision/chat extraction failed');
-      throw new AppError('Failed to extract menu content via Gemini API', 502);
+      const errDetails = {
+        message: err?.message ?? String(err),
+        status: err?.status ?? err?.statusCode ?? err?.code,
+        statusText: err?.statusText,
+        errorDetails: err?.errorDetails ?? err?.response?.data ?? err?.body,
+        name: err?.name,
+        model: env.GEMINI_MODEL,
+        apiKeySet: !!env.GEMINI_API_KEY,
+        apiKeyLength: env.GEMINI_API_KEY?.length ?? 0,
+      };
+      logger.error(errDetails, 'Gemini vision/chat extraction failed');
+      throw new AppError(
+        `Failed to extract menu content via Gemini API: ${errDetails.message}`,
+        502
+      );
     }
   }
 }

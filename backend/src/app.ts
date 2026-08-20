@@ -108,6 +108,46 @@ export function createApp(): Express {
     res.status(httpCode).json(status);
   });
 
+  // ─── AI Diagnostic Endpoint ──────────────────────────────────────────────
+  app.get('/health/ai', async (_req, res) => {
+    const checks: Record<string, unknown> = {
+      timestamp: new Date().toISOString(),
+      GEMINI_API_KEY_set: !!env.GEMINI_API_KEY,
+      GEMINI_API_KEY_length: env.GEMINI_API_KEY?.length ?? 0,
+      GEMINI_MODEL: env.GEMINI_MODEL,
+      GEMINI_EMBED_MODEL: env.GEMINI_EMBED_MODEL,
+    };
+
+    try {
+      // Test 1: Can we import the SDK?
+      const { GoogleGenAI } = await import('@google/genai');
+      checks.sdkImport = 'ok';
+
+      if (!env.GEMINI_API_KEY) {
+        checks.apiCall = 'skipped — no API key';
+        res.status(200).json({ success: true, checks });
+        return;
+      }
+
+      // Test 2: Can we make a trivial API call?
+      const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: env.GEMINI_MODEL,
+        contents: 'Respond with exactly: OK',
+        config: { temperature: 0 },
+      });
+      checks.apiCall = 'ok';
+      checks.apiResponse = response.text?.trim()?.slice(0, 50);
+      res.status(200).json({ success: true, checks });
+    } catch (err: any) {
+      checks.error = err?.message ?? String(err);
+      checks.errorName = err?.name;
+      checks.errorStatus = err?.status ?? err?.statusCode ?? err?.code;
+      checks.errorDetails = err?.errorDetails ?? err?.response?.data;
+      res.status(500).json({ success: false, checks });
+    }
+  });
+
   // ─── Global API Rate Limiter ──────────────────────────────────────────────
   app.use('/api/', apiRateLimiter);
 

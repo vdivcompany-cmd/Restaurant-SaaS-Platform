@@ -20,10 +20,11 @@ function jobRoute<T>(name: string, handler: (payload: T, headers?: Record<string
     try {
       await handler(req.body as T, req.headers as Record<string, unknown>);
       res.status(200).json({ success: true });
-    } catch (err) {
-      logger.error({ err, job: name }, 'Job handler threw — QStash will retry per maxRetries');
+    } catch (err: any) {
+      const errorMessage = err?.message ?? 'Unknown job error';
+      logger.error({ err: errorMessage, stack: err?.stack, job: name }, 'Job handler threw — QStash will retry per maxRetries');
       // Non-2xx tells QStash to retry according to the queue's retry policy
-      res.status(500).json({ success: false });
+      res.status(500).json({ success: false, error: errorMessage });
     }
   });
 }
