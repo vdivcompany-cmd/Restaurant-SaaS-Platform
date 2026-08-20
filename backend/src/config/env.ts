@@ -69,7 +69,7 @@ const env = cleanEnv(process.env, {
 
   // ─── Google Gemini (Menu Vision & Vector Embeddings) ────────────────────────
   GEMINI_API_KEY: str({ default: '' }),
-  GEMINI_MODEL: str({ default: 'gemini-2.5-flash' }),
+  GEMINI_MODEL: str({ default: 'gemini-3.6-flash' }),
   GEMINI_EMBED_MODEL: str({ default: 'text-embedding-004' }),
 });
 
