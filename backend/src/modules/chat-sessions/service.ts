@@ -58,26 +58,32 @@ export class ChatSessionService {
   public async resolveAndBind(
     token: string,
     channel: ChannelName,
-    channelUserId: string
-  ): Promise<ChatSession> {
+    channelUserId?: string
+  ): Promise<ChatSession & { chatId: string }> {
     const ptr = await cacheService.get<{ sessionId: string }>(shortTokenKey(token));
     if (!ptr) throw new AppError('Invalid or expired scan token', 404);
 
     const session = await this.getSession(ptr.sessionId);
     if (!session) throw new AppError('Chat session expired', 404);
 
+    // For web channel: mint a secure, server-side chatId
+    // For telegram: use the Telegram-provided chat ID
+    const chatId = channel === 'web'
+      ? `web_${crypto.randomBytes(8).toString('base64url')}`
+      : (channelUserId || `web_${crypto.randomBytes(8).toString('base64url')}`);
+
     const binding: ChannelBinding = {
       sessionId: session.sessionId,
       channel,
-      channelUserId,
+      channelUserId: chatId,
       boundAt: Date.now(),
     };
-    await cacheService.set(bindingKey(channel, channelUserId), binding, BINDING_TTL_SECONDS);
+    await cacheService.set(bindingKey(channel, chatId), binding, BINDING_TTL_SECONDS);
 
     // Short token is single-use — drop it after successful bind.
     await cacheService.del(shortTokenKey(token));
 
-    return session;
+    return { ...session, chatId };
   }
 
   /**

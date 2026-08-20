@@ -4,7 +4,7 @@ import { objectIdSchema } from '../../shared/validation/index.js';
 export const resolveSessionSchema = z.object({
   token: z.string().min(8).max(64),
   channel: z.enum(['telegram', 'web']),
-  channelUserId: z.string().min(1).max(128),
+  channelUserId: z.string().min(1).max(128).optional(),
 });
 
 export const byChannelQuerySchema = z.object({
