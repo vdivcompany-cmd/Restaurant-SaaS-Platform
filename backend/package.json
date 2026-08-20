@@ -46,6 +46,7 @@
     "vitest": "^3.0.5"
   },
   "dependencies": {
+    "@google/genai": "^2.18.0",
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
     "@upstash/vector": "^1.2.3",
