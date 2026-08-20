@@ -1,8 +1,8 @@
 import type { FileParser, ParsedMenuData } from './parser.interface.js';
-import { nimVisionClient } from '../vision.client.js';
+import { geminiVisionClient } from '../vision.client.js';
 
 /**
- * DOCX parser: extracts text with mammoth, then uses NIM chat for structured extraction.
+ * DOCX parser: extracts text with mammoth, then uses Gemini for structured extraction.
  */
 export class DocxParser implements FileParser {
   public readonly name = 'docx' as const;
@@ -16,7 +16,7 @@ export class DocxParser implements FileParser {
       throw new Error('DOCX file appears to be empty or contains no extractable text');
     }
 
-    const payload = await nimVisionClient.extractMenuFromText(text);
+    const payload = await geminiVisionClient.extractMenuFromText(text);
     return { categories: payload.categories };
   }
 }

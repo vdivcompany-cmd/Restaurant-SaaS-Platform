@@ -67,11 +67,10 @@ const env = cleanEnv(process.env, {
   UPSTASH_VECTOR_REST_URL: str({ default: '' }),
   UPSTASH_VECTOR_REST_TOKEN: str({ default: '' }),
 
-  // ─── Nemotron Embedding (NVIDIA NIM free endpoint - 1024 dimensions) ─────
-  NEMOTRON_API_KEY: str({ default: '' }),
-  NEMOTRON_BASE_URL: url({ default: 'https://integrate.api.nvidia.com/v1' }),
-  NEMOTRON_EMBED_MODEL: str({ default: 'nvidia/nv-embedqa-e5-v5' }),
-  NEMOTRON_VISION_MODEL: str({ default: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning' }),
+  // ─── Google Gemini (Menu Vision & Vector Embeddings) ────────────────────────
+  GEMINI_API_KEY: str({ default: '' }),
+  GEMINI_MODEL: str({ default: 'gemini-2.5-flash' }),
+  GEMINI_EMBED_MODEL: str({ default: 'text-embedding-004' }),
 });
 
 export default env;

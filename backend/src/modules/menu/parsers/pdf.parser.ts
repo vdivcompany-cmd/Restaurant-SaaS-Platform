@@ -1,10 +1,10 @@
 import type { FileParser, ParsedMenuData } from './parser.interface.js';
-import { nimVisionClient } from '../vision.client.js';
+import { geminiVisionClient } from '../vision.client.js';
 
 /**
  * PDF parser: extracts text with pdf-parse.
- * If meaningful text is found (>100 chars), sends it to NIM chat for structured extraction.
- * If text is empty/sparse (scanned PDF), sends the first page as an image via NIM vision.
+ * If meaningful text is found (>100 chars), sends it to Gemini for structured extraction.
+ * If text is empty/sparse (scanned PDF), sends the PDF buffer directly to Gemini vision.
  */
 export class PdfParser implements FileParser {
   public readonly name = 'pdf' as const;
@@ -25,12 +25,12 @@ export class PdfParser implements FileParser {
     }
 
     if (extractedText.length > 100) {
-      const payload = await nimVisionClient.extractMenuFromText(extractedText);
+      const payload = await geminiVisionClient.extractMenuFromText(extractedText);
       return { categories: payload.categories };
     }
 
-    // Scanned PDF — no readable text; send the raw buffer as image/pdf to vision
-    const payload = await nimVisionClient.extractMenuFromImageBuffer(file.buffer, 'application/pdf');
+    // Scanned PDF — no readable text; send the raw buffer as application/pdf to Gemini
+    const payload = await geminiVisionClient.extractMenuFromImageBuffer(file.buffer, 'application/pdf');
     return { categories: payload.categories };
   }
 }
