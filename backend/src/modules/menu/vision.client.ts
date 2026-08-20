@@ -10,6 +10,13 @@ Rules:
 3. If an item has customization options/variants, extract them with name and priceDelta.
 4. Extract descriptions and image URLs if present.`;
 
+export function resolveVisionModel(modelName?: string): string {
+  if (!modelName || modelName.includes('2.5') || modelName.includes('1.5')) {
+    return 'gemini-3.6-flash';
+  }
+  return modelName;
+}
+
 /**
  * Google Gemini vision/multimodal client for structured menu extraction from images, PDFs, and text.
  */
@@ -139,9 +146,10 @@ export class GeminiVisionClient {
     Type: any,
     parts: any[]
   ): Promise<BulkImportPayload> {
+    const model = resolveVisionModel(env.GEMINI_MODEL);
     try {
       const response = await ai.models.generateContent({
-        model: env.GEMINI_MODEL,
+        model,
         contents: [
           {
             role: 'user',

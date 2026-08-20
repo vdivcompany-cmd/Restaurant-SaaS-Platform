@@ -12,9 +12,16 @@ function adaptVectorDimension(vec: number[], targetDim = TARGET_EMBEDDING_DIM): 
   return vec.slice(0, targetDim);
 }
 
+export function resolveEmbeddingModel(modelName?: string): string {
+  if (!modelName || modelName === 'text-embedding-004' || modelName.includes('text-embedding')) {
+    return 'gemini-embedding-2';
+  }
+  return modelName;
+}
+
 /**
  * Google Gemini embedding client.
- * Model: text-embedding-004 (768 dimensions native, adapted to 1024 dimensions for Upstash index compatibility).
+ * Model: gemini-embedding-2 (1024 dimensions configured for Upstash index compatibility).
  */
 export class GeminiEmbeddingClient {
   private aiInstance: any = null;
@@ -45,6 +52,7 @@ export class GeminiEmbeddingClient {
 
     const client = await this.getClient();
     const taskType = inputType === 'query' ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT';
+    const model = resolveEmbeddingModel(env.GEMINI_EMBED_MODEL);
 
     try {
       const results: number[][] = [];
@@ -54,7 +62,7 @@ export class GeminiEmbeddingClient {
         const chunk = inputs.slice(i, i + CHUNK_SIZE);
         const chunkPromises = chunk.map(async (text) => {
           const res = await client.models.embedContent({
-            model: env.GEMINI_EMBED_MODEL,
+            model,
             contents: text,
             config: {
               outputDimensionality: TARGET_EMBEDDING_DIM,
@@ -81,7 +89,7 @@ export class GeminiEmbeddingClient {
       return results;
     } catch (err: any) {
       const errMsg = err?.message ?? String(err);
-      logger.error({ err: errMsg, model: env.GEMINI_EMBED_MODEL }, 'Gemini embedding failed');
+      logger.error({ err: errMsg, model }, 'Gemini embedding failed');
       throw new Error(`Failed to compute embeddings via Gemini API: ${errMsg}`);
     }
   }
