@@ -1,6 +1,6 @@
 import type { IProductSubDoc } from '../menu/model.js';
 import { MenuModel } from '../menu/model.js';
-import { nemotronClient } from './nemotron.client.js';
+import { geminiEmbeddingClient } from './gemini.client.js';
 import { getVectorIndex, tenantNamespace, productVectorId } from './upstash.client.js';
 import { buildProductEmbeddingText, buildProductMetadata } from './embedding.service.js';
 import logger from '../../utils/logger.js';
@@ -11,7 +11,7 @@ export class VectorSyncService {
    * Called from the vector-sync worker after a product create/update.
    */
   public async upsertProduct(tenantId: string, product: IProductSubDoc, menuId?: string): Promise<void> {
-    const vector = await nemotronClient.embedOne(buildProductEmbeddingText(product));
+    const vector = await geminiEmbeddingClient.embedOne(buildProductEmbeddingText(product));
     await getVectorIndex().upsert(
       {
         id: productVectorId(product._id.toString()),
@@ -49,7 +49,7 @@ export class VectorSyncService {
     const products = menu.products;
     const menuId = menu._id.toString();
     const texts = products.map((p) => buildProductEmbeddingText(p));
-    const vectors = await nemotronClient.embed(texts);
+    const vectors = await geminiEmbeddingClient.embed(texts);
 
     const payload = products.map((p, i) => {
       const vec = vectors[i];
@@ -79,7 +79,7 @@ export class VectorSyncService {
     query: string,
     opts?: { topK?: number; menuId?: string }
   ): Promise<Array<{ id: string; score: number; metadata: Record<string, unknown> }>> {
-    const vector = await nemotronClient.embedOne(query, 'query');
+    const vector = await geminiEmbeddingClient.embedOne(query, 'query');
     const results = await getVectorIndex().query(
       {
         vector,
