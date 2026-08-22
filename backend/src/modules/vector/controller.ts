@@ -29,16 +29,26 @@ export async function vectorSearchHandler(req: Request, res: Response, next: Nex
 export async function sessionSearchHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const dto = sessionSearchSchema.parse(req.body);
-    const session = await chatSessionService.getSession(dto.sessionId);
-    if (!session) throw new AppError('Chat session expired or invalid', 404);
+    let tenantId = dto.tenantId;
+
+    if (dto.sessionId) {
+      const session = await chatSessionService.getSession(dto.sessionId);
+      if (session) {
+        tenantId = session.tenantId;
+      }
+    }
+
+    if (!tenantId) {
+      throw new AppError('Chat session expired or invalid', 404);
+    }
 
     const opts: { topK?: number } = {};
     if (dto.topK !== undefined) opts.topK = dto.topK;
-    const results = await vectorSyncService.searchProducts(session.tenantId, dto.query, opts);
+    const results = await vectorSyncService.searchProducts(tenantId, dto.query, opts);
 
     res.status(200).json({
       success: true,
-      data: { query: dto.query, tenantId: session.tenantId, results },
+      data: { query: dto.query, tenantId, results },
     });
   } catch (err) {
     next(err);

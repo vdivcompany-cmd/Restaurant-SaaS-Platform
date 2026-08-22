@@ -57,13 +57,37 @@ export async function createQrOrderHandler(req: Request, res: Response, next: Ne
 /**
  * Public self-service order handler for takeaway / delivery customers.
  * Customer is identified by name + phone (no JWT required).
+ * Server calculates all prices securely via priceOrderItems.
  * Channel is restricted to TAKEAWAY or DELIVERY.
  */
 export async function createCustomerOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const tenantId = req.tenantId ?? '';
+    const tenantId = req.tenantId || (req.body?.tenantId as string) || '';
     const validated = createCustomerOrderSchema.parse(req.body);
-    const order = await service.createCustomerOrder(tenantId, validated);
+
+    const rawItems: import('../menu/pricing.service.js').PricedOrderItemInput[] = validated.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      ...(item.variantId !== undefined ? { variantId: item.variantId } : {}),
+      ...(item.selectedOptionNames?.length ? { selectedOptionNames: item.selectedOptionNames } : {}),
+      ...(item.notes !== undefined ? { notes: item.notes } : {}),
+    }));
+
+    // Server computes every price — client/AI only provides productId/quantity/variants
+    const priced = await priceOrderItems(tenantId, rawItems);
+
+    const order = await service.createCustomerOrder(tenantId, {
+      branchId: validated.branchId,
+      channel: validated.channel,
+      customerName: validated.customerName,
+      customerPhone: validated.customerPhone,
+      ...(validated.deliveryAddress ? { deliveryAddress: validated.deliveryAddress } : {}),
+      items: priced.items,
+      subtotal: priced.subtotal,
+      taxAmount: 0,
+      totalAmount: priced.totalAmount,
+    } as any);
+
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);

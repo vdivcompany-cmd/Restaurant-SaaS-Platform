@@ -30,6 +30,7 @@ export interface IOrder extends Document {
   customerId?: Types.ObjectId;
   customerName?: string;
   customerPhone?: string;
+  deliveryAddress?: string;
   items: IOrderItem[];
   subtotal: number;
   taxAmount: number;
@@ -58,6 +59,7 @@ const OrderSchema = new Schema<IOrder>(
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
     customerName: { type: String },
     customerPhone: { type: String },
+    deliveryAddress: { type: String },
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },

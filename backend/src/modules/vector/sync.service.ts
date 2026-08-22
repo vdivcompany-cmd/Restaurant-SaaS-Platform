@@ -73,26 +73,74 @@ export class VectorSyncService {
 
   /**
    * Semantic search inside a tenant's namespace — used by the chatbot.
+   * Includes automated MongoDB text fallback if vector index is empty or unavailable.
    */
   public async searchProducts(
     tenantId: string,
     query: string,
     opts?: { topK?: number; menuId?: string }
   ): Promise<Array<{ id: string; score: number; metadata: Record<string, unknown> }>> {
-    const vector = await geminiEmbeddingClient.embedOne(query, 'query');
-    const results = await getVectorIndex().query(
-      {
-        vector,
-        topK: opts?.topK ?? 5,
-        includeMetadata: true,
-        ...(opts?.menuId ? { filter: `menuId = '${opts.menuId}'` } : {}),
-      },
-      { namespace: tenantNamespace(tenantId) }
-    );
-    return results.map((r) => ({
-      id: String(r.id),
-      score: r.score,
-      metadata: (r.metadata ?? {}) as Record<string, unknown>,
+    const topK = opts?.topK ?? 5;
+    try {
+      const vector = await geminiEmbeddingClient.embedOne(query, 'query');
+      const results = await getVectorIndex().query(
+        {
+          vector,
+          topK,
+          includeMetadata: true,
+          ...(opts?.menuId ? { filter: `menuId = '${opts.menuId}'` } : {}),
+        },
+        { namespace: tenantNamespace(tenantId) }
+      );
+      if (results && results.length > 0) {
+        return results.map((r) => ({
+          id: String(r.id),
+          score: r.score,
+          metadata: (r.metadata ?? {}) as Record<string, unknown>,
+        }));
+      }
+    } catch (vectorErr) {
+      logger.warn({ err: vectorErr, tenantId, query }, 'Vector search error, falling back to database search');
+    }
+
+    // Database text search fallback from MongoDB MenuModel
+    const menu =
+      (await MenuModel.findOne({ tenantId, isActive: true }).exec()) ||
+      (await MenuModel.findOne({ tenantId }).exec());
+    if (!menu || !menu.products || menu.products.length === 0) {
+      return [];
+    }
+
+    const lowerQuery = query.toLowerCase().trim();
+    const queryTokens = lowerQuery.split(/\s+/).filter(Boolean);
+
+    const matches = menu.products
+      .filter((p) => p.isAvailable !== false)
+      .map((p) => {
+        const name = (p.name || '').toLowerCase();
+        const desc = (p.description || '').toLowerCase();
+        const cat = (p.categoryName || '').toLowerCase();
+
+        let score = 0;
+        if (name === lowerQuery) score += 1.0;
+        else if (name.includes(lowerQuery)) score += 0.8;
+        else {
+          for (const token of queryTokens) {
+            if (name.includes(token)) score += 0.4;
+            if (desc.includes(token)) score += 0.2;
+            if (cat.includes(token)) score += 0.1;
+          }
+        }
+        return { product: p, score };
+      })
+      .filter((m) => m.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+
+    return matches.map(({ product: p, score }) => ({
+      id: productVectorId(p._id.toString()),
+      score,
+      metadata: buildProductMetadata(tenantId, p, menu._id.toString()),
     }));
   }
 }

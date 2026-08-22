@@ -93,17 +93,26 @@ export class OrderService {
    * Public self-service order for takeaway / delivery customers.
    * Authenticates the customer by name + phone (upsert) instead of JWT.
    */
-  public async createCustomerOrder(tenantId: string, dto: CreateCustomerOrderDto): Promise<IOrder> {
+  public async createCustomerOrder(
+    tenantId: string,
+    dto: CreateCustomerOrderDto & {
+      items: any[];
+      subtotal: number;
+      taxAmount?: number;
+      totalAmount: number;
+    }
+  ): Promise<IOrder> {
     // Upsert customer record by phone
     const customer = await this.customerRepo.upsertByPhone(tenantId, dto.customerName, dto.customerPhone);
 
     // Delegate to the standard createOrder flow with customer identity attached
-    const orderDto: CreateOrderDto = {
+    const orderDto = {
       ...dto,
       customerId: customer._id.toString(),
       customerName: dto.customerName,
       customerPhone: dto.customerPhone,
-    };
+      ...(dto.deliveryAddress ? { deliveryAddress: dto.deliveryAddress } : {}),
+    } as any;
 
     return await this.createOrder(tenantId, orderDto, { skipSessionCheck: true });
   }
