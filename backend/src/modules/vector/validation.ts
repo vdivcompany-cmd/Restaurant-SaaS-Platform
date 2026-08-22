@@ -6,7 +6,7 @@ export const searchQuerySchema = z.object({
 });
 
 export const sessionSearchSchema = z.object({
-  sessionId: z.string().uuid(),
+  sessionId: z.string().min(1),
   query: z.string().min(1).max(500),
   topK: z.number().int().positive().max(20).optional(),
 });
