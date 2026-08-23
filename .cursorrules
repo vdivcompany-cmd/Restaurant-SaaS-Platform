@@ -1,0 +1,7 @@
+﻿# PERMANENT STRICT PROJECT RULE - DATA INTEGRITY MANDATE
+
+Under NO circumstances should any test, script, or operation delete, drop, reset, truncate, or overwrite existing records, documents, or collections in MongoDB Atlas or Redis.
+
+1. Tests MUST be unit-scoped with in-memory or mocked databases, or use safe read-only operations.
+2. Production data (Tenants, Menus, Products, Categories, Orders, Users) is SACROSANCT and must remain 100% intact.
+3. Never run destructive integration cleanup commands against the shared cluster.
