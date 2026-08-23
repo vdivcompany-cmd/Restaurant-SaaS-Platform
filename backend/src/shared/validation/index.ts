@@ -5,12 +5,14 @@ import { z } from 'zod';
  * Provides global validation building blocks for all controllers across the platform.
  */
 
-// MongoDB ObjectId Hex Schema
+// MongoDB ObjectId Hex Schema (auto-strips vector/namespace prefixes like "product:" or "variant:")
 export const objectIdSchema = z
   .string()
   .trim()
-  .length(24, { message: 'Must be a valid 24-character hexadecimal MongoDB ObjectId' })
-  .regex(/^[0-9a-fA-F]{24}$/, { message: 'Must contain only hexadecimal characters' });
+  .transform((val) => val.replace(/^(product|variant|item|table|tenant|branch):/i, '').trim())
+  .refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+    message: 'Must be a valid 24-character hexadecimal MongoDB ObjectId',
+  });
 
 // Non-Empty Clean String Schema
 export const nonEmptyString = z.string().trim().min(1, { message: 'String cannot be empty' });

@@ -93,11 +93,16 @@ export class VectorSyncService {
         { namespace: tenantNamespace(tenantId) }
       );
       if (results && results.length > 0) {
-        return results.map((r) => ({
-          id: String(r.id),
-          score: r.score,
-          metadata: (r.metadata ?? {}) as Record<string, unknown>,
-        }));
+        return results.map((r) => {
+          const rawId = String(r.id);
+          const cleanProductId = (r.metadata?.productId as string) || rawId.replace(/^product:/i, '');
+          return {
+            id: cleanProductId,
+            productId: cleanProductId,
+            score: r.score,
+            metadata: (r.metadata ?? {}) as Record<string, unknown>,
+          };
+        });
       }
     } catch (vectorErr) {
       logger.warn({ err: vectorErr, tenantId, query }, 'Vector search error, falling back to database search');
@@ -137,11 +142,15 @@ export class VectorSyncService {
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
 
-    return matches.map(({ product: p, score }) => ({
-      id: productVectorId(p._id.toString()),
-      score,
-      metadata: buildProductMetadata(tenantId, p, menu._id.toString()),
-    }));
+    return matches.map(({ product: p, score }) => {
+      const cleanId = p._id.toString();
+      return {
+        id: cleanId,
+        productId: cleanId,
+        score,
+        metadata: buildProductMetadata(tenantId, p, menu._id.toString()),
+      };
+    });
   }
 }
 
