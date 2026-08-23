@@ -64,30 +64,24 @@ describe('Phase 9 — Correctness Fixes, Tenant-Context Rework & New Features', 
       phone: '+201234567890',
     });
     branchId = branch._id.toString();
-  });
+  }, 30000);
 
   afterEach(async () => {
-    await Promise.all([
-      UserModel.deleteMany({}),
-      TenantModel.deleteMany({}),
-      SubscriptionModel.deleteMany({}),
-      BranchModel.deleteMany({}),
-      TableModel.deleteMany({}),
-      ReservationModel.deleteMany({}),
-      NotificationLogModel.deleteMany({}),
-    ]);
+    if (tenantId) {
+      await Promise.all([
+        UserModel.deleteMany({ tenantId }),
+        TenantModel.deleteMany({ _id: tenantId }),
+        SubscriptionModel.deleteMany({ tenantId }),
+        BranchModel.deleteMany({ tenantId }),
+        TableModel.deleteMany({ tenantId }),
+        ReservationModel.deleteMany({ tenantId }),
+        NotificationLogModel.deleteMany({ tenantId }),
+      ]);
+    }
   }, 30000);
 
   afterAll(async () => {
-    await Promise.all([
-      UserModel.deleteMany({}),
-      TenantModel.deleteMany({}),
-      SubscriptionModel.deleteMany({}),
-      BranchModel.deleteMany({}),
-      TableModel.deleteMany({}),
-      ReservationModel.deleteMany({}),
-      NotificationLogModel.deleteMany({}),
-    ]);
+    // Ephemeral tenant scoped teardown complete
   }, 30000);
 
   describe('9.1 — RBAC: Only super_admin for billing/subscriptions', () => {

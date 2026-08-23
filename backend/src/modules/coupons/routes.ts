@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, optionalAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { tenantMiddleware } from '../../middleware/tenant.middleware.js';
 import { rbacMiddleware } from '../../middleware/rbac.middleware.js';
 import {
@@ -11,16 +11,21 @@ import {
 } from './controller.js';
 
 const router = Router();
+
+// Public / Customer endpoint (supports both authenticated staff and public guest with tenant context)
+router.get('/validate', optionalAuthMiddleware, tenantMiddleware, validateCouponHandler);
+router.post('/validate', optionalAuthMiddleware, tenantMiddleware, validateCouponHandler);
+
+// Protected staff & admin routes
 router.use(authMiddleware, tenantMiddleware);
 
-router.get('/validate', validateCouponHandler);
-
 router.route('/')
-  .post(rbacMiddleware(['owner', 'manager']), createCouponHandler)
-  .get(listCouponsHandler);
+  .post(rbacMiddleware(['super_admin', 'owner', 'manager']), createCouponHandler)
+  .get(rbacMiddleware(['super_admin', 'owner', 'manager']), listCouponsHandler);
 
 router.route('/:id')
-  .put(rbacMiddleware(['owner', 'manager']), updateCouponHandler)
-  .delete(rbacMiddleware(['owner', 'manager']), deleteCouponHandler);
+  .put(rbacMiddleware(['super_admin', 'owner', 'manager']), updateCouponHandler)
+  .delete(rbacMiddleware(['super_admin', 'owner', 'manager']), deleteCouponHandler);
 
 export default router;
+

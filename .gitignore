@@ -46,3 +46,4 @@ coverage/
 # AI IDE specific
 .gemini/
 .agents/
+graphify-out/

@@ -80,7 +80,7 @@ export async function uploadMenuHandler(req: Request, res: Response, next: NextF
     // Base64-embedding the file blows past QStash's ~1MB body limit and Express's
     // raw-body cap. The base64 fallback is reserved for test mode where Cloudinary
     // is simulated (detected by an unset CLOUDINARY_CLOUD_NAME).
-    const isSimulatedCloudinary = !process.env['CLOUDINARY_CLOUD_NAME'];
+    const isSimulatedCloudinary = !process.env['CLOUDINARY_CLOUD_NAME'] || process.env['NODE_ENV'] === 'test';
     await queueService.enqueue(
       PLATFORM_QUEUES.MENU_INGESTION.name,
       {

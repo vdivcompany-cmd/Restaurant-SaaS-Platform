@@ -7,17 +7,26 @@ import { queueService, PLATFORM_QUEUES } from '../../services/queue/index.js';
 import { eventBus } from '../../shared/events/index.js';
 import { tenantQuery } from '../../utils/tenantQuery.js';
 import type { IOrder } from './model.js';
-import type { CreateOrderDto, CreateCustomerOrderDto, UpdateOrderStatusDto, OfflineSyncDto } from './validation.js';
+import type {
+  CreateOrderDto,
+  CreateCustomerOrderDto,
+  UpdateOrderStatusDto,
+  CashierConfirmDto,
+  KitchenCompleteDto,
+  OfflineSyncDto,
+} from './validation.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 
 import { BranchRepository } from '../branches/repository.js';
 import { CustomerRepository } from '../customers/repository.js';
+import { CouponService } from '../coupons/service.js';
 
 export class OrderService {
   private repo = new OrderRepository();
   private branchRepo = new BranchRepository();
   private tableService = new TableService();
   private customerRepo = new CustomerRepository();
+  private couponService = new CouponService();
 
   public async createOrder(
     tenantId: string,
@@ -45,7 +54,46 @@ export class OrderService {
     }
 
     const finalBranchId = targetBranchId;
-    const orderPayload = { ...dto, branchId: finalBranchId };
+
+    // Build embedded customer object
+    const embeddedCustomer = dto.customer || {
+      name: dto.customerName || (dto.channel === 'DINE_IN' ? `Table Guest` : 'Customer'),
+      phone: dto.customerPhone,
+      deliveryAddress: dto.deliveryAddress,
+    };
+
+    // Coupon calculation if code provided
+    let calculatedDiscount = dto.discountAmount || 0;
+    let appliedCouponId: any = undefined;
+    let appliedCouponCode: string | undefined = undefined;
+
+    if (dto.couponCode && dto.couponCode.trim()) {
+      const couponRes = await this.couponService.validateCoupon(tenantId, dto.couponCode, dto.subtotal);
+      if (!couponRes.valid || !couponRes.coupon) {
+        throw new AppError(couponRes.reason || 'Invalid or expired coupon code', 400);
+      }
+      appliedCouponCode = couponRes.coupon.code;
+      appliedCouponId = couponRes.coupon.id;
+      calculatedDiscount = couponRes.discountAmount ?? calculatedDiscount;
+      void this.couponService.recordCouponUsage(tenantId, couponRes.coupon.id).catch(() => null);
+    }
+
+    const subtotal = dto.subtotal;
+    const taxAmount = dto.taxAmount || 0;
+    const totalAmount = Math.max(0, Math.round((subtotal - calculatedDiscount + taxAmount) * 100) / 100);
+
+    const orderPayload = {
+      ...dto,
+      branchId: finalBranchId,
+      customer: embeddedCustomer,
+      customerName: embeddedCustomer.name,
+      customerPhone: embeddedCustomer.phone,
+      deliveryAddress: embeddedCustomer.deliveryAddress,
+      subtotal,
+      discountAmount: calculatedDiscount,
+      totalAmount,
+      ...(appliedCouponCode ? { couponCode: appliedCouponCode, couponId: appliedCouponId } : {}),
+    };
 
     // Fraud prevention: DINE_IN orders require proof of an open table session
     if (!opts?.skipSessionCheck && dto.channel === 'DINE_IN' && dto.tableId) {
@@ -67,16 +115,37 @@ export class OrderService {
       return createdOrder;
     });
 
+    // 1. Publish to active_orders projection
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', orderDoc._id.toString());
-    // publishSafe: catches Firestore failures and enqueues retry via q.firestore-retry (Rule #3)
     void realtimeService.publishSafe(firestorePath, {
       orderNumber: orderDoc.orderNumber,
       status: orderDoc.status,
       items: orderDoc.items,
       branchId: finalBranchId,
+      customer: orderDoc.customer,
+      subtotal: orderDoc.subtotal,
+      discountAmount: orderDoc.discountAmount,
+      totalAmount: orderDoc.totalAmount,
+      tableId: orderDoc.tableId,
     }, tenantId);
 
-    eventBus.emitEvent('order.completed', {
+    // 2. Real-time projection to Cashier incoming queue
+    const cashierPath = realtimeService.getTenantPath(tenantId, 'cashier_orders', orderDoc._id.toString());
+    void realtimeService.publishSafe(cashierPath, {
+      orderId: orderDoc._id.toString(),
+      orderNumber: orderDoc.orderNumber,
+      status: 'PENDING',
+      channel: orderDoc.channel,
+      items: orderDoc.items,
+      customer: orderDoc.customer,
+      subtotal: orderDoc.subtotal,
+      discountAmount: orderDoc.discountAmount,
+      totalAmount: orderDoc.totalAmount,
+      tableId: orderDoc.tableId,
+      createdAt: orderDoc.createdAt,
+    }, tenantId);
+
+    eventBus.emitEvent('order.created_for_cashier', {
       tenantId,
       branchId: finalBranchId,
       orderId: orderDoc._id.toString(),
@@ -91,7 +160,7 @@ export class OrderService {
 
   /**
    * Public self-service order for takeaway / delivery customers.
-   * Authenticates the customer by name + phone (upsert) instead of JWT.
+   * Embeds customer details and calculates all prices securely.
    */
   public async createCustomerOrder(
     tenantId: string,
@@ -102,19 +171,136 @@ export class OrderService {
       totalAmount: number;
     }
   ): Promise<IOrder> {
-    // Upsert customer record by phone
-    const customer = await this.customerRepo.upsertByPhone(tenantId, dto.customerName, dto.customerPhone);
+    // Upsert customer record in background for marketing / CRM
+    void this.customerRepo.upsertByPhone(tenantId, dto.customerName, dto.customerPhone).catch(() => null);
 
-    // Delegate to the standard createOrder flow with customer identity attached
+    const embeddedCustomer = {
+      name: dto.customerName,
+      phone: dto.customerPhone,
+      email: (dto as any).customerEmail,
+      deliveryAddress: dto.deliveryAddress,
+      notes: dto.notes,
+    };
+
     const orderDto = {
       ...dto,
-      customerId: customer._id.toString(),
+      customer: embeddedCustomer,
       customerName: dto.customerName,
       customerPhone: dto.customerPhone,
-      ...(dto.deliveryAddress ? { deliveryAddress: dto.deliveryAddress } : {}),
+      deliveryAddress: dto.deliveryAddress,
     } as any;
 
     return await this.createOrder(tenantId, orderDto, { skipSessionCheck: true });
+  }
+
+  /**
+   * Step 1: Cashier confirms incoming order -> dispatches ticket to Kitchen KDS
+   */
+  public async confirmByCashier(
+    tenantId: string,
+    orderId: string,
+    cashierUserId?: string,
+    dto?: CashierConfirmDto
+  ): Promise<IOrder> {
+    const order = await this.repo.confirmByCashier(tenantId, orderId, cashierUserId, dto?.notes);
+    if (!order) throw new AppError('Order not found or out of scope', 404);
+
+    // Update active_orders projection
+    const activePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());
+    void realtimeService.publishSafe(activePath, { status: 'CONFIRMED' }, tenantId);
+
+    // Update cashier_orders projection
+    const cashierPath = realtimeService.getTenantPath(tenantId, 'cashier_orders', order._id.toString());
+    void realtimeService.publishSafe(cashierPath, { status: 'CONFIRMED', confirmedAt: new Date() }, tenantId);
+
+    // Dispatch in real-time to Kitchen KDS queue
+    const kitchenPath = realtimeService.getTenantPath(tenantId, 'kitchen_orders', order._id.toString());
+    void realtimeService.publishSafe(kitchenPath, {
+      orderId: order._id.toString(),
+      orderNumber: order.orderNumber,
+      channel: order.channel,
+      status: 'CONFIRMED',
+      items: order.items,
+      tableId: order.tableId,
+      customerNotes: order.customer?.notes,
+      receivedAt: new Date(),
+    }, tenantId);
+
+    eventBus.emitEvent('order.sent_to_kitchen', {
+      tenantId,
+      branchId: order.branchId.toString(),
+      orderId: order._id.toString(),
+      ...(cashierUserId ? { cashierId: cashierUserId } : {}),
+    });
+
+    return order;
+  }
+
+  /**
+   * Step 2: Kitchen marks preparation as READY / Done -> alerts Cashier & Customer
+   */
+  public async completeByKitchen(
+    tenantId: string,
+    orderId: string,
+    kitchenUserId?: string,
+    dto?: KitchenCompleteDto
+  ): Promise<IOrder> {
+    const order = await this.repo.completeByKitchen(tenantId, orderId, kitchenUserId, dto?.kitchenNotes);
+    if (!order) throw new AppError('Order not found or out of scope', 404);
+
+    // Update projections
+    const activePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());
+    void realtimeService.publishSafe(activePath, { status: 'READY' }, tenantId);
+
+    const kitchenPath = realtimeService.getTenantPath(tenantId, 'kitchen_orders', order._id.toString());
+    void realtimeService.publishSafe(kitchenPath, { status: 'READY', completedAt: new Date() }, tenantId);
+
+    const cashierPath = realtimeService.getTenantPath(tenantId, 'cashier_orders', order._id.toString());
+    void realtimeService.publishSafe(cashierPath, { status: 'READY', kitchenReadyAt: new Date() }, tenantId);
+
+    eventBus.emitEvent('order.kitchen_ready', {
+      tenantId,
+      branchId: order.branchId.toString(),
+      orderId: order._id.toString(),
+      ...(kitchenUserId ? { kitchenStaffId: kitchenUserId } : {}),
+    });
+
+    return order;
+  }
+
+  /**
+   * Step 3: Cashier or Kitchen finalizes order -> status COMPLETED
+   */
+  public async completeOrder(tenantId: string, orderId: string): Promise<IOrder> {
+    const order = await this.repo.completeOrder(tenantId, orderId);
+    if (!order) throw new AppError('Order not found or out of scope', 404);
+
+    if (order.tableId) {
+      await tenantQuery.updateOne(TableModel, tenantId, { _id: order.tableId }, {
+        $set: { status: 'AVAILABLE', currentOrderId: null },
+        $inc: { totalOrdersServed: 1 },
+      }).exec();
+
+      void this.tableService.closeTableSession(tenantId, order.tableId.toString()).catch(() => null);
+    }
+
+    // Clean up active real-time projections
+    const activePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());
+    const cashierPath = realtimeService.getTenantPath(tenantId, 'cashier_orders', order._id.toString());
+    const kitchenPath = realtimeService.getTenantPath(tenantId, 'kitchen_orders', order._id.toString());
+
+    void realtimeService.delete(activePath).catch(() => null);
+    void realtimeService.delete(cashierPath).catch(() => null);
+    void realtimeService.delete(kitchenPath).catch(() => null);
+
+    eventBus.emitEvent('order.completed', {
+      tenantId,
+      branchId: order.branchId.toString(),
+      orderId: order._id.toString(),
+      totalAmount: order.totalAmount,
+    });
+
+    return order;
   }
 
   public async syncOfflineOrders(tenantId: string, dto: OfflineSyncDto): Promise<{ synced: number; skipped: number }> {
@@ -153,29 +339,30 @@ export class OrderService {
     const order = await this.repo.updateStatus(tenantId, orderId, dto);
     if (!order) throw new AppError('Order not found or out of scope', 404);
 
-    if ((dto.status === 'PAID' || dto.status === 'CANCELLED') && order.tableId) {
+    const isTerminal = dto.status === 'PAID' || dto.status === 'COMPLETED' || dto.status === 'CANCELLED';
+
+    if (isTerminal && order.tableId) {
       const updateQuery: Record<string, unknown> = {
         $set: { status: 'AVAILABLE', currentOrderId: null },
       };
-      // Only increment totalOrdersServed on PAID, not on CANCELLED
-      if (dto.status === 'PAID') {
+      if (dto.status === 'PAID' || dto.status === 'COMPLETED') {
         updateQuery['$inc'] = { totalOrdersServed: 1 };
       }
       await tenantQuery.updateOne(TableModel, tenantId, { _id: order.tableId }, updateQuery).exec();
 
-      // Close table session on terminal order status
       void this.tableService.closeTableSession(tenantId, order.tableId.toString()).catch(() => null);
     }
 
     const firestorePath = realtimeService.getTenantPath(tenantId, 'active_orders', order._id.toString());
-    if (dto.status === 'PAID' || dto.status === 'CANCELLED') {
-      // delete is fire-and-forget: removal failure only means a stale projection — acceptable
+    if (isTerminal) {
       void realtimeService.delete(firestorePath).catch(() => null);
+      void realtimeService.delete(realtimeService.getTenantPath(tenantId, 'cashier_orders', order._id.toString())).catch(() => null);
+      void realtimeService.delete(realtimeService.getTenantPath(tenantId, 'kitchen_orders', order._id.toString())).catch(() => null);
     } else {
-      // publishSafe: catches Firestore failures and enqueues retry via q.firestore-retry (Rule #3)
       void realtimeService.publishSafe(firestorePath, { status: dto.status }, tenantId);
     }
 
     return order;
   }
 }
+

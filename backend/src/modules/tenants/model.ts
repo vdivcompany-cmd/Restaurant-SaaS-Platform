@@ -32,6 +32,11 @@ export interface ITenant extends Document {
   cuisineType?: string;
   description?: string;
   logoUrl?: string;
+  coverImageUrl?: string;
+  address?: string;
+  hotlineNumber?: string;
+  taxNumber?: string;
+  openingHours?: string;
   qrRedirectUrl?: string;
   isOpen: boolean;
   isChatbotActive: boolean;
@@ -61,6 +66,11 @@ const tenantSchema = new Schema<ITenant>(
     cuisineType: { type: String, default: 'General' },
     description: { type: String },
     logoUrl: { type: String },
+    coverImageUrl: { type: String },
+    address: { type: String },
+    hotlineNumber: { type: String },
+    taxNumber: { type: String },
+    openingHours: { type: String },
     qrRedirectUrl: { type: String, default: 'https://t.me/resturanchatbot' },
     isOpen: { type: Boolean, default: true },
     isChatbotActive: { type: Boolean, default: true },

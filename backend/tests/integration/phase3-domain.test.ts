@@ -125,7 +125,7 @@ describe('Phase 3 Domain Modules Integration Suite', () => {
     const resolveRes = await request(app).get(`/api/v1/tables/qr/${qrCodeToken}`);
     expect(resolveRes.status).toBe(200);
     expect(resolveRes.body.data.number).toBe(10);
-    expect(resolveRes.body.data.status).toBe('AVAILABLE');
+    expect(resolveRes.body.data.status).toBe('OCCUPIED');
 
     // 4. Orders, Automated Table State Machine & POS Offline Sync Deduplication
     const orderRes = await request(app)

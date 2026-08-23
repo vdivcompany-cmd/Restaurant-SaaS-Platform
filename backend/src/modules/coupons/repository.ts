@@ -24,4 +24,26 @@ export class CouponRepository {
     const res = await tenantQuery.deleteOne(CouponModel, tenantId, { _id: id }).exec();
     return res.deletedCount > 0;
   }
+
+  public async incrementUsage(tenantId: string, idOrCode: string): Promise<boolean> {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(idOrCode);
+    const identifierQuery = isObjectId ? { _id: idOrCode } : { code: idOrCode.toUpperCase() };
+
+    const res = await tenantQuery.updateOne(
+      CouponModel,
+      tenantId,
+      {
+        ...identifierQuery,
+        $or: [
+          { usageLimit: { $exists: false } },
+          { usageLimit: null },
+          { $expr: { $lt: ['$timesUsed', '$usageLimit'] } },
+        ],
+      },
+      { $inc: { timesUsed: 1 } }
+    ).exec();
+
+    return (res.modifiedCount ?? 0) > 0;
+  }
 }
+

@@ -8,7 +8,8 @@ export async function createCouponHandler(req: Request, res: Response, next: Nex
   try {
     const tenantId = req.tenantId ?? '';
     const validated = createCouponSchema.parse(req.body);
-    const c = await service.createCoupon(tenantId, validated);
+    const creatorUserId = (req.user as any)?.id || (req.user as any)?._id?.toString();
+    const c = await service.createCoupon(tenantId, validated, creatorUserId);
     res.status(201).json({ success: true, data: c });
   } catch (err) {
     next(err);
@@ -27,10 +28,17 @@ export async function listCouponsHandler(req: Request, res: Response, next: Next
 
 export async function validateCouponHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const tenantId = req.tenantId ?? '';
-    const code = typeof req.query['code'] === 'string' ? req.query['code'] : '';
-    const result = await service.validateCoupon(tenantId, code);
-    res.status(200).json({ success: true, data: result });
+    const tenantId = req.tenantId || (req.query['tenantId'] as string) || (req.body?.tenantId as string) || '';
+    const code = String(req.query['code'] || req.body?.code || '').trim();
+    const rawSubtotal = req.query['subtotal'] ?? req.body?.subtotal;
+    const subtotal = rawSubtotal !== undefined ? Number(rawSubtotal) : undefined;
+    
+    const result = await service.validateCoupon(tenantId, code, subtotal);
+    if (!result.valid) {
+      res.status(200).json({ success: false, data: result, ...result });
+      return;
+    }
+    res.status(200).json({ success: true, data: result, ...result });
   } catch (err) {
     next(err);
   }
@@ -58,3 +66,4 @@ export async function deleteCouponHandler(req: Request, res: Response, next: Nex
     next(err);
   }
 }
+

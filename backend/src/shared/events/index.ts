@@ -7,6 +7,9 @@ import logger from '../../utils/logger.js';
  */
 export interface DomainEventPayloads {
   'order.completed': { tenantId: string; branchId?: string; orderId: string; totalAmount: number; customerId?: string };
+  'order.created_for_cashier': { tenantId: string; branchId?: string; orderId: string; totalAmount: number };
+  'order.sent_to_kitchen': { tenantId: string; branchId?: string; orderId: string; cashierId?: string };
+  'order.kitchen_ready': { tenantId: string; branchId?: string; orderId: string; kitchenStaffId?: string };
   'tenant.created': { tenantId: string; slug: string; name: string };
   'subscription.updated': { tenantId: string; status: string; planId: string };
   'payment.received': { tenantId: string; amount: number; reference: string };

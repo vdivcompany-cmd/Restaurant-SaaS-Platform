@@ -1,6 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
 import { OrderService } from './service.js';
-import { createOrderSchema, createCustomerOrderSchema, createPublicQrOrderSchema, updateOrderStatusSchema, offlineSyncSchema } from './validation.js';
+import {
+  createOrderSchema,
+  createCustomerOrderSchema,
+  createPublicQrOrderSchema,
+  updateOrderStatusSchema,
+  cashierConfirmSchema,
+  kitchenCompleteSchema,
+  offlineSyncSchema,
+} from './validation.js';
 import { priceOrderItems } from '../menu/pricing.service.js';
 import { objectIdSchema } from '../../shared/validation/index.js';
 
@@ -24,8 +32,6 @@ export async function createQrOrderHandler(req: Request, res: Response, next: Ne
     const tenantId = req.tenantId || (req.body?.tenantId as string) || '';
     const validated = createPublicQrOrderSchema.parse(req.body);
 
-    // Map Zod output to PricedOrderItemInput, omitting undefined optional fields
-    // to satisfy exactOptionalPropertyTypes: true in tsconfig.json
     const rawItems: import('../menu/pricing.service.js').PricedOrderItemInput[] = validated.items.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
@@ -42,6 +48,10 @@ export async function createQrOrderHandler(req: Request, res: Response, next: Ne
       channel: 'DINE_IN',
       tableId: validated.tableId,
       tableSessionId: validated.tableSessionId,
+      customer: validated.customer,
+      customerName: validated.customerName,
+      customerPhone: validated.customerPhone,
+      couponCode: validated.couponCode,
       items: priced.items,
       subtotal: priced.subtotal,
       taxAmount: 0,
@@ -79,8 +89,11 @@ export async function createCustomerOrderHandler(req: Request, res: Response, ne
     const order = await service.createCustomerOrder(tenantId, {
       branchId: validated.branchId,
       channel: validated.channel,
+      customer: validated.customer,
       customerName: validated.customerName,
       customerPhone: validated.customerPhone,
+      customerEmail: validated.customerEmail,
+      couponCode: validated.couponCode,
       ...(validated.deliveryAddress ? { deliveryAddress: validated.deliveryAddress } : {}),
       items: priced.items,
       subtotal: priced.subtotal,
@@ -89,6 +102,43 @@ export async function createCustomerOrderHandler(req: Request, res: Response, ne
     } as any);
 
     res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function confirmCashierOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const orderId = String(req.params['id'] ?? '');
+    const validated = cashierConfirmSchema.parse(req.body);
+    const cashierUserId = (req.user as any)?.id || (req.user as any)?._id?.toString();
+    const order = await service.confirmByCashier(tenantId, orderId, cashierUserId, validated);
+    res.status(200).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function completeKitchenOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const orderId = String(req.params['id'] ?? '');
+    const validated = kitchenCompleteSchema.parse(req.body);
+    const kitchenUserId = (req.user as any)?.id || (req.user as any)?._id?.toString();
+    const order = await service.completeByKitchen(tenantId, orderId, kitchenUserId, validated);
+    res.status(200).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function completeOrderHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const tenantId = req.tenantId ?? '';
+    const orderId = String(req.params['id'] ?? '');
+    const order = await service.completeOrder(tenantId, orderId);
+    res.status(200).json({ success: true, data: order });
   } catch (err) {
     next(err);
   }
@@ -139,3 +189,4 @@ export async function updateOrderStatusHandler(req: Request, res: Response, next
     next(err);
   }
 }
+
