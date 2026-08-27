@@ -11,6 +11,7 @@ import {
 } from './validation.js';
 import { priceOrderItems } from '../menu/pricing.service.js';
 import { objectIdSchema } from '../../shared/validation/index.js';
+import { TableModel } from '../tables/model.js';
 
 const service = new OrderService();
 
@@ -43,10 +44,17 @@ export async function createQrOrderHandler(req: Request, res: Response, next: Ne
     // Server computes every price — client only supplied productId/quantity/variant
     const priced = await priceOrderItems(tenantId, rawItems);
 
+    let tableNumber = validated.tableNumber;
+    if (!tableNumber && validated.tableId) {
+      const table = await TableModel.findById(validated.tableId).lean();
+      if (table) tableNumber = (table as any).number;
+    }
+
     const order = await service.createOrder(tenantId, {
       branchId: validated.branchId,
       channel: 'DINE_IN',
       tableId: validated.tableId,
+      tableNumber,
       tableSessionId: validated.tableSessionId,
       customer: validated.customer,
       customerName: validated.customerName,
