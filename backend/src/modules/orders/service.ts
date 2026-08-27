@@ -20,6 +20,8 @@ import { AppError } from '../../middleware/errorHandler.middleware.js';
 import { BranchRepository } from '../branches/repository.js';
 import { CustomerRepository } from '../customers/repository.js';
 import { CouponService } from '../coupons/service.js';
+import { NotificationRepository } from '../notifications/repository.js';
+import { Types } from 'mongoose';
 
 export class OrderService {
   private repo = new OrderRepository();
@@ -154,6 +156,19 @@ export class OrderService {
 
     const queueName = PLATFORM_QUEUES['INVOICES']?.name ?? 'q.invoices';
     await queueService.enqueue(queueName, { orderId: orderDoc._id }, { tenantId });
+
+    // Record system notification / activity log entry
+    void NotificationRepository.createLog({
+      tenantId: new Types.ObjectId(tenantId),
+      branchId: new Types.ObjectId(finalBranchId),
+      channel: 'ORDER',
+      recipient: orderDoc.customerName || (orderDoc.tableNumber ? `Table ${orderDoc.tableNumber}` : 'Customer'),
+      messageSubject: `New ${orderDoc.channel} Order #${orderDoc.orderNumber}`,
+      messageBody: `${orderDoc.items.length} item(s) • Total: ${orderDoc.totalAmount} EGP • Status: ${orderDoc.status}`,
+      status: 'SENT',
+      tableNumber: orderDoc.tableNumber ? Number(orderDoc.tableNumber) : undefined,
+      dispatchedAt: new Date(),
+    } as any).catch(() => null);
 
     return orderDoc;
   }
