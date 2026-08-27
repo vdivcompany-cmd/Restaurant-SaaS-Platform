@@ -3,7 +3,7 @@ import { Schema, model, type Document, type Types } from 'mongoose';
 export interface INotificationLog extends Document {
   tenantId: Types.ObjectId | string;
   branchId?: Types.ObjectId | string;
-  channel: 'EMAIL' | 'TELEGRAM' | 'SMS' | 'WHATSAPP';
+  channel: 'EMAIL' | 'TELEGRAM' | 'SMS' | 'WHATSAPP' | 'SYSTEM' | 'ORDER';
   recipient: string;
   messageSubject?: string;
   messageBody: string;
@@ -19,7 +19,7 @@ const notificationLogSchema = new Schema<INotificationLog>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     branchId: { type: Schema.Types.ObjectId, ref: 'Branch' },
-    channel: { type: String, enum: ['EMAIL', 'TELEGRAM', 'SMS', 'WHATSAPP'], required: true },
+    channel: { type: String, enum: ['EMAIL', 'TELEGRAM', 'SMS', 'WHATSAPP', 'SYSTEM', 'ORDER'], required: true },
     recipient: { type: String, required: true, trim: true },
     messageSubject: { type: String, trim: true },
     messageBody: { type: String, required: true },

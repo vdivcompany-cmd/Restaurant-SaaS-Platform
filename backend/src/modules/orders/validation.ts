@@ -85,6 +85,7 @@ export const createPublicQrOrderSchema = z.object({
   branchId: objectIdSchema,
   tableId: objectIdSchema,
   tableSessionId: z.string().uuid(),
+  tableNumber: z.union([z.number(), z.string()]).optional(),
   customer: customerEmbeddedSchema.optional(),
   customerName: z.string().max(100).optional(),
   customerPhone: z.string().max(25).optional(),
