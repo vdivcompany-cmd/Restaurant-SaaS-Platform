@@ -1806,7 +1806,9 @@ export function getSwaggerHtml(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Restaurant SaaS Platform — Swagger API Documentation</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/swagger-ui.css" />
   <link rel="stylesheet" href="/docs-assets/swagger-ui.css" />
+  <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/favicon-32x32.png" sizes="32x32" />
   <link rel="icon" type="image/png" href="/docs-assets/favicon-32x32.png" sizes="32x32" />
   <style>
     html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
@@ -1821,18 +1823,34 @@ export function getSwaggerHtml(): string {
   <div id="swagger-ui"></div>
   <script src="/docs-assets/swagger-ui-bundle.js"></script>
   <script src="/docs-assets/swagger-ui-standalone-preset.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/swagger-ui-standalone-preset.js"></script>
   <script>
+    function initSwagger() {
+      if (typeof SwaggerUIBundle !== 'undefined') {
+        window.ui = SwaggerUIBundle({
+          url: '/docs.json',
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIStandalonePreset
+          ],
+          layout: "BaseLayout"
+        });
+        return true;
+      }
+      return false;
+    }
     window.onload = function() {
-      window.ui = SwaggerUIBundle({
-        url: '/docs.json',
-        dom_id: '#swagger-ui',
-        deepLinking: true,
-        presets: [
-          SwaggerUIBundle.presets.apis,
-          SwaggerUIStandalonePreset
-        ],
-        layout: "BaseLayout"
-      });
+      if (!initSwagger()) {
+        var retries = 0;
+        var interval = setInterval(function() {
+          if (initSwagger() || ++retries > 20) {
+            clearInterval(interval);
+          }
+        }, 150);
+      }
     };
   </script>
 </body>
