@@ -10,9 +10,6 @@ build/
 *.tsbuildinfo
 
 # Environment variables — real secrets (never commit)
-.env
-.env.local
-.env.test
 */.env.*
 # .env.production is committed as a CHANGE_ME template — the real file lives on the VPS only
 # If you put real secrets in .env.production, add it here:
@@ -24,7 +21,6 @@ firebase-credentials.json
 
 # IDE / OS
 .DS_Store
-.vscode/
 .idea/
 *.suo
 *.ntvs*
@@ -47,3 +43,4 @@ coverage/
 .gemini/
 .agents/
 graphify-out/
+config.bat
