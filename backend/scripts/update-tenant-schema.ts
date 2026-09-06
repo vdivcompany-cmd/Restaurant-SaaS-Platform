@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectDatabase, disconnectDatabase } from '../src/config/database.js';
 import { TenantModel } from '../src/modules/tenants/model.js';

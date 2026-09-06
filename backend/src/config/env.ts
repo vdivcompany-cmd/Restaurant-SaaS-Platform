@@ -1,4 +1,4 @@
-import { cleanEnv, str, port, url, makeValidator } from 'envalid';
+import { cleanEnv, str, port, url, bool, makeValidator } from 'envalid';
 
 const secureSecret = makeValidator((input) => {
   if (!input || input.length < 32) {
@@ -59,6 +59,14 @@ const env = cleanEnv(process.env, {
   // ─── Resend Email ─────────────────────────────────────────────────────────
   RESEND_API_KEY: str({ default: '' }),
   RESEND_FROM_EMAIL: str({ default: 'Restaurant SaaS <no-reply@saas-restaurant.com>' }),
+
+  // ─── Nodemailer SMTP Email ─────────────────────────────────────────────────
+  SMTP_HOST: str({ default: 'smtp.gmail.com' }),
+  SMTP_PORT: port({ default: 587 }),
+  SMTP_SECURE: bool({ default: false }),
+  SMTP_USER: str({ default: '' }),
+  SMTP_PASS: str({ default: '' }),
+  SMTP_FROM: str({ default: 'Restaurant SaaS Platform <no-reply@saas-restaurant.com>' }),
 
   // ─── CORS ─────────────────────────────────────────────────────────────────
   CORS_ORIGIN: str({ default: '' }),

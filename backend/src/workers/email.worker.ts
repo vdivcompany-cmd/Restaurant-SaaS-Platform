@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import nodemailer, { type Transporter } from 'nodemailer';
 import logger from '../utils/logger.js';
 import env from '../config/env.js';
 
@@ -10,6 +11,31 @@ export interface EmailJobPayload {
   template: EmailTemplateType | string;
   context: Record<string, unknown>;
   tenantId?: string;
+}
+
+let _nodemailerTransporter: Transporter | null = null;
+
+function getNodemailerTransporter(): Transporter | null {
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    return null;
+  }
+  if (_nodemailerTransporter) {
+    return _nodemailerTransporter;
+  }
+  _nodemailerTransporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  });
+  return _nodemailerTransporter;
+}
+
+export function setNodemailerTransporterForTest(transporter: Transporter | null): void {
+  _nodemailerTransporter = transporter;
 }
 
 function getResendClient(): Resend | null {
@@ -56,30 +82,61 @@ export async function processEmailJob(payload: EmailJobPayload, headers?: Record
 
   logger.info({ tenantId, to: payload.to, subject: payload.subject, template: payload.template }, 'Processing async email delivery job');
 
-  const resend = getResendClient();
-
-  // If Resend API key is unconfigured or in test mode, log simulation cleanly
-  if (!resend || env.NODE_ENV === 'test') {
-    logger.info({ to: payload.to, subject: payload.subject }, 'Resend API key unconfigured or test mode — email delivery simulated successfully');
-    return;
+  // If OTP template, log directly to console in development / test mode for instant developer visibility
+  if (payload.template === 'OTP_FORGOT_PASSWORD' && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test')) {
+    const otpCode = String(payload.context['otp'] || '');
+    console.log('\n================================================================');
+    console.log(`🔑 [DEV EMAIL OTP] Password Reset Verification Code for: ${payload.to}`);
+    console.log(`👉 OTP CODE: ${otpCode}`);
+    console.log('================================================================\n');
   }
 
-  try {
-    const response = await resend.emails.send({
-      from: env.RESEND_FROM_EMAIL,
-      to: payload.to,
-      subject: payload.subject,
-      html,
-    });
-
-    if (response.error) {
-      logger.error({ tenantId, to: payload.to, error: response.error }, 'Resend API returned an error');
-      throw new Error(`Resend email delivery failed: ${response.error.message}`);
+  // ─── Provider 1: Nodemailer SMTP (Gmail, Hostinger, Outlook, or Custom SMTP) ─
+  const transporter = getNodemailerTransporter();
+  if (transporter) {
+    try {
+      const fromAddress = env.SMTP_FROM || env.SMTP_USER;
+      const info = await transporter.sendMail({
+        from: fromAddress,
+        to: payload.to,
+        subject: payload.subject,
+        html,
+      });
+      logger.info({ to: payload.to, tenantId, messageId: info.messageId }, 'Email successfully transmitted via Nodemailer SMTP');
+      return;
+    } catch (smtpErr: any) {
+      logger.error({ tenantId, to: payload.to, error: smtpErr?.message ?? smtpErr }, 'Nodemailer SMTP delivery failed');
+      // If Resend is also configured, allow falling back to Resend; otherwise rethrow
+      if (!env.RESEND_API_KEY) {
+        throw new Error(`Nodemailer SMTP delivery failed: ${smtpErr?.message ?? smtpErr}`);
+      }
     }
-
-    logger.info({ to: payload.to, tenantId, emailId: response.data?.id }, 'Email successfully transmitted via Resend API');
-  } catch (error) {
-    logger.error({ tenantId, to: payload.to, error }, 'Resend transmission encountered an error');
-    throw error;
   }
+
+  // ─── Provider 2: Resend Cloud API ──────────────────────────────────────────
+  const resend = getResendClient();
+  if (resend && env.NODE_ENV !== 'test') {
+    try {
+      const response = await resend.emails.send({
+        from: env.RESEND_FROM_EMAIL,
+        to: payload.to,
+        subject: payload.subject,
+        html,
+      });
+
+      if (response.error) {
+        logger.error({ tenantId, to: payload.to, error: response.error }, 'Resend API returned an error');
+        throw new Error(`Resend email delivery failed: ${response.error.message}`);
+      }
+
+      logger.info({ to: payload.to, tenantId, emailId: response.data?.id }, 'Email successfully transmitted via Resend API');
+      return;
+    } catch (error) {
+      logger.error({ tenantId, to: payload.to, error }, 'Resend transmission encountered an error');
+      throw error;
+    }
+  }
+
+  // ─── Simulation Fallback ───────────────────────────────────────────────────
+  logger.info({ to: payload.to, subject: payload.subject }, 'No active SMTP or Resend credentials configured — email delivery simulated successfully');
 }

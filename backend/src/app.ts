@@ -32,6 +32,7 @@ import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import reservationRoutes from './modules/reservations/routes.js';
 import jobsRoutes from './jobs/index.js';
+import { handleDocsJson, handleSwaggerUi } from './docs/swagger.js';
 
 export function createApp(): Express {
   const app = express();
@@ -89,6 +90,12 @@ export function createApp(): Express {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // ─── Interactive Swagger UI & OpenAPI Specification ───────────────────────
+  app.get('/docs', handleSwaggerUi);
+  app.get('/api/docs', handleSwaggerUi);
+  app.get('/docs.json', handleDocsJson);
+  app.get('/api/v1/docs.json', handleDocsJson);
 
   // ─── Health Checks ────────────────────────────────────────────────────────
   app.get('/health', async (_req, res) => {
