@@ -24,12 +24,28 @@ describe('Swagger Documentation & docs.json API', () => {
     expect(res.body.openapi).toBe('3.0.3');
   });
 
-  it('should serve /docs with interactive Swagger UI HTML page', async () => {
+  it('should serve /docs with interactive Swagger UI HTML page and relaxed CSP', async () => {
     const res = await request(app).get('/docs');
     expect(res.status).toBe(200);
     expect(res.header['content-type']).toContain('text/html');
     expect(res.text).toContain('SwaggerUIBundle');
     expect(res.text).toContain('/docs.json');
+    expect(res.text).toContain('/docs-assets/swagger-ui-bundle.js');
+    expect(res.header['content-security-policy']).toContain("'unsafe-inline'");
+  });
+
+  it('should serve /docs-assets static files from swagger-ui-dist', async () => {
+    const jsRes = await request(app).get('/docs-assets/swagger-ui-bundle.js');
+    expect(jsRes.status).toBe(200);
+
+    const cssRes = await request(app).get('/docs-assets/swagger-ui.css');
+    expect(cssRes.status).toBe(200);
+  });
+
+  it('should serve /api/v1/docs alias', async () => {
+    const res = await request(app).get('/api/v1/docs');
+    expect(res.status).toBe(200);
+    expect(res.header['content-type']).toContain('text/html');
   });
 
   it('should verify docs/docs.json exists on disk and matches valid OpenAPI JSON format', () => {

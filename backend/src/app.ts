@@ -32,6 +32,7 @@ import reportRoutes from './modules/reports/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import reservationRoutes from './modules/reservations/routes.js';
 import jobsRoutes from './jobs/index.js';
+import swaggerUiDist from 'swagger-ui-dist';
 import { handleDocsJson, handleSwaggerUi } from './docs/swagger.js';
 
 export function createApp(): Express {
@@ -40,6 +41,17 @@ export function createApp(): Express {
   // ─── Security ─────────────────────────────────────────────────────────────
   app.use(
     helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
+          scriptSrcAttr: ["'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
+          imgSrc: ["'self'", 'data:', 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
+          fontSrc: ["'self'", 'https:', 'data:'],
+          connectSrc: ["'self'", '*'],
+        },
+      },
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
@@ -92,8 +104,10 @@ export function createApp(): Express {
   });
 
   // ─── Interactive Swagger UI & OpenAPI Specification ───────────────────────
+  app.use('/docs-assets', express.static(swaggerUiDist.getAbsoluteFSPath()));
   app.get('/docs', handleSwaggerUi);
   app.get('/api/docs', handleSwaggerUi);
+  app.get('/api/v1/docs', handleSwaggerUi);
   app.get('/docs.json', handleDocsJson);
   app.get('/api/v1/docs.json', handleDocsJson);
 

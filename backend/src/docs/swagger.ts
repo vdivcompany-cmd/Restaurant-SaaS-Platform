@@ -1806,8 +1806,8 @@ export function getSwaggerHtml(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Restaurant SaaS Platform — Swagger API Documentation</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui.css" />
-  <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5.18.2/favicon-32x32.png" sizes="32x32" />
+  <link rel="stylesheet" href="/docs-assets/swagger-ui.css" />
+  <link rel="icon" type="image/png" href="/docs-assets/favicon-32x32.png" sizes="32x32" />
   <style>
     html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
     *, *:before, *:after { box-sizing: inherit; }
@@ -1819,8 +1819,8 @@ export function getSwaggerHtml(): string {
 </head>
 <body>
   <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui-bundle.js"></script>
-  <script src="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui-standalone-preset.js"></script>
+  <script src="/docs-assets/swagger-ui-bundle.js"></script>
+  <script src="/docs-assets/swagger-ui-standalone-preset.js"></script>
   <script>
     window.onload = function() {
       window.ui = SwaggerUIBundle({
@@ -1845,6 +1845,10 @@ export function handleDocsJson(_req: Request, res: Response): void {
 }
 
 export function handleSwaggerUi(_req: Request, res: Response): void {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; img-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https: data:; connect-src 'self' *;"
+  );
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.status(200).send(getSwaggerHtml());
 }
